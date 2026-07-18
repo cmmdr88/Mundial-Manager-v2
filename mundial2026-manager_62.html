@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Copa Manager 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0F1117;
+  --surface:#1A1D27;
+  --surface-2:#242837;
+  --ink:#EDEFF5;
+  --muted:#9298AC;
+  --line:#2B2F3D;
+  --indigo:#6D63F5;
+  --indigo-bright:#8B82FF;
+  --coral:#FF6B4D;
+  --coral-bright:#FF8266;
+  --lime:#CBFF4D;
+  --amber:#F5C842;
+  --success:#34D399;
+  --danger:#FF6B6A;
+  --radius:16px;
+  --radius-sm:10px;
+  --shadow:0 1px 2px rgba(0,0,0,0.4), 0 8px 28px rgba(0,0,0,0.4);
+  --shadow-lift:0 10px 30px rgba(109,99,245,0.35);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:700;
+  letter-spacing:-0.01em;
+  color:var(--ink);
+}
+.mono{font-family:'JetBrains Mono',monospace;}
+button{font-family:'Inter',sans-serif;cursor:pointer;}
+a{color:inherit;}
+
+/* ---------- App shell ---------- */
+#app{min-height:100vh;display:flex;flex-direction:column;}
+
+.topbar{
+  background:var(--surface);
+  color:var(--ink);
+  padding:16px 20px 0;
+  position:sticky;top:0;z-index:50;
+  border-bottom:1px solid var(--line);
+}
+.topbar-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;max-width:1280px;margin:0 auto;}
+.nav-tools{display:flex;align-items:center;gap:8px;flex:1;min-width:200px;justify-content:flex-start;}
+.global-search{position:relative;display:flex;align-items:center;flex:1;max-width:340px;}
+.global-search .gs-icon{position:absolute;left:10px;font-size:12px;opacity:.7;pointer-events:none;}
+.global-search input{width:100%;padding:8px 11px 8px 30px;font-size:13px;background:var(--surface-2);border-radius:20px;}
+.global-search-results{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:60;max-height:340px;overflow-y:auto;display:none;padding:5px;}
+.global-search-results.open{display:block;}
+.global-search-results .gs-item{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;background:transparent;border:none;text-align:left;padding:8px 10px;border-radius:8px;color:var(--ink);}
+.global-search-results .gs-item:hover{background:var(--surface-2);box-shadow:none;}
+.global-search-results .gs-label{font-size:13.5px;font-weight:600;font-family:'Space Grotesk',sans-serif;}
+.global-search-results .gs-sub{font-size:11px;color:var(--muted);}
+.global-search-results .gs-empty{padding:12px 10px;font-size:12.5px;color:var(--muted);text-align:center;}
+.global-search-results .gs-group{font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:700;padding:8px 10px 3px;}
+@media (max-width:640px){.nav-tools{order:3;flex-basis:100%;} .global-search{max-width:none;}}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand .crest{
+  width:36px;height:36px;border-radius:11px;
+  object-fit:cover;display:block;flex-shrink:0;
+  box-shadow:0 4px 10px rgba(0,0,0,0.35);
+}
+.brand .title{font-size:17px;font-weight:700;letter-spacing:-0.01em;font-family:'Space Grotesk',sans-serif;}
+.brand .title small{display:block;font-family:'Inter',sans-serif;font-weight:500;font-size:11.5px;color:var(--muted);letter-spacing:0;}
+.season-badge{
+  font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(109,99,245,0.16);color:var(--indigo-bright);
+  padding:6px 12px;border-radius:20px;font-weight:600;
+}
+
+.tabs{display:flex;gap:2px;max-width:1280px;margin:14px auto 0;overflow-x:auto;scrollbar-width:none;background:var(--bg);padding:4px;border-radius:14px 14px 0 0;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab-btn{
+  background:transparent;border:none;color:var(--muted);
+  font-family:'Space Grotesk',sans-serif;font-weight:600;
+  font-size:13.5px;padding:9px 16px;border-radius:10px 10px 0 0;white-space:nowrap;
+  transition:color .15s, background .15s;
+}
+.tab-btn:hover{color:var(--ink);background:var(--surface-2);}
+.tab-btn.active{color:var(--indigo-bright);background:var(--surface);box-shadow:0 -1px 0 0 var(--line) inset;}
+
+main#view{flex:1;max-width:1280px;margin:0 auto;width:100%;padding:24px 20px 60px;}
+
+/* ---------- Generic components ---------- */
+.grid{display:grid;gap:14px;}
+.grid.cols-4{grid-template-columns:repeat(4,1fr);}
+.grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.grid.cols-2{grid-template-columns:repeat(2,1fr);}
+@media (max-width:900px){.grid.cols-4{grid-template-columns:repeat(2,1fr);} .grid.cols-3{grid-template-columns:repeat(2,1fr);} .grid.cols-2{grid-template-columns:1fr;}}
+@media (max-width:560px){.grid.cols-4{grid-template-columns:1fr;}}
+
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;box-shadow:var(--shadow);
+}
+.stat-card .num{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:var(--indigo);}
+.stat-card .label{font-size:12px;color:var(--muted);margin-top:3px;font-weight:500;}
+
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:30px 0 14px;}
+.section-title h2{font-size:18px;margin:0;}
+.section-title .hint{font-size:12.5px;color:var(--muted);font-weight:500;}
+.tab-desc{font-size:12.5px;color:var(--muted);margin:-8px 0 18px;max-width:760px;}
+
+.btn{
+  border:none;border-radius:10px;padding:9px 16px;font-size:13.5px;font-weight:600;
+  background:var(--indigo);color:#fff;transition:transform .08s, background .15s, box-shadow .15s;
+}
+.btn:hover{background:var(--indigo-bright);box-shadow:var(--shadow-lift);}
+.btn:active{transform:scale(0.97);}
+.btn.gold{background:var(--coral);color:#fff;}
+.btn.gold:hover{background:var(--coral-bright);box-shadow:0 8px 20px rgba(255,107,77,0.3);}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line);}
+.btn.ghost:hover{background:var(--surface-2);box-shadow:none;}
+.btn.danger{background:var(--surface);color:var(--danger);border:1px solid rgba(255,107,106,0.35);}
+.btn.danger:hover{background:rgba(255,107,106,0.12);box-shadow:none;}
+.btn.sm{padding:6px 11px;font-size:12px;border-radius:8px;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+input,select,textarea{
+  font-family:'Inter',sans-serif;border:1px solid var(--line);border-radius:9px;
+  padding:9px 11px;font-size:13.5px;background:var(--surface);color:var(--ink);width:100%;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--indigo-bright);outline-offset:1px;}
+input[type=color]{padding:3px;height:38px;}
+.color-square{width:56px;height:56px;padding:3px;cursor:pointer;}
+.color-square-sm{width:32px;height:32px;padding:2px;cursor:pointer;}
+.color-hex-text{width:60px;font-size:10px;text-align:center;background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:3px 2px;color:var(--text);text-transform:uppercase;}
+.kit-drag-card{cursor:grab;}
+.kit-drag-card.dragging, .combo-block.dragging{opacity:0.4;}
+.kit-drag-card.drag-over{outline:2px dashed var(--indigo-bright);outline-offset:2px;}
+.combo-block.drag-over-top{box-shadow:inset 0 3px 0 0 var(--indigo-bright);}
+.combo-block.drag-over-bottom{box-shadow:inset 0 -3px 0 0 var(--indigo-bright);}
+label.field{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;}
+
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;vertical-align:middle;}
+.badge.host{background:rgba(255,107,77,0.16);color:var(--coral-bright);}
+.badge.conf{background:rgba(109,99,245,0.16);color:var(--indigo-bright);}
+.badge.incomplete{background:rgba(255,107,106,0.16);color:var(--danger);}
+.badge.ok{background:rgba(52,211,153,0.16);color:var(--success);}
+.badge.fifa{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);font-weight:800;letter-spacing:0.04em;}
+.badge.brand{background:rgba(245,200,66,0.16);color:var(--amber);}
+.badge.no-contract{background:rgba(146,152,172,0.12);color:var(--muted);}
+
+/* team crest */
+.crest-mini{
+  width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;
+  box-shadow:inset 0 -3px 6px rgba(0,0,0,0.18);overflow:hidden;
+}
+.crest-mini img{width:100%;height:100%;object-fit:cover;display:block;}
+.crest-mini.has-img{background:none;box-shadow:none;border-radius:0;overflow:visible;}
+.crest-mini.has-img img{object-fit:contain;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.5));}
+
+.img-upload{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.img-upload .thumb{
+  width:56px;height:56px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;
+}
+.img-upload .thumb img{width:100%;height:100%;object-fit:contain;display:block;}
+.img-upload .controls{display:flex;flex-direction:column;gap:6px;flex:1;min-width:140px;}
+.img-upload input[type=file]{font-size:11.5px;padding:6px;}
+
+.team-card{display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:transform .12s, box-shadow .12s;min-width:0;overflow:hidden;}
+.team-card:hover{transform:translateY(-3px);box-shadow:0 14px 28px rgba(79,70,229,0.14);}
+.team-card-top{display:flex;gap:12px;align-items:center;min-width:0;}
+.team-card-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:9px;border-top:1px solid var(--line);}
+.team-card .meta{flex:1;min-width:0;}
+.team-card .meta .name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'Space Grotesk',sans-serif;}
+.team-card .meta .sub{font-size:11px;color:var(--muted);margin-top:3px;display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start;min-height:48px;}
+.team-card .rating{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--indigo);}
+
+.group-block{margin-bottom:20px;}
+.group-block h3{font-size:13px;margin:0 0 10px;color:var(--muted);display:flex;align-items:center;gap:8px;font-weight:600;}
+.group-block h3 .tag{background:var(--indigo);color:#fff;font-family:'JetBrains Mono',monospace;border-radius:7px;padding:3px 8px;font-size:12px;}
+.detail-topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.detail-nav{display:flex;align-items:center;gap:6px;}
+.btn.sm.arrow{padding:6px 10px;font-size:14px;line-height:1;font-weight:700;min-width:32px;text-align:center;}
+.detail-nav-count{font-size:12px;color:var(--muted);letter-spacing:0.02em;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:0.02em;color:var(--muted);padding:9px 10px;border-bottom:2px solid var(--line);font-weight:600;}
+td{padding:9px 10px;border-bottom:1px solid var(--line);}
+tr:hover td{background:var(--surface-2);}
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);}
+/* Rankings: ancho de columnas fijo (definido por <colgroup>) para que se vean idénticas en todas las
+   subpestañas (Mundial, CONCACAF, UEFA...) sin importar el contenido de cada confederación. */
+.rankings-table{table-layout:fixed;min-width:720px;}
+.rankings-table td,.rankings-table th{overflow:hidden;text-overflow:ellipsis;}
+.rankings-table td:first-child{white-space:nowrap;}
+
+.pos-chip{font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;color:#fff;}
+.pos-GK{background:#C9A227;} .pos-DF{background:#2E6FE0;} .pos-MF{background:#19A463;} .pos-FW{background:#E1473A;}
+
+.empty{padding:44px 20px;text-align:center;color:var(--muted);border:1.5px dashed var(--line);border-radius:var(--radius);background:var(--surface);}
+.empty h3{margin-bottom:4px;}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(4,5,9,0.7);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;}
+.modal-box{background:var(--surface);border-radius:18px;max-width:580px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.25);}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line);}
+.modal-head h2{font-size:16px;margin:0;}
+.modal-close{background:none;border:none;font-size:20px;color:var(--muted);line-height:1;}
+.modal-body{padding:20px 22px;}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:16px 22px;border-top:1px solid var(--line);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+@media (max-width:480px){.form-grid{grid-template-columns:1fr;}}
+.subhead{font-size:12px;font-weight:700;color:var(--indigo);text-transform:uppercase;letter-spacing:0.04em;margin:14px 0 2px;grid-column:1/-1;}
+
+/* Scoreboard / dice (signature element) */
+.scoreboard{
+  background:linear-gradient(135deg, var(--indigo) 0%, #6D5EF7 55%, var(--coral) 130%);
+  border-radius:18px;padding:24px;color:#fff;position:relative;overflow:hidden;
+  box-shadow:0 16px 40px rgba(79,70,229,0.3);
+}
+.sb-row{display:flex;align-items:center;justify-content:center;gap:18px;position:relative;z-index:1;}
+.sb-team{flex:1;text-align:center;}
+.sb-team .nm{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;}
+.sb-score{
+  font-family:'JetBrains Mono',monospace;font-size:44px;font-weight:700;
+  background:rgba(0,0,0,0.18);border-radius:12px;padding:6px 18px;min-width:70px;text-align:center;
+  color:#fff;backdrop-filter:blur(4px);
+}
+.sb-vs{font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(255,255,255,0.7);}
+.dice-row{display:flex;justify-content:center;gap:10px;margin-top:20px;position:relative;z-index:1;}
+.die{
+  width:42px;height:42px;border-radius:10px;background:#fff;color:var(--ink);
+  display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;
+  font-weight:700;font-size:18px;box-shadow:0 4px 10px rgba(0,0,0,0.25);
+}
+.die.rolling{animation:roll 0.12s infinite;}
+@keyframes roll{0%{transform:rotate(0deg) scale(1);}50%{transform:rotate(15deg) scale(1.08);}100%{transform:rotate(0deg) scale(1);}}
+
+.toast{position:fixed;bottom:18px;right:18px;background:var(--indigo);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;box-shadow:var(--shadow);z-index:300;opacity:0;transform:translateY(8px);transition:opacity .2s, transform .2s;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+.note-banner{background:rgba(109,99,245,0.12);border:1px solid rgba(109,99,245,0.3);color:var(--indigo-bright);border-radius:12px;padding:12px 16px;font-size:12.5px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;}
+.note-banner b{display:block;margin-bottom:2px;}
+
+.kv{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px dashed var(--line);}
+.kv:last-child{border-bottom:none;}
+
+.tag-list{display:flex;flex-wrap:wrap;gap:6px;}
+.player-row{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);}
+.squad-sortbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.squad-sortbar .squad-sortbar-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin-right:2px;}
+.sort-chip{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap;transition:background .12s,color .12s,border-color .12s;}
+.sort-chip:hover{background:var(--surface-2);color:var(--ink);}
+.sort-chip.active{border-color:var(--indigo);color:var(--indigo-bright);background:rgba(109,99,245,0.12);}
+.sort-chip .arrow{font-family:'JetBrains Mono',monospace;color:var(--indigo-bright);}
+.player-row:last-child{border-bottom:none;}
+.player-row .pname{flex:1;font-weight:600;font-size:13.5px;}
+.player-row .pmeta{font-size:11.5px;color:var(--muted);}
+.player-row .prating{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--indigo);}
+.num-badge{
+  width:26px;height:26px;border-radius:8px;background:var(--indigo);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;
+  font-size:11.5px;font-weight:700;flex-shrink:0;
+}
+.club-chip{font-size:11px;color:var(--muted);background:var(--surface-2);padding:2px 8px;border-radius:20px;}
+.tag-clickable{cursor:pointer;transition:filter .12s ease, box-shadow .12s ease;}
+.tag-clickable:hover{filter:brightness(1.25);box-shadow:0 0 0 1.5px var(--indigo-bright);}
+
+.kit-swatch{display:flex;gap:4px;align-items:center;}
+.kit-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line);display:inline-block;margin-left:-6px;}
+.kit-dot:first-child{margin-left:0;}
+.kit-block{display:flex;flex-direction:column;gap:6px;align-items:center;}
+.kit-jersey{width:56px;height:56px;border-radius:9px;position:relative;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.25);overflow:hidden;}
+.kit-jersey img{width:100%;height:100%;object-fit:cover;display:block;}
+.kit-jersey.has-img{width:160px;height:160px;background:none;box-shadow:none;border-radius:0;overflow:visible;}
+.kit-jersey.has-img img{object-fit:contain;filter:drop-shadow(0 8px 16px rgba(0,0,0,0.5));}
+.kit-label{font-size:10.5px;color:var(--muted);font-weight:600;}
+
+.searchbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.searchbar input{max-width:260px;}
+.searchbar select{max-width:180px;}
+
+.subtabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.subtab-btn{background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:20px;}
+.subtab-btn.active{background:var(--indigo);color:#fff;border-color:var(--indigo);}
+
+textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-height:160px;}
+
+.footer-note{margin-top:40px;font-size:11.5px;color:var(--muted);text-align:center;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <img class="crest" src="data:image/png;base64,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" alt="Copa Manager 2026">
+        <div class="title">COPA MANAGER 2026<small>Simulador de la Copa del Mundo</small></div>
+      </div>
+      <div class="nav-tools">
+        <div id="nav-buttons" style="display:flex;gap:6px;"></div>
+        <div class="global-search" id="global-search">
+          <span class="gs-icon">🔎</span>
+          <input type="text" id="global-search-input" placeholder="Buscar..." autocomplete="off" spellcheck="false">
+          <div class="global-search-results" id="global-search-results"></div>
+        </div>
+      </div>
+      <div class="season-badge" id="season-badge">WIP &middot; JULIO 2026 &middot; VER 62</div>
+    </div>
+    <nav class="tabs" id="tabs"></nav>
+  </div>
+  <main id="view"><div class="empty"><h3>Cargando base de datos...</h3></div></main>
+</div>
+<div id="modal-root"></div>
+<div class="toast" id="toast"></div>
+
+<script src="datos/constantes.js"></script>
+<script src="core/utilidades.js"></script>
+<script src="app/textos-ui.js"></script>
+<script src="funciones/medios.js"></script>
+<script src="funciones/rankings.js"></script>
+<script src="uniformes/motor-grafico.js"></script>
+<script src="funciones/confederaciones.js"></script>
+<script src="funciones/estadios.js"></script>
+<script src="uniformes/modelo-kits.js"></script>
+<script src="app/busqueda-global.js"></script>
+<script src="funciones/patrocinadores.js"></script>
+<script src="app/modales.js"></script>
+<script src="funciones/paises.js"></script>
+<script src="funciones/clubes.js"></script>
+<script src="funciones/evento.js"></script>
+<script src="funciones/calendario.js"></script>
+<script src="funciones/jugadores.js"></script>
+<script src="funciones/selecciones.js"></script>
+<script src="funciones/editor.js"></script>
+<script src="uniformes/ui-kits.js"></script>
+<script src="nucleo/modelo-db.js"></script>
+<script src="nucleo/migracion.js"></script>
+<script src="persistencia/almacenamiento.js"></script>
+<script src="persistencia/historial.js"></script>
+<script src="app/router.js"></script>
+<script src="app/acciones.js"></script>
+<script>
+/* =========================================================
+   COPA MANAGER 2026 — motor de datos + interfaz
+   ========================================================= */
+
+// Versión del HTML — se muestra en la esquina superior derecha (WIP · JULIO 2026 · Ver. XX).
+// Al hacer cambios y guardar una versión nueva, actualiza este número.
+const APP_VERSION = "62";
+
+/* ---------- Datos base (estimación inicial editable) ---------- */
+
+
+
+// Nombre oficial del país (no el nombre de la federación) — aproximado, edítalo si lo necesitas distinto
+// Nombre de la federación nacional de fútbol (organismo que rige el fútbol en cada país) — dato estable y bien documentado
+// Siglas de la federación nacional — la abreviatura corta que se usa coloquialmente (ej. FMF, DFB, RFEF)
+// Apodos populares de algunas selecciones — aproximado, edítalo o agrega más desde el modal
+const ARTICLE_OPTIONS = [
+  {value:"", label:"(sin artículo)"},
+  {value:"El", label:"El"}, {value:"La", label:"La"},
+  {value:"Los", label:"Los"}, {value:"Las", label:"Las"}
+];
+// Genera 3 frases de ejemplo que muestran cómo se usa el artículo del club en textos (con las
+// contracciones correctas: a+el=al, de+el=del). El nombre se muestra tal cual, sin comillas.
+function clubArticleExamples(article, name){
+  const q = name||'Equipo';
+  const plural = (article==="Los" || article==="Las");
+  const gano = plural ? "ganaron con autoridad" : "ganó con autoridad";
+  let sujeto, deFrase, aFrase;
+  switch(article){
+    case "El":
+      sujeto = `el ${q}`; deFrase = `del ${q}`; aFrase = `al ${q}`; break;
+    case "La":
+      sujeto = `la ${q}`; deFrase = `de la ${q}`; aFrase = `a la ${q}`; break;
+    case "Los":
+      sujeto = `los ${q}`; deFrase = `de los ${q}`; aFrase = `a los ${q}`; break;
+    case "Las":
+      sujeto = `las ${q}`; deFrase = `de las ${q}`; aFrase = `a las ${q}`; break;
+    default: // sin artículo
+      sujeto = q; deFrase = `de ${q}`; aFrase = `a ${q}`; break;
+  }
+  return [
+    `Ayer ${sujeto} ${gano}.`,
+    `Gran anotación ${deFrase}.`,
+    `Llegó un nuevo fichaje ${aFrase}.`
+  ];
+}
+// Refresca en tiempo real el eco del nombre y las frases de ejemplo del artículo en el modal de club,
+// usando el "Nombre común" actual y el artículo seleccionado. Se llama al teclear el nombre común
+// o al cambiar el selector de artículo.
+function refreshClubArticleExamples(){
+  const sel = document.getElementById("f-cl-article");
+  const examplesEl = document.getElementById("f-cl-article-examples");
+  if(!sel || !examplesEl) return;
+  const nameInput = document.getElementById("f-cl-commonname");
+  const name = (nameInput && nameInput.value.trim()) || "";
+  const echo = document.getElementById("f-cl-article-name-echo");
+  if(echo) echo.value = name || "Nombre del club";
+  examplesEl.textContent = clubArticleExamples(sel.value, name || "Equipo").join("  ·  ");
+}
+document.addEventListener("input", (e)=>{
+  if(e.target && (e.target.id==="f-cl-commonname" || e.target.id==="f-cl-article")) refreshClubArticleExamples();
+});
+document.addEventListener("change", (e)=>{
+  if(e.target && e.target.id==="f-cl-article") refreshClubArticleExamples();
+});
+function layerRowHTML(layer){
+  layer = layer || {img:"", recolorable:true};
+  return `
+  <div class="layer-row" data-img="${layer.img||''}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;border:1px solid var(--line);border-radius:8px;">
+    <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;">
+      <button type="button" class="btn ghost sm" data-action="move-layer-row" data-dir="up" style="padding:2px 7px;line-height:1;">↑</button>
+      <button type="button" class="btn ghost sm" data-action="move-layer-row" data-dir="down" style="padding:2px 7px;line-height:1;">↓</button>
+    </div>
+    <div class="layer-thumb" style="width:40px;height:40px;background:var(--surface-2);border-radius:6px;overflow:hidden;flex-shrink:0;">
+      ${layer.img?`<img src="${layer.img}" style="width:100%;height:100%;object-fit:contain;">`:''}
+    </div>
+    <input type="file" class="layer-file-input" accept="image/png" data-layerfile style="flex:1;font-size:11px;">
+    <label style="display:flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap;flex-shrink:0;">
+      <input type="checkbox" class="layer-recolorable kit-modal-control" style="width:auto;" ${layer.recolorable?'checked':''}> 3 colores
+    </label>
+    <button type="button" class="btn danger sm" data-action="remove-layer-row" style="flex-shrink:0;">✕</button>
+  </div>`;
+}
+function colorPickerHTML(classes, value, id){
+  value = value || "#000000";
+  return `<span class="color-field" style="display:inline-flex;flex-direction:column;align-items:center;gap:3px;">
+    <input type="color" class="${classes}" ${id?`id="${id}"`:""} value="${value}">
+    <input type="text" class="color-hex-text mono" value="${value.toUpperCase()}" maxlength="7" spellcheck="false">
+  </span>`;
+}
+function nicknameRowHTML(article, name){
+  return `
+  <div class="nickname-row" style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+    <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;">
+      <button type="button" class="btn ghost sm" data-action="move-nickname-row" data-dir="up" style="padding:2px 7px;line-height:1;">↑</button>
+      <button type="button" class="btn ghost sm" data-action="move-nickname-row" data-dir="down" style="padding:2px 7px;line-height:1;">↓</button>
+    </div>
+    <select class="nick-article" style="width:120px;flex-shrink:0;">
+      ${ARTICLE_OPTIONS.map(a=>`<option value="${a.value}" ${a.value===(article||"")?"selected":""}>${a.label}</option>`).join("")}
+    </select>
+    <input class="nick-name" value="${name||''}" placeholder="${T('team.nicknames.placeholder')}" style="flex:1;">
+    <button type="button" class="btn danger sm" data-action="remove-nickname-row" style="flex-shrink:0;">✕</button>
+  </div>`;
+}
+function nicknamesDisplay(t){
+  if(!t.nicknames || !t.nicknames.length) return "";
+  return t.nicknames.map(n=> (n.article?n.article+" ":"") + n.name ).join(", ");
+}
+function firstNicknameDisplay(t){
+  if(!t.nicknames || !t.nicknames.length) return "";
+  const n = t.nicknames[0];
+  return (n.article?n.article+" ":"") + n.name;
+}
+function langRowHTML(name, percentage){
+  return `
+  <div class="lang-row" style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+    <input class="lang-name" value="${name||''}" placeholder="${T('country.secondaryLanguages.namePlaceholder')}" style="flex:1;">
+    <input class="lang-pct" type="number" min="0" max="100" step="0.1" value="${percentage!=null?percentage:''}" placeholder="%" style="width:90px;flex-shrink:0;">
+    <button type="button" class="btn danger sm" data-action="remove-lang-row" style="flex-shrink:0;">✕</button>
+  </div>`;
+}
+// Código FIFA de 3 letras (estándar usado en marcadores) — aproximado, edítalo si no coincide
+// Los 16 estadios sede del Mundial 2026 — datos aproximados y editables (capacidades y césped pueden variar por la edición especial del torneo)
+// Dibuja la letra y el número, cada uno centrado exactamente dentro de su zona de BACK_TEXT_BOXES,
+// con su propia tipografía/color/contorno. Se llama después de dibujar todo lo demás (capas y
+// outline), para quedar siempre encima. kit.previewNumber/previewName son SOLO para la vista previa
+// del modal (campos de prueba que nunca se guardan) — si no vienen, se usan los valores de muestra.
+
+
+// [team name, confederation, group, isHost, [players...]]
+const SEED_TEAMS = [
+["México","CONCACAF","A",true,[P("Santiago Giménez","FW",24,"AC Milan",80),P("Edson Álvarez","MF",27,"Fenerbahçe",78),P("Julián Quiñones","FW",28,"América",75),P("Raúl Jiménez","FW",35,"América",73)]],
+["Japón","AFC","A",false,[P("Takefusa Kubo","FW",24,"Real Sociedad",83),P("Kaoru Mitoma","FW",28,"Brighton",81),P("Wataru Endo","MF",32,"Liverpool",78)]],
+["Egipto","CAF","A",false,[P("Mohamed Salah","FW",33,"Liverpool",87)]],
+["Nueva Zelanda","OFC","A",false,[]],
+
+["Estados Unidos","CONCACAF","B",true,[P("Christian Pulisic","FW",27,"AC Milan",83),P("Weston McKennie","MF",27,"Juventus",78),P("Folarin Balogun","FW",24,"Monaco",76),P("Tyler Adams","MF",27,"Bournemouth",76)]],
+["Marruecos","CAF","B",false,[P("Achraf Hakimi","DF",27,"PSG",87),P("Hakim Ziyech","MF",33,"Galatasaray",76)]],
+["Ecuador","CONMEBOL","B",false,[P("Moisés Caicedo","MF",24,"Chelsea",85),P("Enner Valencia","FW",36,"Inter",74)]],
+["Sudáfrica","CAF","B",false,[]],
+
+["Canadá","CONCACAF","C",true,[P("Alphonso Davies","DF",25,"Bayern Múnich",84),P("Jonathan David","FW",26,"Juventus",82),P("Stephen Eustáquio","MF",28,"Porto",76)]],
+["Uruguay","CONMEBOL","C",false,[P("Darwin Núñez","FW",26,"Liverpool",84),P("Federico Valverde","MF",27,"Real Madrid",87),P("Ronald Araújo","DF",27,"Barcelona",84)]],
+["Paraguay","CONMEBOL","C",false,[P("Miguel Almirón","MF",32,"Atlanta United",76)]],
+["Cabo Verde","CAF","C",false,[]],
+
+["Argentina","CONMEBOL","D",false,[P("Julián Álvarez","FW",26,"Atlético Madrid",87),P("Lautaro Martínez","FW",28,"Inter",88),P("Enzo Fernández","MF",25,"Chelsea",85),P("Rodrigo De Paul","MF",32,"Atlético Madrid",82)]],
+["Colombia","CONMEBOL","D",false,[P("Luis Díaz","FW",29,"Bayern Múnich",86),P("James Rodríguez","MF",34,"León",78)]],
+["Argelia","CAF","D",false,[P("Riyad Mahrez","MF",35,"Al Ahli",78)]],
+["Ghana","CAF","D",false,[P("Mohammed Kudus","FW",26,"West Ham",80)]],
+
+["Brasil","CONMEBOL","E",false,[P("Vinícius Júnior","FW",25,"Real Madrid",90),P("Rodrygo","FW",25,"Real Madrid",85),P("Endrick","FW",19,"Real Madrid",80),P("Bruno Guimarães","MF",27,"Newcastle",84)]],
+["Croacia","UEFA","E",false,[P("Joško Gvardiol","DF",24,"Manchester City",85),P("Martin Baturina","MF",22,"Como",78)]],
+["Austria","UEFA","E",false,[P("David Alaba","DF",34,"Real Madrid",81)]],
+["Eslovaquia","UEFA","E",false,[]],
+
+["España","UEFA","F",false,[P("Lamine Yamal","FW",18,"Barcelona",88),P("Pedri","MF",23,"Barcelona",87),P("Nico Williams","FW",23,"Athletic Club",84),P("Rodri","MF",30,"Manchester City",90)]],
+["Suiza","UEFA","F",false,[P("Granit Xhaka","MF",33,"Bayer Leverkusen",80)]],
+["Noruega","UEFA","F",false,[P("Erling Haaland","FW",25,"Manchester City",92),P("Martin Ødegaard","MF",27,"Arsenal",88)]],
+["Polonia","UEFA","F",false,[P("Robert Lewandowski","FW",37,"Barcelona",83)]],
+
+["Francia","UEFA","G",false,[P("Kylian Mbappé","FW",27,"Real Madrid",92),P("Aurélien Tchouaméni","MF",25,"Real Madrid",84),P("Ousmane Dembélé","FW",28,"PSG",85)]],
+["Senegal","CAF","G",false,[P("Sadio Mané","FW",33,"Al Nassr",80),P("Ismaïla Sarr","FW",27,"Crystal Palace",76)]],
+["Escocia","UEFA","G",false,[P("Scott McTominay","MF",28,"Napoli",80)]],
+["Italia","UEFA","G",false,[P("Nicolò Barella","MF",28,"Inter",84)]],
+
+["Inglaterra","UEFA","H",false,[P("Jude Bellingham","MF",22,"Real Madrid",90),P("Bukayo Saka","FW",23,"Arsenal",87),P("Phil Foden","MF",25,"Manchester City",86)]],
+["Costa de Marfil","CAF","H",false,[P("Sébastien Haller","FW",30,"Leganés",75)]],
+["Catar","AFC","H",false,[P("Akram Afif","FW",28,"Al Sadd",77)]],
+["Ucrania","UEFA","H",false,[P("Mykhailo Mudryk","FW",24,"Chelsea",78)]],
+
+["Alemania","UEFA","I",false,[P("Jamal Musiala","MF",22,"Bayern Múnich",87),P("Florian Wirtz","MF",22,"Liverpool",88),P("Kai Havertz","FW",26,"Arsenal",81)]],
+["Irán","AFC","I",false,[P("Sardar Azmoun","FW",30,"Shabab Al Ahli",74)]],
+["Arabia Saudita","AFC","I",false,[P("Salem Al-Dawsari","FW",33,"Al Hilal",77)]],
+["Curazao","CONCACAF","I",false,[]],
+
+["Portugal","UEFA","J",false,[P("Bruno Fernandes","MF",30,"Manchester United",86),P("Rafael Leão","FW",26,"AC Milan",83),P("João Neves","MF",20,"PSG",83),P("Vitinha","MF",25,"PSG",83)]],
+["Corea del Sur","AFC","J",false,[P("Son Heung-min","FW",32,"Los Angeles FC",83)]],
+["Panamá","CONCACAF","J",false,[]],
+["Haití","CONCACAF","J",false,[]],
+
+["Países Bajos","UEFA","K",false,[P("Cody Gakpo","FW",25,"Liverpool",83),P("Xavi Simons","MF",21,"RB Leipzig",83),P("Frenkie de Jong","MF",27,"Barcelona",84)]],
+["Australia","AFC","K",false,[P("Mathew Leckie","FW",33,"Melbourne City",70)]],
+["Uzbekistán","AFC","K",false,[]],
+["Bolivia","CONMEBOL","K",false,[]],
+
+["Bélgica","UEFA","L",false,[P("Jérémy Doku","FW",22,"Manchester City",84),P("Romelu Lukaku","FW",31,"Napoli",81)]],
+["Túnez","CAF","L",false,[]],
+["Jordania","AFC","L",false,[]],
+["República Democrática del Congo","CAF","L",false,[]]
+];
+
+// Marcas de ropa conocidas para algunas selecciones (aproximado — edítalo si no coincide)
+
+let eventoDetailOpen = false;
+
+/* ---- Modal: llaves (bracket) ---- */
+let eventBracketDraft = null;
+
+/* ---------- INICIO ---------- */
+function renderInicio(){
+  const totalPlayers = DB.teams.reduce((s,t)=>s+t.players.length,0);
+  const incomplete = DB.teams.filter(t=>squadStatus(t)==="incomplete").length;
+  const playedMatches = DB.fixtures.filter(f=>f.played).length;
+  const totalSponsorValue = DB.sponsors.reduce((s,sp)=>s+(sp.value||0),0);
+
+  return `
+  <div class="section-title"><h2>${tabLabel('inicio','Inicio')}</h2></div>
+  ${tabDescHTML('inicio')}
+  <div class="note-banner">
+    <span>⚠️</span>
+    <div><b>Datos iniciales = estimación editable.</b> Las 48 selecciones, grupos y algunos jugadores estrella se cargaron a partir de lo que conozco del proceso clasificatorio del Mundial 2026 (no pude verificarlo en vivo porque la búsqueda web no respondió). Revisa y corrige todo lo que haga falta desde "Selecciones" o "Editor / Base de datos" — está pensado para que sea 100% editable.</div>
+  </div>
+
+  <div class="card" data-action="goto-evento" style="cursor:pointer;background:linear-gradient(135deg, ${hexToRgba(DB.event.color1, 0.16)}, ${hexToRgba(DB.event.color1, 0.03)});border:1px solid ${hexToRgba(DB.event.color1, 0.35)};margin-bottom:14px;">
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      ${eventCrestHTML(DB.event, 54)}
+      <div style="flex:1;min-width:220px;">
+        <div style="font-weight:800;font-size:17px;">${escapeHtml(eventFieldText(DB.event,'name'))}</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">${(DB.event.hosts||[]).join(" · ")}</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:1px;">${eventFmtDate(DB.event.startDate)} – ${eventFmtDate(DB.event.endDate)}</div>
+      </div>
+      <button class="btn gold sm" data-action="goto-evento">Ver el evento →</button>
+    </div>
+  </div>
+
+  <div class="grid cols-4">
+    <div class="card stat-card"><div class="num">${DB.teams.length}</div><div class="label">Selecciones</div></div>
+    <div class="card stat-card"><div class="num">${totalPlayers}</div><div class="label">Jugadores en base</div></div>
+    <div class="card stat-card"><div class="num">${playedMatches}/${DB.fixtures.length||"–"}</div><div class="label">Partidos jugados</div></div>
+    <div class="card stat-card"><div class="num">$${totalSponsorValue}M</div><div class="label">Valor en patrocinios</div></div>
+  </div>
+
+  <div class="section-title"><h2>Plantillas incompletas</h2><span class="hint">${incomplete} selecciones necesitan más jugadores</span></div>
+  <div class="grid cols-4">
+    ${DB.teams.filter(t=>squadStatus(t)==="incomplete").slice(0,8).map(t=>teamCardHTML(t)).join("") || `<div class="empty">¡Todas las plantillas están completas!</div>`}
+  </div>
+
+  <div class="section-title"><h2>Accesos rápidos</h2></div>
+  <div class="grid cols-3">
+    <div class="card"><h3 style="margin-top:0;font-size:14px;">Generar fase de grupos</h3><p style="font-size:13px;color:var(--muted);">Crea automáticamente los partidos de todos los grupos.</p><button class="btn" data-action="goto-calendario">Ir a Calendario</button></div>
+    <div class="card"><h3 style="margin-top:0;font-size:14px;">Agregar una selección</h3><p style="font-size:13px;color:var(--muted);">El sistema crece más allá de las 48 oficiales si quieres.</p><button class="btn ghost" data-action="goto-editor">Ir al Editor</button></div>
+    <div class="card"><h3 style="margin-top:0;font-size:14px;">Cargar patrocinador</h3><p style="font-size:13px;color:var(--muted);">Suma marcas globales o ligadas a una selección.</p><button class="btn ghost" data-action="goto-patrocinadores">Ir a Patrocinadores</button></div>
+  </div>
+  `;
+}
+
+/* ---------- SELECCIONES ---------- */
+// Modo de orden de la pantalla Selecciones: "grupos" (como siempre) o "alfabetico".
+let seleccionesSort = {key:"name", dir:"asc"};
+
+/* ---------- CONFEDERACIONES ---------- */
+let confExpanded = {};
+let garmentExpanded = {shirt:false, shorts:false, socks:false};
+// Portapapeles interno (no es el del sistema) para copiar un uniforme completo o una sola combinación
+// y pegarlo en otro uniforme/selección — vive solo en memoria mientras la app está abierta.
+let clipboardKit = null;
+let clipboardCombo = null;
+let clipboardNumberStyle = null;
+let clipboardNameStyle = null;
+let clipboardBothStyle = null;
+let dragKitInfo = null;
+let draggedComboBlock = null;
+let garmentsParentExpanded = false;
+let numberFontsExpanded = false;
+let backBasesExpanded = false;
+
+/* ---------- Utilidades de orden genérico para tablas ---------- */
+// Orden de la convocatoria dentro del perfil de selección (mismo mecanismo que la pestaña Jugadores).
+let squadSort = {key:"number", dir:"asc"};
+/* ---------- RANKINGS ---------- */
+let rankingSection = "MUNDIAL";
+let rankingSort = {key:"fifaRank", dir:"asc"};
+
+/* ---------- JUGADORES ---------- */
+let playerFilter = {q:"", team:"", pos:""};
+let bulkImportTeamId = "";
+let playerSort = {key:"rating", dir:"desc"};
+/* ---------- ESTADIOS ---------- */
+let clubsSort = {key:"name", dir:"asc"};
+let clubFilter = {q:"", country:"", league:""};
+let stadiumsView = "separados"; // "separados" (Copa del Mundo y Otros) u "alfabetico" (todos juntos, A-Z)
+
+// Mientras el campo de destino esté "vinculado" (linked=1), se recalcula en vivo cada vez que
+// cambia alguna de sus fuentes — en cuanto el usuario edita el campo de destino directamente, se
+// desvincula y deja de seguir los cambios (igual lógica que ya usábamos para Nombre/Número del kit).
+document.addEventListener("input", (e)=>{
+  const id = e.target.id;
+  if(id==="f-pfirstname" || id==="f-plastname"){
+    const linked = document.getElementById("f-pfullname-linked");
+    const full = document.getElementById("f-pfullname");
+    if(linked && linked.value==="1" && full){
+      const fn = document.getElementById("f-pfirstname").value;
+      const ln = document.getElementById("f-plastname").value;
+      full.value = `${fn} ${ln}`.trim();
+    }
+  } else if(id==="f-pfullname"){
+    const linked = document.getElementById("f-pfullname-linked");
+    if(linked) linked.value = "0";
+  }
+  if(id==="f-pcommonname" || id==="f-plastname"){
+    const common = document.getElementById("f-pcommonname").value.trim();
+    const last = document.getElementById("f-plastname").value.trim();
+    const val = (common || last || "").toUpperCase();
+    ["team","club"].forEach(scope=>{
+      const linked = document.getElementById(`f-pshirtname-${scope}-linked`);
+      const field = document.getElementById(`f-pshirtname-${scope}`);
+      if(linked && linked.value==="1" && field) field.value = val;
+    });
+  } else if(id==="f-pshirtname-team"){
+    const linked = document.getElementById("f-pshirtname-team-linked");
+    if(linked) linked.value = "0";
+  } else if(id==="f-pshirtname-club"){
+    const linked = document.getElementById("f-pshirtname-club-linked");
+    if(linked) linked.value = "0";
+  }
+  if(id==="f-pbirth"){
+    const hint = document.getElementById("f-page-hint");
+    if(hint){
+      const a = computeAge(e.target.value);
+      hint.textContent = a!=null ? `Edad: ${a} años` : "Opcional — de aquí se calcula la edad.";
+    }
+  }
+});
+
+document.addEventListener("input", (e)=>{
+  const id = e.target.id;
+  if(!id) return;
+  if(id.startsWith("f-kit-backnum-")) syncBadgeIfLinked("number");
+  else if(id.startsWith("f-kit-badgenum-")) unlinkBadge("number");
+  else if(id.startsWith("f-kit-backname-")) syncBadgeIfLinked("name");
+  else if(id.startsWith("f-kit-badgename-")) unlinkBadge("name");
+});
+document.addEventListener("change", (e)=>{
+  const id = e.target.id;
+  if(!id) return;
+  if(id.startsWith("f-kit-backnum-")) syncBadgeIfLinked("number");
+  else if(id.startsWith("f-kit-badgenum-")) unlinkBadge("number");
+  else if(id.startsWith("f-kit-backname-")) syncBadgeIfLinked("name");
+  else if(id.startsWith("f-kit-badgename-")) unlinkBadge("name");
+});
+// Si la "Letra del dorso" sigue vinculada al número en cada grupo (tipografía / color / contorno),
+// copia el valor recién cambiado del número hacia los controles de la letra (sin disparar el evento
+// de "edición manual", porque se asigna .value directamente sin dispatchEvent).
+document.addEventListener("input", (e)=>{
+  const id = e.target.id;
+  if(id==="f-kit-backnum-font") syncBackNameIfLinked("font");
+  else if(id==="f-kit-backname-font") unlinkBackName("font");
+  else if(id==="f-kit-backnum-color") syncBackNameIfLinked("color");
+  else if(id==="f-kit-backname-color") unlinkBackName("color");
+  else if(id==="f-kit-backnum-outline"||id==="f-kit-backnum-outline-color"||id==="f-kit-backnum-outline-width") syncBackNameIfLinked("outline");
+  else if(id==="f-kit-backname-outline"||id==="f-kit-backname-outline-color"||id==="f-kit-backname-outline-width") unlinkBackName("outline");
+});
+document.addEventListener("change", (e)=>{
+  const id = e.target.id;
+  if(id==="f-kit-backnum-font") syncBackNameIfLinked("font");
+  else if(id==="f-kit-backname-font") unlinkBackName("font");
+  else if(id==="f-kit-backnum-color") syncBackNameIfLinked("color");
+  else if(id==="f-kit-backname-color") unlinkBackName("color");
+  else if(id==="f-kit-backnum-outline"||id==="f-kit-backnum-outline-color"||id==="f-kit-backnum-outline-width") syncBackNameIfLinked("outline");
+  else if(id==="f-kit-backname-outline"||id==="f-kit-backname-outline-color"||id==="f-kit-backname-outline-width") unlinkBackName("outline");
+});
+// Busca todos los contenedores ".kit-render" pendientes en el DOM y los llena con la composición final.
+// Asegura que cada selección tenga al menos 2 uniformes de jugador (Local/Visitante) y 1 de portero,
+// migrando los colores antiguos si existían. Se llama siempre al cargar/migrar la base.
+
+
+document.addEventListener("change", (e)=>{
+  const input = e.target;
+  if(input.matches && input.matches('input[type=file][data-replace-outline]')){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    const type = input.dataset.type, slot = input.dataset.slot;
+    resizeImageToDataURL(file, RECOLORABLE_BASE_MAX_DIM).then(dataUrl=>{
+      if(type==="shirt"){
+        if(slot==="front") DB.kitTexture = dataUrl;
+        else if(slot==="back") DB.kitTextureBack = dataUrl;
+        else if(slot==="gkfront") DB.gkTexture = dataUrl;
+        else if(slot==="gkback") DB.gkTextureBack = dataUrl;
+      } else {
+        const cfg = garmentConfig(type);
+        DB[cfg.textureKey] = dataUrl;
+      }
+      persist(); render();
+      showToast("Contorno actualizado");
+    }).catch(()=>{ showToast("No se pudo procesar esa imagen"); });
+    return;
+  }
+  if(input.matches && input.matches('input[type=file][data-replace-garmentbase]')){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    const cfg = garmentConfig(input.dataset.type);
+    resizeImageToDataURL(file, RECOLORABLE_BASE_MAX_DIM).then(dataUrl=>{
+      const base = DB[cfg.basesKey].find(b=>b.id===input.dataset.id);
+      if(base){
+        const side = input.dataset.side;
+        if(side==="back") base.backImg = dataUrl;
+        else if(side==="gkfront") base.gkImg = dataUrl;
+        else if(side==="gkback") base.gkBackImg = dataUrl;
+        else base.baseImg = dataUrl;
+        persist(); render();
+        showToast(`${garmentName(input.dataset.type, base.number)} actualizada`);
+      }
+    }).catch(()=>{ showToast("No se pudo procesar esa imagen"); });
+    return;
+  }
+  if(input.matches && input.matches('input[type=file][data-replace-numberfont]')){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    readFileAsDataURL(file).then(dataUrl=>{
+      const entry = DB.numberFonts.find(f=>f.id===input.dataset.id);
+      if(entry){
+        entry.fontData = dataUrl;
+        delete _loadedNumberFontFamilies[entry.id];
+        persist(); render();
+        showToast(`${numberFontLabel(entry)} actualizada`);
+      }
+    }).catch(()=>{ showToast("No se pudo procesar ese archivo de tipografía"); });
+    return;
+  }
+  if(input.matches && input.matches('input[type=file][data-replace-backbase]')){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    resizeImageToDataURL(file, RECOLORABLE_BASE_MAX_DIM).then(dataUrl=>{
+      const base = DB.backBases.find(b=>b.id===input.dataset.id);
+      if(base){
+        base.baseImg = dataUrl;
+        persist(); render();
+        showToast(`${backBaseDisplayLabel(base)} actualizado`);
+      }
+    }).catch(()=>{ showToast("No se pudo procesar esa imagen"); });
+    return;
+  }
+  if(input.matches && input.matches('input[type=file][data-layerfile]')){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    resizeImageToDataURL(file, RECOLORABLE_BASE_MAX_DIM).then(dataUrl=>{
+      const row = input.closest(".layer-row");
+      if(row){
+        row.dataset.img = dataUrl;
+        row.querySelector(".layer-thumb").innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:contain;">`;
+      }
+      const block = input.closest(".combo-block");
+      if(block) refreshComboBlockPreview(block); else refreshKitModalPreview();
+    }).catch(()=>{ showToast("No se pudo procesar esa imagen"); });
+    return;
+  }
+  if(input.matches && input.matches('input[type=file][data-fontfield]')){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    readFileAsDataURL(file).then(dataUrl=>{
+      const hidden = document.getElementById(input.dataset.target);
+      if(hidden) hidden.value = dataUrl;
+    }).catch(()=>{ showToast("No se pudo procesar ese archivo de tipografía"); });
+    return;
+  }
+  if(!(input.matches && input.matches('input[type=file][data-imgfield]'))) return;
+  const file = input.files && input.files[0];
+  if(!file) return;
+  resizeImageToDataURL(file, parseInt(input.dataset.maxdim)||300).then(dataUrl=>{
+    const hidden = document.getElementById(input.dataset.target);
+    if(hidden) hidden.value = dataUrl;
+    const preview = document.getElementById(input.dataset.preview);
+    if(preview){ preview.src = dataUrl; preview.style.display = "block"; }
+  }).catch(()=>{ showToast("No se pudo procesar esa imagen"); });
+});
+document.addEventListener("input", (e)=>{
+  if(e.target.matches && e.target.matches('input[type=color]')){
+    const field = e.target.closest(".color-field");
+    const hexInput = field && field.querySelector(".color-hex-text");
+    if(hexInput) hexInput.value = e.target.value.toUpperCase();
+  }
+});
+document.addEventListener("input", (e)=>{
+  if(e.target.matches && e.target.matches(".color-hex-text")){
+    let v = e.target.value.trim();
+    if(v && !v.startsWith("#")) v = "#"+v;
+    if(/^#[0-9A-Fa-f]{6}$/.test(v)){
+      const field = e.target.closest(".color-field");
+      const colorInput = field && field.querySelector('input[type=color]');
+      if(colorInput && colorInput.value.toLowerCase()!==v.toLowerCase()){
+        colorInput.value = v;
+        colorInput.dispatchEvent(new Event("input", {bubbles:true}));
+        colorInput.dispatchEvent(new Event("change", {bubbles:true}));
+      }
+    }
+  }
+});
+// Solo selecciona todo el texto al entrar al campo (para que un Cmd/Ctrl+V lo reemplace de inmediato,
+// sin tener que borrarlo a mano). Ya NO copia nada automáticamente — eso pisaba lo que ya tenías
+// copiado de otro campo justo antes de pegarlo, que era el problema.
+document.addEventListener("focusin", (e)=>{
+  if(e.target.matches && e.target.matches(".color-hex-text")) e.target.select();
+});
+document.addEventListener("input", (e)=>{ if(e.target.matches && e.target.matches(".kit-modal-control")) refreshKitModalPreview(); });
+document.addEventListener("change", (e)=>{ if(e.target.matches && e.target.matches(".kit-modal-control")) refreshKitModalPreview(); });
+document.addEventListener("input", (e)=>{ if(e.target.matches && e.target.matches(".combo-control")) refreshComboBlockPreview(e.target.closest(".combo-block")); });
+
+/* ---------- Arrastrar para reordenar: uniformes (Local/Visita/Tercero...) ---------- */
+// Solo se puede soltar sobre una tarjeta de la MISMA categoría (jugador con jugador, portero con portero).
+document.addEventListener("dragstart", (e)=>{
+  const card = e.target.closest(".kit-drag-card");
+  if(!card) return;
+  dragKitInfo = {teamId: card.dataset.team, kitId: card.dataset.kitId, category: card.dataset.category};
+  if(e.dataTransfer){ e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", card.dataset.kitId); }
+  card.classList.add("dragging");
+});
+document.addEventListener("dragover", (e)=>{
+  const card = e.target.closest(".kit-drag-card");
+  if(!card || !dragKitInfo || card.dataset.category!==dragKitInfo.category) return;
+  e.preventDefault();
+  if(card.dataset.kitId!==dragKitInfo.kitId) card.classList.add("drag-over");
+});
+document.addEventListener("dragleave", (e)=>{
+  const card = e.target.closest(".kit-drag-card");
+  if(card) card.classList.remove("drag-over");
+});
+document.addEventListener("drop", (e)=>{
+  const card = e.target.closest(".kit-drag-card");
+  if(!card || !dragKitInfo || card.dataset.category!==dragKitInfo.category) return;
+  e.preventDefault();
+  card.classList.remove("drag-over");
+  const team = getTeam(dragKitInfo.teamId);
+  if(!team) return;
+  const fromId = dragKitInfo.kitId, toId = card.dataset.kitId;
+  if(fromId===toId) return;
+  const fromIdx = team.kits.findIndex(k=>k.id===fromId);
+  if(fromIdx<0) return;
+  const [moved] = team.kits.splice(fromIdx,1);
+  const toIdx = team.kits.findIndex(k=>k.id===toId);
+  team.kits.splice(toIdx, 0, moved);
+  ensureTeamKits(team);
+  persist(); render();
+  modalManageKits(team);
+});
+document.addEventListener("dragend", (e)=>{
+  if(e.target.closest && e.target.closest(".kit-drag-card")){
+    document.querySelectorAll(".kit-drag-card.dragging, .kit-drag-card.drag-over").forEach(el=>el.classList.remove("dragging","drag-over"));
+    dragKitInfo = null;
+  }
+});
+
+/* ---------- Arrastrar para reordenar: combinaciones dentro de un uniforme ---------- */
+document.addEventListener("dragstart", (e)=>{
+  const block = e.target.closest(".combo-block");
+  if(!block) return;
+  draggedComboBlock = block;
+  if(e.dataTransfer){ e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", "combo"); }
+  block.classList.add("dragging");
+});
+document.addEventListener("dragover", (e)=>{
+  const block = e.target.closest(".combo-block");
+  if(!block || !draggedComboBlock || block===draggedComboBlock) return;
+  e.preventDefault();
+  const rect = block.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height/2;
+  block.classList.toggle("drag-over-top", before);
+  block.classList.toggle("drag-over-bottom", !before);
+});
+document.addEventListener("dragleave", (e)=>{
+  const block = e.target.closest(".combo-block");
+  if(block) block.classList.remove("drag-over-top","drag-over-bottom");
+});
+document.addEventListener("drop", (e)=>{
+  const block = e.target.closest(".combo-block");
+  if(!block || !draggedComboBlock || block===draggedComboBlock) return;
+  e.preventDefault();
+  block.classList.remove("drag-over-top","drag-over-bottom");
+  const container = document.getElementById("kit-combo-rows");
+  if(!container || !container.contains(block)) return;
+  const rect = block.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height/2;
+  if(before) container.insertBefore(draggedComboBlock, block);
+  else container.insertBefore(draggedComboBlock, block.nextSibling);
+  renumberComboBlocks();
+});
+document.addEventListener("dragend", (e)=>{
+  if(e.target.closest && e.target.closest(".combo-block")){
+    document.querySelectorAll(".combo-block.dragging, .combo-block.drag-over-top, .combo-block.drag-over-bottom").forEach(el=>el.classList.remove("dragging","drag-over-top","drag-over-bottom"));
+    draggedComboBlock = null;
+  }
+});
+document.addEventListener("change", (e)=>{ if(e.target.matches && e.target.matches(".combo-control")) refreshComboBlockPreview(e.target.closest(".combo-block")); });
+// Al escribir/elegir una nacionalidad, se actualizan en vivo las opciones de "declara elegibilidad".
+document.addEventListener("input", (e)=>{ if(e.target.matches && e.target.matches(".nationality-name")) refreshDeclaredForOptions(); });
+document.addEventListener("change", (e)=>{ if(e.target.matches && e.target.matches(".nationality-name")) refreshDeclaredForOptions(); });
+document.addEventListener("change", (e)=>{
+  if(e.target.matches && e.target.matches(".team-kitsponsor-input")){
+    const team = getTeam(e.target.dataset.team);
+    if(team){
+      team.kitSponsor = e.target.value.trim() || null;
+      if(team.kitSponsor) addBrand(team.kitSponsor);
+      persist(); render();
+    }
+  }
+});
+document.addEventListener("change", (e)=>{
+  if(e.target.matches && e.target.matches(".garmentbase-label-input")){
+    const cfg = garmentConfig(e.target.dataset.type);
+    const base = cfg && DB[cfg.basesKey] ? DB[cfg.basesKey].find(b=>b.id===e.target.dataset.id) : null;
+    if(base){ base.label = e.target.value.trim().slice(0,40); persist(); render(); }
+  }
+  if(e.target.matches && e.target.matches(".numberfont-label-input")){
+    const font = DB.numberFonts.find(f=>f.id===e.target.dataset.id);
+    if(font){ font.label = e.target.value.trim().slice(0,40); persist(); render(); }
+  }
+});
+
+</script>
+<script src="app/init.js"></script>
+</body>
+</html>
