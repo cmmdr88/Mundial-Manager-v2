@@ -21,7 +21,14 @@ function runGlobalSearch(qRaw){
   if(!box) return;
   const q = (qRaw||"").trim().toLowerCase();
   if(!q){ closeGlobalSearch(); return; }
-  const has = s => (s||"").toLowerCase().includes(q);
+  // La comparación ignora acentos y signos: buscar "Felix" encuentra "Félix", y al revés.
+  const qLoose = (typeof normLoose==="function") ? normLoose(qRaw||"") : q;
+  const has = s => {
+    const v = s||"";
+    if(v.toLowerCase().includes(q)) return true;
+    if(!qLoose) return false;
+    return (typeof normLoose==="function") ? normLoose(v).includes(qLoose) : false;
+  };
 
   // Evento (Copa Mundial): coincide por su nombre/nombre corto/oficial resueltos o por palabras clave.
   const eventHits = [];
@@ -40,23 +47,67 @@ function runGlobalSearch(qRaw){
     }
   }
 
-  // Selecciones (por nombre o código FIFA)
+  // Selecciones (por nombre común, oficial, nombre corto, código FIFA/COI o abreviatura de uso común
+  // como "EUA" para Estados Unidos).
   const teamHits = DB.teams
-    .filter(t=> has(t.commonName) || has(t.fifaCode))
+    .filter(t=> has(t.commonName) || has(t.officialName) || has(t.shortName) ||
+                has(t.fifaCode) || has(t.iocCode) ||
+                (typeof countryShortLabel==="function" && has(countryShortLabel(t.commonName))))
     .slice(0,6)
     .map(t=>({type:"team", id:t.id, label:t.commonName, sub:"Selección"+(t.fifaCode?` · ${t.fifaCode}`:"")}));
+
+  // Clubes (por nombre, nombre corto, código, país o liga), etiquetados con su país.
+  // (el país acepta tanto el nombre completo como su abreviatura de uso común)
+  const clubHits = (DB.clubsData||[])
+    .filter(c=> has(clubDisplayName(c)) || has(c.commonName) || has(c.shortName) || has(c.code) ||
+                has(c.country) || has(c.league) ||
+                (typeof countryShortLabel==="function" && has(countryShortLabel(c.country))))
+    .sort((a,b)=>clubDisplayName(a).localeCompare(clubDisplayName(b),'es'))
+    .slice(0,8)
+    .map(c=>{
+      const partes = ["Club"];
+      if((c.country||"").trim()) partes.push(countryShortLabel(c.country.trim()));
+      if((c.league||"").trim()) partes.push(c.league.trim());
+      return {type:"club", id:c.id, label:clubDisplayName(c), sub:partes.join(" · ")};
+    });
 
   // Jugadores (por nombre visible, apellido o club), etiquetados con su selección
   const playerHits = [];
   for(const t of DB.teams){
     for(const p of t.players){
       if(has(playerDisplayName(p)) || has(p.lastName) || has(p.firstName) || has(p.club)){
-        playerHits.push({type:"player", id:p.id, label:playerDisplayName(p), sub:`Jugador · ${t.commonName}`});
+        // "Jugador · País · Club" (el club solo si lo tiene).
+        const partes = ["Jugador", t.commonName];
+        if((p.club||"").trim()) partes.push(p.club.trim());
+        playerHits.push({type:"player", id:p.id, label:playerDisplayName(p), sub:partes.join(" · ")});
       }
     }
   }
   playerHits.sort((a,b)=>a.label.localeCompare(b.label));
   const players = playerHits.slice(0,8);
+
+  // Entrenadores (por nombre visible, apellido, nombre, puesto o club), etiquetados con su selección
+  const coachHits = [];
+  for(const t of DB.teams){
+    for(const c of (t.coaches||[])){
+      if(has(playerDisplayName(c)) || has(c.lastName) || has(c.firstName) || has(c.contractRole) || has(c.contractClub)){
+        coachHits.push({type:"coach", id:c.id, label:playerDisplayName(c), sub:`Entrenador · ${t.commonName}`});
+      }
+    }
+  }
+  coachHits.sort((a,b)=>a.label.localeCompare(b.label));
+  const coaches = coachHits.slice(0,8);
+
+  // Árbitros (por nombre visible, apellido, nombre o rol), etiquetados con su rol y país.
+  const refereeHits = [];
+  for(const r of (DB.referees||[])){
+    if(has(playerDisplayName(r)) || has(r.lastName) || has(r.firstName) || has(r.role)){
+      const cn = (typeof countryNameById==="function" && r.countryRepresentsId) ? (countryNameById(r.countryRepresentsId)||"") : "";
+      refereeHits.push({type:"referee", id:r.id, label:playerDisplayName(r), sub:`${r.role||"Árbitro"}${cn?` · ${cn}`:""}`});
+    }
+  }
+  refereeHits.sort((a,b)=>a.label.localeCompare(b.label));
+  const referees = refereeHits.slice(0,8);
 
   let html = "";
   if(eventHits.length){
@@ -70,6 +121,18 @@ function runGlobalSearch(qRaw){
   if(players.length){
     html += `<div class="gs-group">Jugadores</div>`;
     html += players.map(r=>gsItemHTML(r)).join("");
+  }
+  if(coaches.length){
+    html += `<div class="gs-group">Entrenadores</div>`;
+    html += coaches.map(r=>gsItemHTML(r)).join("");
+  }
+  if(referees.length){
+    html += `<div class="gs-group">Árbitros</div>`;
+    html += referees.map(r=>gsItemHTML(r)).join("");
+  }
+  if(clubHits.length){
+    html += `<div class="gs-group">Clubes</div>`;
+    html += clubHits.map(r=>gsItemHTML(r)).join("");
   }
   if(!html) html = `<div class="gs-empty">Sin resultados para "${escapeHtml(qRaw.trim())}"</div>`;
   box.innerHTML = html;
@@ -101,6 +164,9 @@ function buildGlobalSearch(){
     closeGlobalSearch();
     if(type==="team") navigateToTeam(id);
     else if(type==="player") navigateToPlayer(id);
+    else if(type==="coach") navigateToCoach(id);
+    else if(type==="referee") navigateToReferee(id);
+    else if(type==="club") navigateToClub(id);
     else if(type==="event"){ if(typeof eventoDetailOpen!=="undefined") eventoDetailOpen=false; navigateTo("evento", null); }
   });
   // Cerrar el desplegable al hacer clic fuera del buscador.

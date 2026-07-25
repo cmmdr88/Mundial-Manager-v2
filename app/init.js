@@ -34,6 +34,20 @@ function attachHandlers(){
     if(tf) tf.addEventListener("change", ()=>{ playerFilter.team=tf.value; render(); });
     if(pf) pf.addEventListener("change", ()=>{ playerFilter.pos=pf.value; render(); });
   }
+  if(activeTab==="entrenadores"){
+    const q = document.getElementById("coach-q");
+    const tf = document.getElementById("coach-team-filter");
+    if(q) q.addEventListener("input", ()=>{ coachFilter.q=q.value; render(); setTimeout(()=>{ const el=document.getElementById("coach-q"); if(el){el.focus(); el.selectionStart=el.selectionEnd=el.value.length;} },0); });
+    if(tf) tf.addEventListener("change", ()=>{ coachFilter.team=tf.value; render(); });
+  }
+  if(activeTab==="arbitros" && !activeRefereeId){
+    const q = document.getElementById("referee-q");
+    const rf = document.getElementById("referee-role-filter");
+    const cf = document.getElementById("referee-country-filter");
+    if(q) q.addEventListener("input", ()=>{ refereeFilter.q=q.value; render(); setTimeout(()=>{ const el=document.getElementById("referee-q"); if(el){el.focus(); el.selectionStart=el.selectionEnd=el.value.length;} },0); });
+    if(rf) rf.addEventListener("change", ()=>{ refereeFilter.role=rf.value; render(); });
+    if(cf) cf.addEventListener("change", ()=>{ refereeFilter.country=cf.value; render(); });
+  }
   if(activeTab==="clubes" && !activeClubId){
     const q = document.getElementById("club-q");
     const cf = document.getElementById("club-country-filter");

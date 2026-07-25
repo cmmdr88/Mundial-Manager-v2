@@ -20,6 +20,8 @@
 let activeTab = "inicio";
 let activeTeamId = null;
 let activePlayerId = null;
+let activeCoachId = null;
+let activeRefereeId = null;
 let activeClubId = null;
 
 /* ---------- Historial de navegación (adelante / atrás) ---------- */
@@ -39,6 +41,8 @@ function navigateTo(tab, teamId){
   activeTab = tab;
   activeTeamId = teamId || null;
   activePlayerId = null;
+  activeCoachId = null;
+  activeRefereeId = null;
   if(tab!=="clubes") activeClubId = null;
   pushHistory();
   render();
@@ -50,13 +54,15 @@ function navigateToClub(clubId){
   activeClubId = clubId;
   activeTeamId = null;
   activePlayerId = null;
+  activeCoachId = null;
   pushHistory();
   render();
   scrollToTop();
 }
 function replaceCurrentClub(clubId){
   activeClubId = clubId;
-  navHistory[navIndex] = {tab:activeTab, teamId:activeTeamId, playerId:activePlayerId, clubId:clubId, scrollY:0};
+  activeCoachId = null;
+  navHistory[navIndex] = {tab:activeTab, teamId:activeTeamId, playerId:activePlayerId, coachId:null, clubId:clubId, scrollY:0};
   render();
   scrollToTop();
 }
@@ -66,6 +72,7 @@ function navigateToTeam(teamId){
   saveScrollToCurrent();
   activeTeamId = teamId;
   activePlayerId = null;
+  activeCoachId = null;
   pushHistory();
   render();
   scrollToTop();
@@ -75,6 +82,17 @@ function navigateToTeam(teamId){
 function navigateToPlayer(playerId){
   saveScrollToCurrent();
   activePlayerId = playerId;
+  activeCoachId = null;
+  pushHistory();
+  render();
+  scrollToTop();
+}
+// Abre la ficha de un entrenador — igual que navigateToPlayer, conserva la pestaña/equipo de origen
+// para que "Volver" regrese exactamente a donde estabas (lista de Entrenadores o ficha del equipo).
+function navigateToCoach(coachId){
+  saveScrollToCurrent();
+  activeCoachId = coachId;
+  activePlayerId = null;
   pushHistory();
   render();
   scrollToTop();
@@ -82,16 +100,41 @@ function navigateToPlayer(playerId){
 // Cambia la ficha actual EN EL MISMO lugar del historial (sin apilar) — lo usan las flechas
 // arriba/abajo, para que "Volver" regrese a la lista de la que veníamos, no a la ficha anterior
 // que hayas recorrido con las flechas.
+// Abre la ficha de un árbitro — conserva la pestaña de origen para que "Volver" regrese ahí.
+function navigateToReferee(refId){
+  saveScrollToCurrent();
+  activeRefereeId = refId;
+  activePlayerId = null;
+  activeCoachId = null;
+  pushHistory();
+  render();
+  scrollToTop();
+}
+function replaceCurrentReferee(refId){
+  activeRefereeId = refId;
+  navHistory[navIndex] = {tab:activeTab, teamId:activeTeamId, playerId:null, coachId:null, refereeId:activeRefereeId, scrollY:0};
+  render();
+  scrollToTop();
+}
 function replaceCurrentTeam(teamId){
   activeTeamId = teamId;
   activePlayerId = null;
-  navHistory[navIndex] = {tab:activeTab, teamId:activeTeamId, playerId:null, scrollY:0};
+  activeCoachId = null;
+  navHistory[navIndex] = {tab:activeTab, teamId:activeTeamId, playerId:null, coachId:null, scrollY:0};
   render();
   scrollToTop();
 }
 function replaceCurrentPlayer(playerId){
   activePlayerId = playerId;
-  navHistory[navIndex] = {tab:activeTab, teamId:activeTeamId, playerId:activePlayerId, scrollY:0};
+  activeCoachId = null;
+  navHistory[navIndex] = {tab:activeTab, teamId:activeTeamId, playerId:activePlayerId, coachId:null, scrollY:0};
+  render();
+  scrollToTop();
+}
+function replaceCurrentCoach(coachId){
+  activeCoachId = coachId;
+  activePlayerId = null;
+  navHistory[navIndex] = {tab:activeTab, teamId:activeTeamId, playerId:null, coachId:activeCoachId, scrollY:0};
   render();
   scrollToTop();
 }
@@ -100,7 +143,7 @@ function replaceCurrentPlayer(playerId){
 const MAX_NAV_HISTORY = 50;
 function pushHistory(){
   navHistory = navHistory.slice(0, navIndex+1);
-  navHistory.push({tab:activeTab, teamId:activeTeamId, playerId:activePlayerId, clubId:activeClubId, scrollY:0});
+  navHistory.push({tab:activeTab, teamId:activeTeamId, playerId:activePlayerId, coachId:activeCoachId, refereeId:activeRefereeId, clubId:activeClubId, scrollY:0});
   if(navHistory.length > MAX_NAV_HISTORY){
     navHistory = navHistory.slice(navHistory.length - MAX_NAV_HISTORY);
   }
@@ -111,7 +154,7 @@ function navBack(){
   saveScrollToCurrent();
   navIndex--;
   const s = navHistory[navIndex];
-  activeTab = s.tab; activeTeamId = s.teamId; activePlayerId = s.playerId||null; activeClubId = s.clubId||null;
+  activeTab = s.tab; activeTeamId = s.teamId; activePlayerId = s.playerId||null; activeCoachId = s.coachId||null; activeRefereeId = s.refereeId||null; activeClubId = s.clubId||null;
   render();
   restoreScroll(s.scrollY);
 }
@@ -120,12 +163,12 @@ function navForward(){
   saveScrollToCurrent();
   navIndex++;
   const s = navHistory[navIndex];
-  activeTab = s.tab; activeTeamId = s.teamId; activePlayerId = s.playerId||null; activeClubId = s.clubId||null;
+  activeTab = s.tab; activeTeamId = s.teamId; activePlayerId = s.playerId||null; activeCoachId = s.coachId||null; activeRefereeId = s.refereeId||null; activeClubId = s.clubId||null;
   render();
   restoreScroll(s.scrollY);
 }
 function resetNavHistory(){
-  navHistory = [{tab:activeTab, teamId:activeTeamId, playerId:activePlayerId, scrollY:0}];
+  navHistory = [{tab:activeTab, teamId:activeTeamId, playerId:activePlayerId, coachId:activeCoachId, scrollY:0}];
   navIndex = 0;
 }
 
@@ -139,6 +182,39 @@ function renderTabs(){
   el.querySelectorAll(".tab-btn").forEach(b=>{
     b.addEventListener("click", ()=>{ navigateTo(b.dataset.tab, null); });
   });
+  setupTabsArrows();
+  // La pestaña activa siempre visible (navegación fluida al cambiar de sección).
+  const act = el.querySelector(".tab-btn.active");
+  if(act && typeof act.scrollIntoView === "function"){
+    try{ act.scrollIntoView({block:"nearest", inline:"nearest"}); }catch(e){ /* navegadores viejos */ }
+  }
+  updateTabsArrows();
+}
+
+// Flechas de la barra de pestañas: indican que hay más pestañas fuera de vista y desplazan la barra.
+// Se muestran solo cuando hay contenido oculto de ese lado; se actualizan al hacer scroll y al
+// redimensionar la ventana. Idempotente (los listeners se instalan una sola vez).
+function setupTabsArrows(){
+  const el = document.getElementById("tabs");
+  const left = document.getElementById("tabs-arrow-left");
+  const right = document.getElementById("tabs-arrow-right");
+  if(!el || !left || !right || el.dataset.arrowsWired) { updateTabsArrows(); return; }
+  el.dataset.arrowsWired = "1";
+  const step = ()=> Math.max(160, Math.round(el.clientWidth * 0.6));
+  const scrollByX = (dx)=>{ if(typeof el.scrollBy==="function") el.scrollBy({left:dx, behavior:"smooth"}); else el.scrollLeft += dx; };
+  left.addEventListener("click", ()=>{ scrollByX(-step()); });
+  right.addEventListener("click", ()=>{ scrollByX(step()); });
+  el.addEventListener("scroll", updateTabsArrows, {passive:true});
+  window.addEventListener("resize", updateTabsArrows);
+}
+function updateTabsArrows(){
+  const el = document.getElementById("tabs");
+  const left = document.getElementById("tabs-arrow-left");
+  const right = document.getElementById("tabs-arrow-right");
+  if(!el || !left || !right) return;
+  const max = el.scrollWidth - el.clientWidth;
+  left.hidden = !(max > 4 && el.scrollLeft > 4);
+  right.hidden = !(max > 4 && el.scrollLeft < max - 4);
 }
 
 function renderNavButtons(){
@@ -156,6 +232,8 @@ function render(){
   renderTabs();
   const view = document.getElementById("view");
   if(activePlayerId) view.innerHTML = renderPlayerDetail(activePlayerId);
+  else if(activeCoachId) view.innerHTML = renderCoachDetail(activeCoachId);
+  else if(activeRefereeId) view.innerHTML = renderRefereeDetail(activeRefereeId);
   else if(activeTeamId) view.innerHTML = renderTeamDetail(activeTeamId);
   else if(activeTab==="inicio") view.innerHTML = renderInicio();
   else if(activeTab==="evento") view.innerHTML = renderEvento();
@@ -163,6 +241,8 @@ function render(){
   else if(activeTab==="confederaciones") view.innerHTML = renderConfederaciones();
   else if(activeTab==="rankings") view.innerHTML = renderRankings();
   else if(activeTab==="jugadores") view.innerHTML = renderJugadores();
+  else if(activeTab==="entrenadores") view.innerHTML = renderEntrenadores();
+  else if(activeTab==="arbitros") view.innerHTML = renderArbitros();
   else if(activeTab==="clubes") view.innerHTML = renderClubes();
   else if(activeTab==="estadios") view.innerHTML = renderEstadios();
   else if(activeTab==="calendario") view.innerHTML = renderCalendario();

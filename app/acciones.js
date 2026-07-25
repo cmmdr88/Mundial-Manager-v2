@@ -190,11 +190,80 @@ function handleAction(action, el){
         DB.clubsData = DB.clubsData.filter(c=>c.id!==club.id);
         DB.clubs = DB.clubs.filter(n=>!names.has(clubKey(n)));
         activeClubId = null; activeTab="clubes";
-        persist(); render();
+        if(typeof invalidateClubPlayerIndex==="function") invalidateClubPlayerIndex(); persist(); render();
       });
       break;
     }
     case "open-player": navigateToPlayer(el.dataset.id); break;
+    case "open-coach": navigateToCoach(el.dataset.id); break;
+    case "open-referee": navigateToReferee(el.dataset.id); break;
+    case "goto-calendario": navigateTo("calendario", null); break;
+    case "add-referee": modalAddEditReferee(null); break;
+    case "toggle-ref-local-kit": break;
+    case "add-referee-work-row": {
+      const c = document.getElementById("referee-work-rows");
+      if(c) c.insertAdjacentHTML("beforeend", refereeWorkRowHTML(""));
+      break;
+    }
+    case "remove-referee-work-row": {
+      const row = el.closest(".referee-work-row");
+      if(row) row.remove();
+      break;
+    }
+    case "edit-referee": modalAddEditReferee(getReferee(el.dataset.id)); break;
+    case "delete-referee": {
+      const r = getReferee(el.dataset.id);
+      if(!r) break;
+      modalConfirm(`¿Eliminar al árbitro ${playerDisplayName(r)}?`, ()=>{
+        DB.referees = (DB.referees||[]).filter(x=>x.id!==el.dataset.id);
+        if(activeRefereeId===el.dataset.id) activeRefereeId = null;
+        persist(); closeModal(); render();
+      }, "Eliminar");
+      break;
+    }
+    case "save-referee": {
+      const id = el.dataset.id;
+      const firstName = document.getElementById("f-rfirstname").value.trim();
+      const lastName = document.getElementById("f-rlastname").value.trim();
+      const commonName = document.getElementById("f-rcommonname").value.trim();
+      if(!firstName && !lastName && !commonName){ alert("Pon al menos el nombre, el apellido, o el nombre común."); return; }
+      const nationalityIds = [...new Set([...document.querySelectorAll("#nationality-rows .nationality-name")]
+        .map(i=>i.value.trim()).filter(Boolean)
+        .map(findOrCreateCountryByName).filter(Boolean))];
+      // País que representa: es un id de una de sus nacionalidades (no se crea nada nuevo).
+      const repId = document.getElementById("f-r-represents").value || null;
+      // Países donde trabaja: una fila por país, igual que las nacionalidades (nunca un texto con comas,
+      // que antes creaba un país inventado del tipo "Catar, Egipto").
+      const countryWorksIds = [...new Set([...document.querySelectorAll("#referee-work-rows .referee-work-name")]
+        .map(i=>i.value.trim()).filter(Boolean)
+        .map(findOrCreateCountryByName).filter(Boolean))];
+      const photoEl = document.getElementById("f-rphoto-data");
+      // Partidos: solo números del 1 al 104, sin repetidos y ordenados.
+      const matches = [...new Set((document.getElementById("f-r-matches").value.match(/\d+/g)||[])
+        .map(n=>parseInt(n,10)).filter(n=>n>=1 && n<=104))].sort((a,b)=>a-b);
+      const data = {
+        firstName, lastName, commonName,
+        fullName: document.getElementById("f-rfullname").value.trim(),
+        fullNameLinked: document.getElementById("f-rfullname-linked").value==="1",
+        birthDate: document.getElementById("f-rbirth").value || null,
+        gender: document.getElementById("f-rgender").value,
+        nationalityIds,
+        countryRepresentsId: (repId && nationalityIds.includes(repId)) ? repId : null,
+        countryWorksIds,
+        role: document.getElementById("f-r-role").value,
+        fifaSince: (()=>{ const v=document.getElementById("f-r-fifasince").value; return v===""?null:parseInt(v,10)||null; })(),
+        previousWorldCups: document.getElementById("f-r-wcs").value.split(",").map(x=>x.trim()).filter(Boolean),
+        shirtName: ((document.getElementById("f-r-shirtname")||{}).value || "").trim(),
+        shirtNameLinked: ((document.getElementById("f-r-shirtname-linked")||{}).value || "1")==="1",
+        matches,
+        photo: (photoEl && photoEl.value) ? photoEl.value : null
+      };
+      if(!Array.isArray(DB.referees)) DB.referees = [];
+      if(id){ Object.assign(DB.referees.find(r=>r.id===id), data); }
+      else { DB.referees.push({id:newId("ref"), ...data}); }
+      persist(); closeModal(); render();
+      break;
+    }
     case "open-team-from-rank": navigateToTeam(el.dataset.id); break;
     case "create-team-from-country": {
       const country = DB.countries.find(c=>c.id===el.dataset.id);
@@ -245,9 +314,40 @@ function handleAction(action, el){
       replaceCurrentPlayer(ordered[nextIdx].id);
       break;
     }
+    case "nav-coach-arrow": {
+      const {team} = getCoachWithTeam(activeCoachId);
+      if(!team) break;
+      const ordered = orderedTeamCoaches(team);
+      if(ordered.length===0) break;
+      const idx = ordered.findIndex(x=>x.id===activeCoachId);
+      if(idx<0) break;
+      const dir = el.dataset.dir==="next"?1:-1;
+      const nextIdx = (idx + dir + ordered.length) % ordered.length; // vuelta circular
+      replaceCurrentCoach(ordered[nextIdx].id);
+      break;
+    }
     case "sort-players": {
       toggleSort(playerSort, el.dataset.key, playerDefaultDir(el.dataset.key));
       render();
+      break;
+    }
+    case "sort-coaches": {
+      toggleSort(coachSort, el.dataset.key, coachDefaultDir(el.dataset.key));
+      render();
+      break;
+    }
+    case "sort-referees": {
+      toggleSort(refereeSort, el.dataset.key, refereeDefaultDir(el.dataset.key));
+      render();
+      break;
+    }
+    case "nav-referee-arrow": {
+      const ordered = orderedReferees();
+      if(!ordered.length) break;
+      const idx = ordered.findIndex(x=>x.id===activeRefereeId);
+      if(idx<0) break;
+      const dir = el.dataset.dir==="next"?1:-1;
+      replaceCurrentReferee(ordered[(idx + dir + ordered.length) % ordered.length].id);
       break;
     }
     case "sort-squad": {
@@ -264,6 +364,8 @@ function handleAction(action, el){
     }
     case "back-selecciones": navIndex>0 ? navBack() : navigateTo("selecciones", null); break;
     case "back-player-detail": navIndex>0 ? navBack() : navigateTo("jugadores", null); break;
+    case "back-coach-detail": navIndex>0 ? navBack() : navigateTo("entrenadores", null); break;
+    case "back-referee-detail": navIndex>0 ? navBack() : navigateTo("arbitros", null); break;
     case "edit-fifa": modalEditFifa(); break;
     case "save-fifa": {
       const f = DB.fifa;
@@ -491,7 +593,7 @@ function handleAction(action, el){
       data.stadiums.forEach(nm=> ensureStadiumFromName(nm, commonName, data.country, data.city));
       // 3) el campo de entrenamiento del club existe como instalación (isTraining) heredando ciudad y país.
       if((data.trainingGround||"").trim()) ensureStadiumFromName(data.trainingGround, null, data.country, data.city, true);
-      persist(); closeModal(); render();
+      if(typeof invalidateClubPlayerIndex==="function") invalidateClubPlayerIndex(); if(typeof registerCity==="function") registerCity(document.getElementById("f-cl-city").value); persist(); closeModal(); render();
       showToast("Club guardado");
       break;
     }
@@ -577,7 +679,7 @@ function handleAction(action, el){
         activePlayerId = null;
         activeTeamId = deleteTeamId;
         activeTab = "selecciones";
-        persist(); render();
+        if(typeof invalidateClubPlayerIndex==="function") invalidateClubPlayerIndex(); persist(); render();
       });
       break;
     }
@@ -596,6 +698,7 @@ function handleAction(action, el){
       const capsRaw = document.getElementById("f-pcaps").value;
       const goalsNatRaw = document.getElementById("f-pgoalsnat").value;
       const birthDate = document.getElementById("f-pbirth").value || null;
+      const genderP = (document.getElementById("f-pgender")||{}).value || "Masculino";
       const heightRaw = document.getElementById("f-pheight").value;
       const height = heightRaw ? Math.max(140, Math.min(230, parseInt(heightRaw))) : null;
       const brandRaw = document.getElementById("f-pbrand").value.trim();
@@ -616,6 +719,7 @@ function handleAction(action, el){
         numberUnassigned: !(parseInt(numberRaw)>0),
         numberClub: (()=>{ const v=parseInt(document.getElementById("f-pnumber-club").value); return (v>0)?Math.min(99,v):null; })(),
         birthDate,
+        gender: genderP,
         height,
         club,
         rating: Math.max(0, Math.min(99, parseInt(document.getElementById("f-prating").value)||70)),
@@ -631,6 +735,60 @@ function handleAction(action, el){
       const team = getTeam(teamId);
       if(id){ Object.assign(team.players.find(p=>p.id===id), data); }
       else { team.players.push({id:newId("p"), ...data}); }
+      if(typeof invalidateClubPlayerIndex==="function") invalidateClubPlayerIndex(); persist(); closeModal(); render();
+      break;
+    }
+
+    case "add-coach": modalAddEditCoach(el.dataset.team, null); break;
+    case "edit-coach": {
+      const team = getTeam(el.dataset.team);
+      modalAddEditCoach(el.dataset.team, (team.coaches||[]).find(c=>c.id===el.dataset.id));
+      break;
+    }
+    case "delete-coach": {
+      const deleteTeamId = el.dataset.team;
+      modalConfirm("¿Eliminar entrenador?", ()=>{
+        const team = getTeam(deleteTeamId);
+        team.coaches = (team.coaches||[]).filter(c=>c.id!==el.dataset.id);
+        activeCoachId = null;
+        activeTeamId = deleteTeamId;
+        activeTab = "selecciones";
+        persist(); render();
+      });
+      break;
+    }
+    case "save-coach": {
+      const teamId = el.dataset.team; const id = el.dataset.id;
+      const firstName = document.getElementById("f-cfirstname").value.trim();
+      const lastName = document.getElementById("f-clastname").value.trim();
+      const commonName = document.getElementById("f-ccommonname").value.trim();
+      if(!firstName && !lastName && !commonName){ alert("Pon al menos el nombre, el apellido, o el nombre común."); return; }
+      const nationalityIds = [...new Set([...document.querySelectorAll("#nationality-rows .nationality-name")]
+        .map(i=>i.value.trim()).filter(Boolean)
+        .map(findOrCreateCountryByName).filter(Boolean))];
+      const birthDate = document.getElementById("f-cbirth").value || null;
+      const genderC = (document.getElementById("f-cgender")||{}).value || "Masculino";
+      const fullName = document.getElementById("f-cfullname").value.trim();
+      const fullNameLinked = document.getElementById("f-cfullname-linked").value==="1";
+      const photoEl = document.getElementById("f-cphoto-data");
+      const contractSelRaw = document.getElementById("f-c-sel").value.trim();
+      const contractCountryId = contractSelRaw ? findOrCreateCountryByName(contractSelRaw) : null;
+      const contractClub = matchOrAddClub(document.getElementById("f-c-club").value);
+      const contractRole = (()=>{ const v = document.getElementById("f-c-role").value; return v==="__otro__" ? document.getElementById("f-c-role-otro").value.trim() : v; })();
+      const data = {
+        firstName, lastName, commonName, fullName, fullNameLinked,
+        birthDate,
+        gender: genderC,
+        rating: Math.max(0, Math.min(99, parseInt(document.getElementById("f-crating").value)||70)),
+        ratingPotential: (()=>{ const v=document.getElementById("f-crating-potential").value; return (v===""||v==null)?null:Math.max(0,Math.min(99,parseInt(v)||0)); })(),
+        nationalityIds,
+        photo: (photoEl && photoEl.value) ? photoEl.value : null,
+        contractCountryId, contractClub, contractRole
+      };
+      const team = getTeam(teamId);
+      if(!Array.isArray(team.coaches)) team.coaches = [];
+      if(id){ Object.assign(team.coaches.find(c=>c.id===id), data); }
+      else { team.coaches.push({id:newId("c"), ...data}); }
       persist(); closeModal(); render();
       break;
     }
@@ -654,20 +812,40 @@ function handleAction(action, el){
       const categories = (()=>{ const seen=new Set(); return [...document.querySelectorAll("#sponsor-cat-rows .sponsor-cat-name")]
         .map(i=>i.value.trim()).filter(Boolean)
         .filter(c=>{ const k=normLoose(c); if(seen.has(k)) return false; seen.add(k); return true; }); })();
-      const linkSel = document.getElementById("f-steam").value;
-      const isGlobal = linkSel==="__global__";
-      const teamId = (linkSel && !isGlobal) ? linkSel : null;
+      const links = []; const seenLinks = new Set();
+      [...document.querySelectorAll("#sponsor-link-rows .sponsor-link-row")].forEach(row=>{
+        const type = row.querySelector(".sponsor-link-type").value;
+        const v = row.querySelector(".sponsor-link-name").value.trim();
+        let link = null;
+        if(type==="tournament"){ link = {type:"tournament"}; }
+        else if(!v){ return; }
+        else if(type==="team"){
+          const t=DB.teams.find(x=>normLoose(x.commonName)===normLoose(v));
+          if(t) link={type:"team", id:t.id};
+        } else if(type==="club"){
+          link={type:"club", name:(matchOrAddClub(v)||v)};
+        }
+        if(!link) return;
+        const key=link.type+"|"+(link.id||normLoose(link.name||""));
+        if(!seenLinks.has(key)){ seenLinks.add(key); links.push(link); }
+      });
       const data = {
         name,
         categories,
         value: Math.max(0, parseInt(document.getElementById("f-sval").value)||0),
-        teamId,
-        global: isGlobal,
+        links,
+        global: links.some(l=>l.type==="tournament"),
+        teamId: (links.find(l=>l.type==="team")||{}).id || null,
         logoImg: document.getElementById("f-slogo-data").value || null,
         color1: document.getElementById("f-scolor1").value,
         color2: document.getElementById("f-scolor2").value,
         color3: document.getElementById("f-scolor3").value
       };
+      // Reciprocidad: las selecciones/clubes ligados quedan con esta marca como kitSponsor (si no tienen otra).
+      links.forEach(l=>{
+        if(l.type==="team"){ const t=getTeam(l.id); if(t && !t.kitSponsor) t.kitSponsor=name; }
+        if(l.type==="club"){ const c=getClubByName(l.name); if(c && !c.kitSponsor) c.kitSponsor=name; }
+      });
       categories.forEach(c=>addSponsorCategory(c));
       if(id){ Object.assign(DB.sponsors.find(s=>s.id===id), data); }
       else { DB.sponsors.push({id:newId("sp"), ...data}); }
@@ -685,6 +863,17 @@ function handleAction(action, el){
       if(row) row.remove();
       break;
     }
+    case "add-sponsor-link-row": {
+      const container = document.getElementById("sponsor-link-rows");
+      if(container) container.insertAdjacentHTML("beforeend", sponsorLinkRowHTML({type:"team"}));
+      break;
+    }
+    case "remove-sponsor-link-row": {
+      const row = el.closest(".sponsor-link-row");
+      if(row) row.remove();
+      break;
+    }
+    case "set-sponsors-view": sponsorsView = el.dataset.view; render(); break;
 
     case "add-nationality-row": {
       const container = document.getElementById("nationality-rows");
@@ -862,9 +1051,12 @@ function handleAction(action, el){
         fifaCode: document.getElementById("f-c-fifa").value.trim().toUpperCase().slice(0,3) || null,
         iocCode: document.getElementById("f-c-ioc").value.trim().toUpperCase().slice(0,3) || null,
         parentOrStatus: document.getElementById("f-c-parent").value.trim() || null,
+        gentilicioM: document.getElementById("f-c-gm").value.trim() || null,
+        gentilicioF: document.getElementById("f-c-gf").value.trim() || null,
         conf: document.getElementById("f-c-conf").value || null,
         fifaAffiliated: document.getElementById("f-c-fifaafil").checked,
         iocAffiliated: document.getElementById("f-c-iocafil").checked,
+        flagImg: (()=>{ const el=document.getElementById("f-cflag-data"); return el&&el.value ? el.value : null; })(),
         officialLanguages, secondaryLanguages
       };
       let savedCountry;
@@ -889,12 +1081,16 @@ function handleAction(action, el){
       const team = getTeam(el.dataset.team);
       const kit = team.kits.find(k=>k.id===el.dataset.id);
       if(!kit) break;
-      const min = kit.category==="jugador" ? 2 : 1;
-      const countSameCat = team.kits.filter(k=>k.category===kit.category).length;
-      if(countSameCat<=min){ alert(`Debe haber al menos ${min} uniforme${min>1?'s':''} de ${kit.category==="jugador"?"jugador":"portero"}.`); break; }
+      // Los uniformes de árbitro se agregan a mano y se pueden borrar todos; los de selección/club
+      // conservan sus mínimos (2 de jugador, 1 de portero).
+      if(!team.isRefereeKits){
+        const min = kit.category==="jugador" ? 2 : 1;
+        const countSameCat = team.kits.filter(k=>k.category===kit.category).length;
+        if(countSameCat<=min){ alert(`Debe haber al menos ${min} uniforme${min>1?'s':''} de ${kit.category==="jugador"?"jugador":"portero"}.`); break; }
+      }
       modalConfirm(`¿Eliminar el uniforme "${kit.label}"?`, ()=>{
         team.kits = team.kits.filter(k=>k.id!==el.dataset.id);
-        ensureTeamKits(team);
+        if(team.isRefereeKits) ensureRefereeKits(); else ensureTeamKits(team);
         persist(); render();
         modalManageKits(team);
       });
@@ -1224,8 +1420,16 @@ function handleAction(action, el){
       if(category==="portero"){
         data.linkedJugadorKitIds = Array.from(document.querySelectorAll("#kit-linked-jugador .linked-jugador-checkbox:checked")).map(cb=>cb.value);
       }
+      if(category==="arbitro"){
+        const localCb = document.getElementById("f-kit-ref-local");
+        const finalCb = document.getElementById("f-kit-ref-final");
+        data.refLocalKit = !!(localCb && localCb.checked);
+        data.refLocalCountry = data.refLocalKit ? ((document.getElementById("f-kit-ref-local-country")||{}).value || "") : "";
+        data.refFinalKit = !!(finalCb && finalCb.checked);
+      }
       if(id){ Object.assign(team.kits.find(k=>k.id===id), data); }
       else { team.kits.push({id:newId("kit"), category, label:autoKitLabel(team,category), ...data}); }
+      if(team.isRefereeKits) ensureRefereeKits();
       persist(); render();
       if(fromManage){ modalManageKits(team); } else { closeModal(); }
       break;
@@ -1262,16 +1466,30 @@ function handleAction(action, el){
         if(parts.length===2 && !isNaN(parts[0]) && !isNaN(parts[1])){ lat = parts[0]; lng = parts[1]; }
       }
       const owner = matchOrAddClub(document.getElementById("f-st-owner").value);
-      // Lee una fila por equipo, reutiliza el nombre canónico si el club ya existe y quita duplicados.
+      // Lee una fila por equipo (tipo + nombre): las selecciones deben existir (no se crean desde aquí);
+      // los clubes usan el nombre canónico y se crean si son nuevos. Sin duplicados.
       const seen = new Set();
-      const teams = [...document.querySelectorAll("#stadium-team-rows .stadium-team-name")]
-        .map(i=>matchOrAddClub(i.value))
+      const teams = [...document.querySelectorAll("#stadium-team-rows .stadium-team-row")]
+        .map(row=>{
+          const type = (row.querySelector(".stadium-team-type")||{}).value || "club";
+          const raw = (row.querySelector(".stadium-team-name")||{}).value || "";
+          if(!raw.trim()) return "";
+          if(type==="team"){
+            const t = DB.teams.find(x=>normLoose(x.commonName)===normLoose(raw));
+            return t ? t.commonName : "";
+          }
+          return matchOrAddClub(raw);
+        })
         .filter(n=>{ if(!n || seen.has(normLoose(n))) return false; seen.add(normLoose(n)); return true; });
+      const artVal = (id)=>{ const el2=document.getElementById(id); return el2 ? el2.value : "El"; };
       const data = {
         tournamentName,
         officialName,
         nickname: document.getElementById("f-st-nickname").value.trim(),
         showNickname: document.getElementById("f-st-shownick").checked,
+        articleOfficial: artVal("f-st-oname-article"),
+        articleTournament: artVal("f-st-tname-article"),
+        articleNickname: artVal("f-st-nickname-article"),
         capacity: Math.max(0, parseInt(document.getElementById("f-st-capacity").value)||0) || null,
         turfType: document.getElementById("f-st-turf").value,
         city: document.getElementById("f-st-city").value.trim(),
@@ -1297,43 +1515,96 @@ function handleAction(action, el){
       const existing = id ? DB.stadiums.find(s=>s.id===id) : null;
       const oldTeams = existing ? (existing.teams||[]).slice() : [];
       const oldLink = existing ? stadiumLinkName(existing) : "";
+      // Los partidos del calendario guardan la sede por nombre (normalmente el de torneo FIFA), así que
+      // se capturan los tres nombres previos para reasignarlos uno a uno si cambian: si no, al renombrar
+      // el estadio la sede queda huérfana y el calendario no puede mostrar su ciudad/estado/país.
+      const oldNames = existing ? {t:(existing.tournamentName||"").trim(), o:(existing.officialName||"").trim(), n:(existing.nickname||"").trim()} : null;
       let st;
       if(existing){ Object.assign(existing, data); st = existing; }
       else { st = {id:newId("st"), ...data}; DB.stadiums.push(st); }
       const newLink = stadiumLinkName(st);
-      // 1) Clubes quitados del estadio → se les quita este estadio de su lista.
+      if(oldNames){
+        const pairs = [[oldNames.t, data.tournamentName], [oldNames.o, data.officialName], [oldNames.n, data.nickname]]
+          .filter(([a,b])=> a && normLoose(a)!==normLoose(b||""));
+        if(pairs.length){
+          (DB.fixtures||[]).forEach(f=>{
+            if(!f.venue) return;
+            const hit = pairs.find(([a])=> normLoose(f.venue)===normLoose(a));
+            if(hit) f.venue = (hit[1]||"").trim() || newLink;
+          });
+        }
+      }
+      if(data.isTraining){
+        // ---- Instalación de ENTRENAMIENTO: el vínculo recíproco es el campo trainingGround ----
+        const findTeamOrClub = (name)=>{
+          const sel = DB.teams.find(x=>normLoose(x.commonName)===normLoose(name));
+          return sel || getClubByName(name);
+        };
+        // 1) Quitados de la instalación → si su trainingGround apuntaba aquí, se limpia.
+        oldTeams
+          .filter(t=> !teams.some(n=>normLoose(n)===normLoose(t)))
+          .forEach(t=>{
+            const obj = findTeamOrClub(t);
+            if(obj && obj.trainingGround && (normLoose(obj.trainingGround)===normLoose(oldLink) || normLoose(obj.trainingGround)===normLoose(newLink))) obj.trainingGround = "";
+          });
+        // 2) Renombre → se actualiza el trainingGround de todas las selecciones y clubes.
+        if(oldLink && normLoose(oldLink)!==normLoose(newLink)){
+          [...DB.teams, ...(DB.clubsData||[])].forEach(o=>{
+            if(o.trainingGround && normLoose(o.trainingGround)===normLoose(oldLink)) o.trainingGround = newLink;
+          });
+        }
+        // 3) Agregados → su campo de entrenamiento pasa a ser esta instalación (si no tenían otro distinto).
+        teams.forEach(t=>{
+          const obj = findTeamOrClub(t);
+          if(!obj) return;
+          const cur = (obj.trainingGround||"").trim();
+          if(!cur || normLoose(cur)===normLoose(oldLink)) obj.trainingGround = newLink;
+        });
+      } else {
+      // ---- Estadio de JUEGO: el vínculo recíproco es la lista de estadios (clubes Y selecciones) ----
+      const stadListTargets = (name)=>{
+        const out=[];
+        const sel = DB.teams.find(x=>normLoose(x.commonName)===normLoose(name));
+        if(sel) out.push(sel);
+        const c = getClubByName(name);
+        if(c) out.push(c);
+        return out;
+      };
+      // 1) Quitados del estadio → se les quita este estadio de su lista.
       oldTeams
         .filter(t=> !teams.some(n=>normLoose(n)===normLoose(t)))
         .forEach(t=>{
-          const c = getClubByName(t);
-          if(!c || !Array.isArray(c.stadiums)) return;
-          c.stadiums = c.stadiums.filter(nm=> normLoose(nm)!==normLoose(oldLink) && normLoose(nm)!==normLoose(newLink));
-          c.stadium = c.stadiums[0]||"";
+          stadListTargets(t).forEach(o=>{
+            if(!Array.isArray(o.stadiums)) return;
+            o.stadiums = o.stadiums.filter(nm=> normLoose(nm)!==normLoose(oldLink) && normLoose(nm)!==normLoose(newLink));
+            o.stadium = o.stadiums[0]||"";
+          });
         });
-      // 2) Si el estadio cambió de nombre, se actualizan las referencias en todos los clubes.
+      // 2) Si el estadio cambió de nombre, se actualizan las referencias en clubes y selecciones.
       if(oldLink && normLoose(oldLink)!==normLoose(newLink)){
-        (DB.clubsData||[]).forEach(c=>{
-          if(!Array.isArray(c.stadiums)) return;
-          c.stadiums = c.stadiums.map(nm=> normLoose(nm)===normLoose(oldLink) ? newLink : nm);
-          c.stadium = c.stadiums[0]||"";
+        [...DB.teams, ...(DB.clubsData||[])].forEach(o=>{
+          if(!Array.isArray(o.stadiums)) return;
+          o.stadiums = o.stadiums.map(nm=> normLoose(nm)===normLoose(oldLink) ? newLink : nm);
+          o.stadium = o.stadiums[0]||"";
         });
       }
-      // 3) Clubes del estadio → este estadio aparece en su lista (al final, sin cambiar su principal).
+      // 3) Equipos del estadio → este estadio aparece en su lista (al final, sin cambiar su principal).
       teams.forEach(t=>{
-        const c = getClubByName(t);
-        if(!c) return;
-        if(!Array.isArray(c.stadiums)) c.stadiums = (c.stadium||"").trim() ? [c.stadium.trim()] : [];
-        if(!c.stadiums.some(nm=>normLoose(nm)===normLoose(newLink))) c.stadiums.push(newLink);
-        c.stadium = c.stadiums[0]||"";
+        stadListTargets(t).forEach(o=>{
+          if(!Array.isArray(o.stadiums)) o.stadiums = (o.stadium||"").trim() ? [o.stadium.trim()] : [];
+          if(!o.stadiums.some(nm=>normLoose(nm)===normLoose(newLink))) o.stadiums.push(newLink);
+          o.stadium = o.stadiums[0]||"";
+        });
       });
-      persist(); closeModal(); render();
+      }
+      if(typeof registerCity==="function") registerCity(document.getElementById("f-st-city").value); persist(); closeModal(); render();
       break;
     }
 
     case "delete-catalog-item": {
       const cat = el.dataset.cat;
       const value = decodeURIComponent(el.dataset.value);
-      const catLabel = ({leagues:"la liga", brands:"la marca", sponsorCategories:"la categoría"})[cat] || "el elemento";
+      const catLabel = ({leagues:"la liga", brands:"la marca", sponsorCategories:"la categoría", cities:"la ciudad"})[cat] || "el elemento";
       modalConfirm(`¿Eliminar ${catLabel} "${value}" del catálogo?`, ()=>{
         if(DB[cat]){ DB[cat] = DB[cat].filter(v=>v!==value); persist(); render(); }
       });
