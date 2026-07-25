@@ -279,7 +279,7 @@ function drawTextWithStyle(ctx, box, text, family, color, outline, outlineColor,
 // comprime a lo ancho) y la muestra vertical del nombre es fija, el resultado es idéntico para
 // todos los jugadores de un mismo uniforme: el reencuadre les aplica a todos por igual y los
 // nombres conservan exactamente el mismo tamaño entre sí.
-function badgeTextVerticalInk(ctx, box, text, family, sizePct, offsetYInput, arcLevel, size, outlineScale, outlineOn, outlineWidthInput, condense, flatRef){
+function badgeTextVerticalInk(ctx, box, text, family, sizePct, offsetYInput, arcLevel, size, outlineScale, outlineOn, outlineWidthInput, condense, flatRef, letterSpacingInput){
   const boxW = (box.right-box.left)*size, boxH = (box.bottom-box.top)*size;
   const baseFit = fitTextMetrics(ctx, text, family, boxW, boxH, undefined, condense, flatRef);
   const scale = (sizePct!=null ? sizePct : 100)/100;
@@ -296,11 +296,60 @@ function badgeTextVerticalInk(ctx, box, text, family, sizePct, offsetYInput, arc
     const mV = ctx.measureText((flatRef ? normalizeForVerticalMetrics(text) : stripDiacritics(text)) || text);
     ascentM = mV.actualBoundingBoxAscent||0; descentM = mV.actualBoundingBoxDescent||0;
   }
+  // El contorno (stroke centrado en el trazo) asoma la mitad de su grosor hacia afuera.
+  const halfOutline = outlineOn ? Math.max(0,(outlineWidthInput!=null?outlineWidthInput:4)*outlineScale*2)/2 : 0;
+  if(!isFinite(radius)){
+    ctx.restore();
+    // El dibujo plano recoloca el punto de dibujo para que esta tinta quede centrada en cy.
+    const half = (ascentM+descentM)/2 + halfOutline;
+    return {top: cy-half, bottom: cy+half};
+  }
+  // ——— Texto en ARCO ———
+  // Con arco la tinta NO ocupa el mismo alto que en plano: cada letra se desplaza sobre la curva y
+  // además se dibuja girada, así que las de los extremos bajan y se inclinan. Medir el arco con la
+  // altura del texto plano (como se hacía) subestimaba el alto real y el grupo quedaba descentrado,
+  // con más margen arriba que abajo. Aquí se reproduce la MISMA geometría de drawCurvedText —
+  // avances por subcadenas (respetando kerning), ángulos sobre el radio y giro por letra — y se
+  // calcula el recorrido vertical real de las cuatro esquinas de cada letra.
+  enableFontKerning(ctx);
+  const scaleX = baseFit.scaleX ?? 1;
+  // Si el nombre se comprime a lo ancho, el dibujo usa un radio y un interletrado divididos por ese
+  // factor (y luego escala el lienzo en horizontal). Como el escalado horizontal no toca la vertical,
+  // basta con reproducir esos mismos valores para obtener las alturas correctas.
+  const eff = (condense && scaleX < 1) ? scaleX : 1;
+  const radiusUsed = radius/eff;
+  const letterSpacingPx = ((letterSpacingInput||0) * outlineScale)/eff;
+  const chars = String(text).split("");
+  const advances = [];
+  let prevW = 0;
+  for(let i=0;i<chars.length;i++){
+    const w = ctx.measureText(String(text).slice(0, i+1)).width;
+    advances.push(w - prevW);
+    prevW = w;
+  }
   ctx.restore();
-  // El dibujo plano recoloca el punto de dibujo para que esta tinta quede centrada en cy;
-  // el contorno (stroke centrado en el trazo) asoma la mitad de su grosor hacia afuera.
-  const half = (ascentM+descentM)/2 + (outlineOn ? Math.max(0,(outlineWidthInput!=null?outlineWidthInput:4)*outlineScale*2)/2 : 0);
-  return {top: cy-half, bottom: cy+half};
+  if(!chars.length) return {top: cy, bottom: cy};
+  const spaced = advances.map(w=>w+letterSpacingPx);
+  const totalWidth = spaced.reduce((a,b)=>a+b,0) - letterSpacingPx;
+  const totalAngle = totalWidth/radiusUsed;
+  let angle = -totalAngle/2;
+  let top = Infinity, bottom = -Infinity;
+  for(let i=0;i<chars.length;i++){
+    const charAngle = angle + (advances[i]/2)/radiusUsed;
+    const py = cy - radiusUsed*Math.cos(charAngle) + radiusUsed;
+    const halfW = advances[i]/2;
+    const sin = Math.sin(charAngle), cos = Math.cos(charAngle);
+    // Al girar la letra, la altura de cada esquina de su caja de tinta es x*sin + y*cos.
+    for(const lx of [-halfW, halfW]){
+      for(const ly of [-ascentM, descentM]){
+        const y = py + lx*sin + ly*cos;
+        if(y < top) top = y;
+        if(y > bottom) bottom = y;
+      }
+    }
+    angle += spaced[i]/radiusUsed;
+  }
+  return {top: top-halfOutline, bottom: bottom+halfOutline};
 }
 // Con las tintas previstas de nombre y número produce la transformación de grupo del cuadro:
 // desplaza el CONJUNTO (manteniendo intacta la distancia configurada entre nombre y número) para
@@ -363,13 +412,28 @@ function resizeImageToDataURL(file, maxDim){
 // Las bases usan 3 colores plantilla: rojo ff0000, azul 0000ff, verde 00ff00.
 // Cada uno se reemplaza por el color 1/2/3 que el usuario elija para ese uniforme.
 // La textura/outline (KIT_TEXTURE_DEFAULT / DB.kitTexture) nunca se recolorea.
+// Caché de imágenes ya decodificadas. Sin esto, cada recoloreado volvía a decodificar la imagen base
+// completa (el escudo genérico y las plantillas de uniforme son data URLs de decenas de KB), y ese
+// decodificado —no el recoloreado— era lo que hacía lenta una lista con muchos escudos genéricos.
+// Se guarda la promesa, así dos llamadas simultáneas a la misma imagen comparten una sola carga.
+const _imgCache = new Map();
+const IMG_CACHE_MAX = 60;
 function loadImg(src){
-  return new Promise((resolve,reject)=>{
+  const hit = _imgCache.get(src);
+  if(hit) return hit;
+  const p = new Promise((resolve,reject)=>{
     const img = new Image();
     img.onload = ()=>resolve(img);
-    img.onerror = reject;
+    img.onerror = (e)=>{ _imgCache.delete(src); reject(e); };
     img.src = src;
   });
+  _imgCache.set(src, p);
+  // Tope de memoria: se descarta la entrada más antigua (Map conserva el orden de inserción).
+  if(_imgCache.size > IMG_CACHE_MAX){
+    const oldest = _imgCache.keys().next().value;
+    if(oldest !== src) _imgCache.delete(oldest);
+  }
+  return p;
 }
 // Caché del recoloreado "nativo" (antes de escalar) por combinación base+colores — recolorear pixel
 // por pixel a resolución nativa es el paso costoso; varias partes de la pantalla (preview grande,

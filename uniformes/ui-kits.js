@@ -85,8 +85,12 @@ async function drawBackNumberOnCanvas(ctx, size, kit){
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
 
-  drawTextWithStyle(ctx, BACK_TEXT_BOXES.name, previewNameText, nameFamily, kit.backNameColor, kit.backNameOutline, kit.backNameOutlineColor, kit.backNameOutlineWidth, kit.backNameSizePct, kit.backNameLetterSpacing, kit.backNameOffsetX, kit.backNameOffsetY, kit.backNameArc, size, outlineScale, undefined, kit.backNameCondense, true);
-  drawTextWithStyle(ctx, BACK_TEXT_BOXES.number, previewNumberText, numberFamily, kit.backNumberColor, kit.backNumberOutline, kit.backNumberOutlineColor, kit.backNumberOutlineWidth, kit.backNumberSizePct, kit.backNumberLetterSpacing, kit.backNumberOffsetX, kit.backNumberOffsetY, 1, size, outlineScale);
+  // El dorso arbitral no lleva número: solo el apellido, en una franja mucho más chica y más alta.
+  const nameBox = (kit.category==="arbitro") ? REFEREE_BACK_TEXT_BOXES.name : BACK_TEXT_BOXES.name;
+  drawTextWithStyle(ctx, nameBox, previewNameText, nameFamily, kit.backNameColor, kit.backNameOutline, kit.backNameOutlineColor, kit.backNameOutlineWidth, kit.backNameSizePct, kit.backNameLetterSpacing, kit.backNameOffsetX, kit.backNameOffsetY, kit.backNameArc, size, outlineScale, undefined, kit.backNameCondense, true);
+  if(kit.category!=="arbitro"){
+    drawTextWithStyle(ctx, BACK_TEXT_BOXES.number, previewNumberText, numberFamily, kit.backNumberColor, kit.backNumberOutline, kit.backNumberOutlineColor, kit.backNumberOutlineWidth, kit.backNumberSizePct, kit.backNumberLetterSpacing, kit.backNumberOffsetX, kit.backNumberOffsetY, 1, size, outlineScale);
+  }
   ctx.restore();
 }
 // Genera el cuadro de número+nombre que se muestra en el perfil del jugador (entre sus datos y el
@@ -202,7 +206,8 @@ async function buildKitBadgePreviewDataURL(kit, size){
   const nameInkP = badgeTextVerticalInk(ctx, BACK_SQUARE_TEXT_BOXES.name, nameText, nameFamily,
     kit.badgeNameSizePct, kit.badgeNameOffsetY, kit.badgeNameArc, size, outlineScale,
     kit.badgeNameOutline, kit.badgeNameOutlineWidth,
-    kit.badgeNameCondense!=null?kit.badgeNameCondense:kit.backNameCondense, true);
+    kit.badgeNameCondense!=null?kit.badgeNameCondense:kit.backNameCondense, true,
+    kit.badgeNameLetterSpacing);
   const numInkP = badgeTextVerticalInk(ctx, BACK_SQUARE_TEXT_BOXES.number, numberText||"0", numberFamily,
     kit.badgeNumberSizePct, kit.badgeNumberOffsetY, 1, size, outlineScale,
     kit.badgeNumberOutline, kit.badgeNumberOutlineWidth, false, false);
@@ -233,7 +238,7 @@ async function buildNumberFontPreviewDataURL(entry, size){
 function kitCardHTML(t,k){
   const jugadorCount = t.kits.filter(x=>x.category==="jugador").length;
   const porteroCount = t.kits.filter(x=>x.category==="portero").length;
-  const canDelete = k.category==="jugador" ? jugadorCount>2 : porteroCount>1;
+  const canDelete = k.category==="arbitro" ? true : (k.category==="jugador" ? jugadorCount>2 : porteroCount>1);
   return `
   <div class="card kit-drag-card" draggable="true" data-team="${t.id}" data-kit-id="${k.id}" data-category="${k.category}" style="text-align:center;position:relative;">
     <div class="kit-drag-handle" title="Arrastra para reordenar" style="position:absolute;top:6px;left:8px;color:var(--muted);cursor:grab;font-size:13px;">⠿</div>
@@ -486,6 +491,30 @@ function renderBackBasesSection(){
 }
 
 function modalManageKits(team){
+  // Uniformes de árbitros del torneo: un solo apartado, kits numerados Kit 1, Kit 2… y el
+  // "Patrocinador de ropa" que por defecto es el patrocinador de indumentaria del torneo.
+  if(team && team.isRefereeKits){
+    ensureRefereeKits();
+    const porDefecto = tournamentApparelSponsorName();
+    openModal(`
+      <div class="modal-box" style="max-width:680px;">
+        <div class="modal-head"><h2>Uniformes de árbitros del torneo</h2><button class="modal-close" data-action="close-modal">×</button></div>
+        <div class="modal-body">
+          <label class="field" style="margin-bottom:18px;">Patrocinador de ropa
+            <input id="f-kit-sponsor-top" class="team-kitsponsor-input" data-team="${team.id}" list="brand-list" value="${escapeHtml(team.kitSponsor||porDefecto||'')}" placeholder="Marca de ropa">
+            <datalist id="brand-list">${apparelBrandNames().map(b=>`<option value="${escapeHtml(b)}">`).join("")}</datalist>
+            <span style="font-size:10px;color:var(--muted);font-weight:400;">${porDefecto?`Si lo dejas vacío se usa el del torneo: <b>${escapeHtml(porDefecto)}</b>.`:'Si lo dejas vacío se usa el patrocinador de indumentaria ligado al torneo.'}</span>
+          </label>
+          <div class="section-title" style="margin-top:0;"><h2 style="font-size:14px;">Uniformes de árbitro</h2><button class="btn gold sm" data-action="add-kit" data-team="${team.id}" data-category="arbitro">+ Agregar</button></div>
+          <div class="grid cols-3">
+            ${(team.kits||[]).map(k=>kitCardHTML(team,k)).join("") || `<div class="empty" style="grid-column:1/-1;"><h3>Sin uniformes</h3><p>Agrega el primero con “+ Agregar”.</p></div>`}
+          </div>
+        </div>
+        <div class="modal-foot"><button class="btn ghost" data-action="close-modal">Cerrar</button></div>
+      </div>
+    `);
+    return;
+  }
   openModal(`
     <div class="modal-box" style="max-width:680px;">
       <div class="modal-head"><h2>Uniformes de ${team.commonName}</h2><button class="modal-close" data-action="close-modal">×</button></div>
@@ -549,6 +578,10 @@ function modalAddEditKit(team, kit, fromManage){
     id: kit.id || null,
     category: kit.category || "jugador",
     label: kit.label || "",
+    // Marcas propias de los uniformes de árbitro (uso local por sede y uniforme de la final).
+    refLocalKit: !!kit.refLocalKit,
+    refLocalCountry: kit.refLocalCountry || "",
+    refFinalKit: !!kit.refFinalKit,
     baseNumber: kit.baseNumber!=null ? kit.baseNumber : (DB.kitBases[0] ? DB.kitBases[0].number : 1),
     color1: resolvedColor1,
     color2: resolvedColor2,
@@ -612,11 +645,13 @@ function modalAddEditKit(team, kit, fromManage){
   kit.badgeNameCondense = kit.badgeNameLinked ? (kit.backNameCondense||false) : (origBadgeNameCondense!=null ? origBadgeNameCondense : (kit.backNameCondense||false));
   // El cuadro solo tiene sentido configurar aparte en el uniforme de Local (jugador) y Portero
   // Local — los demás (Visita, Portero Visita, etc.) no se usan para este cuadro en el perfil.
-  const showBadgeSection = kit.label==="Local" || kit.label==="Portero Local";
+  const isRefKit = kit.category==="arbitro";
+  const showBadgeSection = !isRefKit && (kit.label==="Local" || kit.label==="Portero Local");
   const jugadorKits = team.kits.filter(k=>k.category==="jugador");
   openModal(`
+    ${isRefKit ? `<style>[data-kit-number-only]{display:none !important;}</style>` : ""}
     <div class="modal-box" style="max-width:640px;">
-      <div class="modal-head"><h2>${isEdit?"Editar uniforme":"Agregar uniforme"} — ${kit.category==="jugador"?"Jugador":"Portero"}</h2><button class="modal-close" data-action="cancel-kit-edit" data-team="${team.id}" data-from-manage="${fromManage?'1':'0'}">×</button></div>
+      <div class="modal-head"><h2>${isEdit?"Editar uniforme":"Agregar uniforme"} — ${kit.category==="arbitro"?"Árbitro":(kit.category==="jugador"?"Jugador":"Portero")}</h2><button class="modal-close" data-action="cancel-kit-edit" data-team="${team.id}" data-from-manage="${fromManage?'1':'0'}">×</button></div>
       <div class="modal-body">
         <div class="subhead" style="margin-top:0;">Playera</div>
         <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">
@@ -663,7 +698,7 @@ function modalAddEditKit(team, kit, fromManage){
           </div>
           <div id="kit-test-panel-body" style="display:none;margin-top:10px;">
             <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
-              <label class="field" style="width:100px;">Número de prueba
+              <label class="field" data-kit-number-only="1" style="width:100px;">Número de prueba
                 <input type="number" id="f-kit-preview-number" class="kit-modal-control" min="0" max="999" value="10">
               </label>
               <label class="field" style="flex:1;min-width:180px;">Nombre de prueba
@@ -673,7 +708,7 @@ function modalAddEditKit(team, kit, fromManage){
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface-2);border-radius:8px;padding:8px 12px;margin-bottom:6px;">
+        <div data-kit-number-only="1" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface-2);border-radius:8px;padding:8px 12px;margin-bottom:6px;">
           <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Número + Nombre (los dos juntos)</span>
           <span style="display:flex;gap:8px;flex-wrap:wrap;">
             <button type="button" class="btn ghost sm" data-action="copy-both-style">Copiar ambos</button>
@@ -682,7 +717,7 @@ function modalAddEditKit(team, kit, fromManage){
           </span>
         </div>
 
-        <div class="subhead" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div class="subhead" data-kit-number-only="1" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
           <span>Número</span>
           <span style="display:flex;gap:8px;">
             <button type="button" class="btn ghost sm" data-action="copy-number-style">Copiar estilo</button>
@@ -690,9 +725,9 @@ function modalAddEditKit(team, kit, fromManage){
             <button type="button" class="btn ghost sm" data-action="paste-number-style-only">Pegar solo estilo</button>
           </span>
         </div>
-        <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px;">Tipografía, color y contorno opcional del número (se muestra "10" de ejemplo).</p>
+        <p data-kit-number-only="1" style="font-size:11.5px;color:var(--muted);margin:0 0 10px;">Tipografía, color y contorno opcional del número (se muestra "10" de ejemplo).</p>
         ${DB.numberFonts.length ? `
-        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+        <div data-kit-number-only="1" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
           <label class="field" style="flex:1;min-width:130px;">Tipografía
             <select id="f-kit-backnum-font" class="kit-modal-control">
               ${DB.numberFonts.map(f=>`<option value="${f.id}" ${f.id===kit.backNumberFontId?"selected":""}>${numberFontLabel(f)}</option>`).join("")}
@@ -707,7 +742,7 @@ function modalAddEditKit(team, kit, fromManage){
             <input type="number" id="f-kit-backnum-outline-width" class="kit-modal-control" min="0" max="12" step="1" value="${kit.backNumberOutlineWidth}">
           </label>
         </div>
-        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px;">
+        <div data-kit-number-only="1" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px;">
           <label class="field" style="width:90px;">Tamaño
             <input type="number" id="f-kit-backnum-sizepct" class="kit-modal-control" min="40" max="150" step="5" value="${kit.backNumberSizePct}">
             <span style="font-size:10px;color:var(--muted);font-weight:400;">% del tamaño normal</span>
@@ -812,6 +847,23 @@ function modalAddEditKit(team, kit, fromManage){
           `).join("") || `<span style="font-size:12px;color:var(--muted);">Esta selección todavía no tiene uniformes de jugador.</span>`}
         </div>
         ` : ""}
+        ${isRefKit ? `
+        <div class="subhead">Uso de este uniforme</div>
+        <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px;">Opcional. Marca si este uniforme es el que usan los árbitros en las sedes de un país anfitrión, o el exclusivo de la final del torneo.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--surface-2);padding:6px 10px;border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="f-kit-ref-final" class="kit-modal-control" style="width:auto;" ${kit.refFinalKit?"checked":""}>
+            Kit final
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--surface-2);padding:6px 10px;border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="f-kit-ref-local" class="kit-modal-control" style="width:auto;" ${kit.refLocalKit?"checked":""}>
+            Kit local
+          </label>
+          <select id="f-kit-ref-local-country" class="kit-modal-control" style="width:190px;" ${kit.refLocalKit?"":"disabled"}>
+            ${kit.refLocalKit ? refereeLocalKitCountries().map(c=>`<option value="${escapeHtml(c)}" ${normLoose(c)===normLoose(kit.refLocalCountry||"")?"selected":""}>${escapeHtml(c)}</option>`).join("") : ""}
+          </select>
+        </div>
+        ` : ""}
         ${showBadgeSection ? `
         <div style="background:var(--surface-2);border-radius:8px;padding:8px 12px;margin-top:14px;">
           <div data-action="toggle-kit-badge-panel" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -826,7 +878,7 @@ function modalAddEditKit(team, kit, fromManage){
               <div style="flex:1;min-width:200px;background:var(--surface-2);border-radius:8px;padding:8px 12px;">
                 <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:8px;">Probar con otro número/nombre (solo vista previa — nunca se guarda)</div>
                 <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
-                  <label class="field" style="width:100px;">Número de prueba
+                  <label class="field" data-kit-number-only="1" style="width:100px;">Número de prueba
                     <input type="number" id="f-kit-badge-preview-number" class="kit-modal-control" min="0" max="999" value="10">
                   </label>
                   <label class="field" style="flex:1;min-width:140px;">Nombre de prueba
@@ -1457,6 +1509,10 @@ function renderKitPreviews(){
   renderNumberFontPreviews();
   renderPlayerBadgePreviews();
 }
+
+// Recolorea el escudo genérico de cada selección/club sin logo con SUS colores, usando el mismo motor
+// que los uniformes (rojo→color 1, azul→color 2, verde→color 3). El resultado se guarda en caché por
+// combinación de colores, así que una lista de 200 clubes solo hace el trabajo pesado unas pocas veces.
 // Llena los contenedores ".player-badge-render" (cuadro de número+nombre en el perfil del jugador).
 function renderPlayerBadgePreviews(){
   document.querySelectorAll(".player-badge-render[data-pending]").forEach(async (el)=>{

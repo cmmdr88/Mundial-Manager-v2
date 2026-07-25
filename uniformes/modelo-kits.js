@@ -134,6 +134,8 @@ function cloneCombo(combo){
 
 function kitOrdinalLabel(n){ return KIT_ORDINAL_LABELS[n] || ("Uniforme "+(n+1)); }
 function autoKitLabel(team, category){
+  // Los uniformes de árbitro se numeran Kit 1, Kit 2… (no tienen Local/Visita).
+  if(category==="arbitro") return "Kit " + (team.kits.filter(k=>k.category==="arbitro").length + 1);
   if(category==="jugador"){
     const n = team.kits.filter(k=>k.category==="jugador").length;
     return kitOrdinalLabel(n);
@@ -141,21 +143,7 @@ function autoKitLabel(team, category){
   const n = team.kits.filter(k=>k.category==="portero").length;
   return "Portero "+kitOrdinalLabel(n);
 }
-function ensureTeamKits(t){
-  if(!Array.isArray(t.kits)) t.kits = [];
-  if(t.kits.length===0){
-    t.kits.push({id:newId("kit"), category:"jugador", label:kitOrdinalLabel(0), baseNumber:1, color1:t.color1||"#4F46E5", color2:t.color2||"#15161D", color3:"#FFFFFF", layers:[]});
-    t.kits.push({id:newId("kit"), category:"jugador", label:kitOrdinalLabel(1), baseNumber:1, color1:t.awayColor1||"#FFFFFF", color2:t.awayColor2||"#15161D", color3:"#000000", layers:[]});
-  }
-  while(t.kits.filter(k=>k.category==="jugador").length < 2){
-    const n = t.kits.filter(k=>k.category==="jugador").length;
-    t.kits.push({id:newId("kit"), category:"jugador", label:kitOrdinalLabel(n), baseNumber:1, color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF", layers:[]});
-  }
-  while(t.kits.filter(k=>k.category==="portero").length < 1){
-    const n = t.kits.filter(k=>k.category==="portero").length;
-    t.kits.push({id:newId("kit"), category:"portero", label:"Portero "+kitOrdinalLabel(n), baseNumber:1, color1:"#2E2E2E", color2:"#39FF14", color3:"#FFFFFF", layers:[]});
-  }
-  t.kits.forEach(k=>{
+function normalizeKitFields(k){
     if(k.color3===undefined) k.color3 = "#FFFFFF";
     if(k.color1===undefined) k.color1 = "#4F46E5";
     if(k.color2===undefined) k.color2 = "#15161D";
@@ -236,7 +224,23 @@ function ensureTeamKits(t){
       if(c.socksColor2===undefined) c.socksColor2 = k.color2;
       if(c.socksColor3===undefined) c.socksColor3 = k.color3;
     });
-  });
+}
+
+function ensureTeamKits(t){
+  if(!Array.isArray(t.kits)) t.kits = [];
+  if(t.kits.length===0){
+    t.kits.push({id:newId("kit"), category:"jugador", label:kitOrdinalLabel(0), baseNumber:1, color1:t.color1||"#4F46E5", color2:t.color2||"#15161D", color3:"#FFFFFF", layers:[]});
+    t.kits.push({id:newId("kit"), category:"jugador", label:kitOrdinalLabel(1), baseNumber:1, color1:t.awayColor1||"#FFFFFF", color2:t.awayColor2||"#15161D", color3:"#000000", layers:[]});
+  }
+  while(t.kits.filter(k=>k.category==="jugador").length < 2){
+    const n = t.kits.filter(k=>k.category==="jugador").length;
+    t.kits.push({id:newId("kit"), category:"jugador", label:kitOrdinalLabel(n), baseNumber:1, color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF", layers:[]});
+  }
+  while(t.kits.filter(k=>k.category==="portero").length < 1){
+    const n = t.kits.filter(k=>k.category==="portero").length;
+    t.kits.push({id:newId("kit"), category:"portero", label:"Portero "+kitOrdinalLabel(n), baseNumber:1, color1:"#2E2E2E", color2:"#39FF14", color3:"#FFFFFF", layers:[]});
+  }
+  t.kits.forEach(normalizeKitFields);
   // Mantiene siempre la nomenclatura correcta según el orden (Local, Visita, Tercero... / Portero Local, Portero Visita...),
   // así selecciones con nombres de versiones anteriores (Visitante, Tercera...) quedan al día solas.
   const jugadorIds = new Set(t.kits.filter(k=>k.category==="jugador").map(k=>k.id));
@@ -245,4 +249,61 @@ function ensureTeamKits(t){
   });
   t.kits.filter(k=>k.category==="jugador").forEach((k,i)=>{ k.label = kitOrdinalLabel(i); });
   t.kits.filter(k=>k.category==="portero").forEach((k,i)=>{ k.label = "Portero "+kitOrdinalLabel(i); });
+}
+
+/* ---------- Uniformes de árbitros del torneo ---------- */
+// Contenedor con forma de equipo (id fijo, kits, patrocinador de ropa) para poder reutilizar el
+// mismo editor de uniformes de selecciones y clubes. Vive dentro del evento, no en DB.teams.
+function refereeKitsTeam(){
+  if(!DB.event) return null;
+  if(!DB.event.refereeKitsTeam){
+    DB.event.refereeKitsTeam = {id:REFEREE_KIT_TEAM_ID, commonName:"árbitros del torneo",
+      isRefereeKits:true, kitSponsor:"", kits:[]};
+  }
+  const t = DB.event.refereeKitsTeam;
+  t.id = REFEREE_KIT_TEAM_ID;
+  t.isRefereeKits = true;
+  if(!Array.isArray(t.kits)) t.kits = [];
+  return t;
+}
+// Marca de ropa del torneo: la del patrocinador de indumentaria ligado al torneo. Es el valor por
+// defecto del "Patrocinador de ropa" de los árbitros, hasta que se escriba uno a mano.
+function tournamentApparelSponsorName(){
+  const s = (DB.sponsors||[]).find(sp=>
+    (typeof sponsorHasTournamentLink==="function" ? sponsorHasTournamentLink(sp) : sp.global) &&
+    (typeof sponsorCategoriesOf==="function" ? sponsorCategoriesOf(sp) : []).some(c=>/indumentaria|ropa|apparel|deportiv/i.test(c)));
+  return s ? s.name : "";
+}
+function refereeKitSponsorName(){
+  const t = refereeKitsTeam();
+  return (t && (t.kitSponsor||"").trim()) || tournamentApparelSponsorName();
+}
+// Normaliza los uniformes de árbitro: todos en la categoría "arbitro" y renumerados Kit 1, Kit 2…
+// No crea ninguno por defecto — se agregan a mano.
+function ensureRefereeKits(){
+  const t = refereeKitsTeam();
+  if(!t) return null;
+  t.kits.forEach(k=>{
+    k.category = "arbitro";
+    if(k.refLocalKit===undefined) k.refLocalKit = false;
+    if(k.refLocalCountry===undefined) k.refLocalCountry = "";
+    if(k.refFinalKit===undefined) k.refFinalKit = false;
+  });
+  t.kits.forEach(normalizeKitFields);
+  t.kits.forEach((k,i)=>{ k.label = "Kit " + (i+1); });
+  return t;
+}
+// Países anfitriones del torneo, tomados de la edición del año en curso en el historial. Si esa
+// edición no tiene sedes cargadas, se usan las de la constante como respaldo.
+function refereeLocalKitCountries(){
+  const year = (DB.event && DB.event.year) || null;
+  const ed = year ? ((DB.event.history||[]).find(h=>h.year===year)) : null;
+  const hosts = (ed && Array.isArray(ed.hosts)) ? ed.hosts.filter(Boolean) : [];
+  return hosts.length ? hosts : REFEREE_LOCAL_KIT_COUNTRIES.slice();
+}
+
+// Uniforme por defecto del árbitro (Kit 1): de él sale el color del cuadro del badge en su ficha.
+function refereeDefaultKit(){
+  const t = refereeKitsTeam();
+  return (t && t.kits && t.kits[0]) || null;
 }
