@@ -20,6 +20,29 @@
 // Los clubes pasan de ser simples etiquetas de texto a objetos con datos propios. DB.clubs sigue siendo
 // la lista de NOMBRES (para compatibilidad con datalists y el string p.club de cada jugador), y
 // DB.clubsData guarda el objeto completo por nombre común. DB.leagues es el catálogo de ligas (etiquetas).
+// Orden alfabético en español, sin distinguir acentos ni mayúsculas. Todos los catálogos lo usan
+// para mostrarse siempre ordenados.
+function sortAlpha(arr){
+  return (arr||[]).slice().sort((a,b)=>String(a).localeCompare(String(b),'es',{sensitivity:'base'}));
+}
+
+// Catálogo de ciudades: se llena solo con las ciudades usadas en estadios y clubes (y cualquiera que
+// se haya guardado a mano en DB.cities). Se devuelve único y ordenado alfabéticamente.
+function allCities(){
+  const set = new Set();
+  const add = (c)=>{ const v=(c||"").trim(); if(v) set.add(v); };
+  (DB.cities||[]).forEach(add);
+  (DB.stadiums||[]).forEach(st=>add(st.city));
+  (DB.clubsData||[]).forEach(c=>add(c.city));
+  return sortAlpha([...set]);
+}
+// Registra una ciudad en el catálogo persistente (idempotente, sin duplicar por acentos).
+function registerCity(name){
+  const v=(name||"").trim(); if(!v) return;
+  if(!Array.isArray(DB.cities)) DB.cities=[];
+  if(!DB.cities.some(c=>normLoose(c)===normLoose(v))){ DB.cities.push(v); DB.cities = sortAlpha(DB.cities); }
+}
+
 function clubKey(name){ return normLoose(name||""); }
 function getClubByName(name){
   if(!name) return null;
@@ -47,7 +70,7 @@ function ensureLeague(name){
   if(!DB.leagues) DB.leagues=[];
   const hit = DB.leagues.find(l=>normLoose(l)===normLoose(nm));
   if(hit) return hit;
-  DB.leagues.push(nm); DB.leagues.sort();
+  DB.leagues.push(nm); DB.leagues = sortAlpha(DB.leagues);
   return nm;
 }
 function matchOrAddLeague(raw){ return ensureLeague(raw); }
@@ -68,11 +91,43 @@ function buildDefaultLeagues(names){
 }
 function clubDisplayName(c){ return (c.commonName||"").trim() || "Club"; }
 // Jugadores que pertenecen a un club (por su string p.club).
+// Índice de jugadores por club, construido de una sola pasada por todas las selecciones. Antes,
+// clubPlayers recorría TODA la base de jugadores en cada llamada; al ordenar la lista de clubes por
+// "Jugadores" o por rating eso se llamaba una vez por club, dando un coste cuadrático (400 clubes ×
+// 780 jugadores ≈ 500 ms por reordenación, y la lista se recalcula en cada navegación). Con el índice
+// baja a una sola pasada. La firma detecta cambios en los datos para reconstruirlo cuando hace falta.
+let _clubPlayerIndex = null;
+let _clubPlayerIndexSig = "";
+function clubPlayerIndexSignature(){
+  let nPlayers = 0;
+  (DB.teams||[]).forEach(t=> nPlayers += (t.players||[]).length);
+  return `${(DB.teams||[]).length}:${nPlayers}`;
+}
+function clubPlayerIndex(){
+  const sig = clubPlayerIndexSignature();
+  if(_clubPlayerIndex && _clubPlayerIndexSig===sig) return _clubPlayerIndex;
+  const idx = new Map();
+  (DB.teams||[]).forEach(t=>{
+    (t.players||[]).forEach(p=>{
+      if(!p.club) return;
+      const k = clubKey(p.club);
+      let arr = idx.get(k);
+      if(!arr){ arr = []; idx.set(k, arr); }
+      arr.push({...p, _teamName:t.commonName, _teamId:t.id});
+    });
+  });
+  _clubPlayerIndex = idx;
+  _clubPlayerIndexSig = sig;
+  return idx;
+}
+// Invalida el índice tras editar jugadores o clubes (por si el conteo no cambió pero sí el "club").
+function invalidateClubPlayerIndex(){ _clubPlayerIndex = null; _clubPlayerIndexSig = ""; }
+
 function clubPlayers(club){
-  const key = clubKey(club.commonName);
-  const names = new Set([clubKey(club.commonName), ...(club.aliases||[]).map(clubKey)]);
-  const out=[];
-  DB.teams.forEach(t=> t.players.forEach(p=>{ if(p.club && names.has(clubKey(p.club))) out.push({...p, _teamName:t.commonName, _teamId:t.id}); }));
+  const idx = clubPlayerIndex();
+  const keys = new Set([clubKey(club.commonName), ...(club.aliases||[]).map(clubKey)]);
+  const out = [];
+  keys.forEach(k=>{ const arr = idx.get(k); if(arr) out.push(...arr); });
   return out;
 }
 // Rubros OVR/ATT/MID/DEF de un club, con la misma lógica que selecciones (solo inscritos = con dorsal).
@@ -105,7 +160,8 @@ function clubCrestHTML(c, extraStyle){
   if(c.logoImg){
     return `<div class="crest-mini has-img" style="${extraStyle||''}"><img src="${c.logoImg}" alt="${clubDisplayName(c)}"></div>`;
   }
-  return `<div class="crest-mini" style="background:linear-gradient(160deg, ${c.color1||'#4F46E5'}, ${c.color2||'#15161D'});${extraStyle||''}">${c.code||initials(clubDisplayName(c))}</div>`;
+  // Sin logo propio: escudo genérico recoloreado con los colores del club.
+  return defaultCrestBoxHTML(c, extraStyle);
 }
 function leagueBadge(league){
   return league ? `<span class="badge conf">${escapeHtml(league)}</span>` : `<span class="badge conf" style="opacity:.6;">Sin liga</span>`;
@@ -116,11 +172,11 @@ function clubCardHTML(c){
   return `
   <div class="card team-card" data-action="open-club" data-id="${c.id}">
     <div class="team-card-top">
-      ${clubCrestHTML(c, c.logoImg ? "width:50px;height:50px;" : "")}
+      ${clubCrestHTML(c, "width:50px;height:50px;")}
       <div class="meta">
         <div class="name">${escapeHtml(clubDisplayName(c))}</div>
         <div class="sub">
-          ${c.country?`<span class="badge conf">${escapeHtml(c.country)}</span>`:""}
+          ${c.country?`<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">${flagIconHTML(c.country)}${escapeHtml(c.country)}</span>`:""}
           ${leagueBadge(c.league)}
           <span class="badge ${nPlayers>0?'ok':'incomplete'}">${nPlayers} jug.</span>
         </div>
@@ -149,9 +205,15 @@ function clubValue(c, key){
 }
 function clubValType(key){ return (key==="players"||key==="ovr") ? "number" : "string"; }
 function orderedClubs(){
-  return (DB.clubsData||[]).slice().sort((a,b)=>
-    compareGeneric(clubValue(a,clubsSort.key), clubValue(b,clubsSort.key), clubValType(clubsSort.key), clubsSort.dir)
-    || clubDisplayName(a).localeCompare(clubDisplayName(b),'es',{sensitivity:'base'}));
+  // El conteo/rating de cada club se calcula una sola vez por ordenación (no una vez por comparación),
+  // que con muchos clubes era lo que disparaba el tiempo. clubValue ya usa el índice, así que aquí
+  // basta con precomputar la clave de orden por club antes de comparar.
+  const key = clubsSort.key, dir = clubsSort.dir, type = clubValType(key);
+  const decorated = (DB.clubsData||[]).map(c=>({c, v:clubValue(c,key), n:clubDisplayName(c)}));
+  decorated.sort((a,b)=>
+    compareGeneric(a.v, b.v, type, dir)
+    || a.n.localeCompare(b.n,'es',{sensitivity:'base'}));
+  return decorated.map(d=>d.c);
 }
 function renderClubes(){
   if(activeClubId) return renderClubDetail(activeClubId);
@@ -197,7 +259,7 @@ function renderClubes(){
         <tr data-action="open-club" data-id="${c.id}" style="cursor:pointer;">
           <td style="display:flex;align-items:center;gap:8px;">${clubCrestHTML(c, "width:24px;height:24px;font-size:9px;")}<b>${escapeHtml(clubDisplayName(c))}</b></td>
           <td>${c.city?escapeHtml(c.city):"—"}</td>
-          <td>${c.country?escapeHtml(c.country):"—"}</td>
+          <td>${c.country?flagIconHTML(c.country)+escapeHtml(c.country):"—"}</td>
           <td>${c.league?`<span class="badge conf">${escapeHtml(c.league)}</span>`:"—"}</td>
           <td class="mono">${n}</td>
           <td class="mono" style="color:var(--indigo);font-weight:700;">${r.overall!=null?r.overall:"—"}</td>
@@ -223,17 +285,17 @@ function renderClubDetail(clubId){
     ${detailNavHTML('nav-club-arrow', idx, ordered.length)}
   </div>
   <div class="card" style="margin-top:14px;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
-    ${clubCrestHTML(c, c.logoImg ? "width:150px;height:150px;" : "width:150px;height:150px;font-size:32px;")}
+    ${clubCrestHTML(c, "width:150px;height:150px;")}
     <div style="flex:1;min-width:200px;">
       <h2 style="margin:0 0 2px;">${escapeHtml(clubDisplayName(c))}</h2>
       ${c.fullName ? `<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">${escapeHtml(c.fullName)}</div>` : ""}
       <div style="font-size:12.5px;color:var(--indigo-bright);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         ${c.founded ? `<span>Fundado en ${escapeHtml(String(c.founded))}</span>` : ""}
         ${c.founded && ((c.stadiums&&c.stadiums.length)||c.stadium) ? `<span style="color:var(--muted);font-weight:400;">·</span>` : ""}
-        ${((c.stadiums&&c.stadiums.length)?c.stadiums:(c.stadium?[c.stadium]:[])).map(nm=>`<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">${escapeHtml(nm)}</span>`).join("")}
+        ${((c.stadiums&&c.stadiums.length)?c.stadiums:(c.stadium?[c.stadium]:[])).map(nm=>`<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">${escapeHtml(stadiumOwnNameToShow(nm))}</span>`).join("")}
       </div>
       <div class="tag-list" style="margin-top:4px;">
-        ${c.country ? `<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">${escapeHtml(c.country)}</span>` : ""}
+        ${c.country ? `<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">${flagIconHTML(c.country)}${escapeHtml(c.country)}</span>` : ""}
         ${leagueBadge(c.league)}
         <span class="badge ${players.length>0?'ok':'incomplete'}">${players.length} jugadores</span>
       </div>
@@ -277,15 +339,18 @@ function renderClubDetail(clubId){
       <div class="player-row" data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
         <span class="num-badge">${p.number!=null?p.number:"–"}</span>
         <span class="pos-chip pos-${p.pos}">${p.pos}</span>
-        <span class="pname"><img src="${p.photo||PLAYER_PHOTO_DEFAULT}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(p)}</span>
+        <span class="pname"><img src="${p.photo||personPhotoDefault(p)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(p)}</span>
         <span class="pmeta">${playerAgeText(p)} · ${(()=>{
-          const country = playerCountryName(p) || "Sin país";
+          const natCo = nationalityCountryOf(p);
+          const demonym = personDemonym(p) || playerCountryName(p) || "Sin país";
           const calledUp = p._teamId && p.number!=null && p.number>0;
-          const sn = calledUp ? ` <span class="badge" style="background:rgba(109,99,245,0.16);color:var(--indigo-bright);font-size:9px;padding:1px 5px;" title="Seleccionado nacional (convocado con dorsal)">SN</span>` : "";
-          const countryTag = calledUp
-            ? `<span class="club-chip tag-clickable" data-action="open-team" data-id="${p._teamId}">${escapeHtml(country)}</span>`
-            : `<span class="club-chip">${escapeHtml(country)}</span>`;
-          return countryTag + sn;
+          // Etiqueta de nacionalidad (gentilicio + bandera, gris, SIN enlace a la selección).
+          const natTag = `<span class="club-chip">${flagIconHTML(natCo||demonym)}${escapeHtml(demonym)}</span>`;
+          // "INT" es el enlace a la selección; solo si el jugador está convocado (dorsal distinto de 0).
+          const intl = calledUp
+            ? ` <span class="badge conf tag-clickable" data-action="open-team" data-id="${p._teamId}" style="cursor:pointer;font-size:9px;padding:1px 6px;" title="Internacional — convocado a la selección">INT</span>`
+            : "";
+          return natTag + intl;
         })()}</span>
         <span class="prating">${p.rating}</span>
       </div>
@@ -348,15 +413,16 @@ function modalAddEditClub(club){
 
           <div class="subhead">Ubicación</div>
           <label class="field">Ciudad
-            <input id="f-cl-city" value="${escapeHtml(club.city||'')}" placeholder="Ciudad del club">
+            <input id="f-cl-city" list="city-list-club" value="${escapeHtml(club.city||'')}" placeholder="Ciudad del club">
+            <datalist id="city-list-club">${datalistOptions(allCities())}</datalist>
           </label>
           <label class="field">País
             <input id="f-cl-country" list="country-name-list" value="${escapeHtml(club.country||'')}" placeholder="País del club">
-            <datalist id="country-name-list">${(DB.countries||[]).map(c=>`<option value="${escapeHtml(c.commonName)}">`).join("")}</datalist>
+            <datalist id="country-name-list">${datalistOptions((DB.countries||[]).map(c=>c.commonName))}</datalist>
           </label>
           <label class="field" style="grid-column:1/-1;">Liga
             <input id="f-cl-league" list="league-list" value="${escapeHtml(club.league||'')}" placeholder="Liga donde juega">
-            <datalist id="league-list">${(DB.leagues||[]).map(l=>`<option value="${escapeHtml(l)}">`).join("")}</datalist>
+            <datalist id="league-list">${datalistOptions(DB.leagues||[])}</datalist>
           </label>
 
           <div class="subhead">Escudo</div>

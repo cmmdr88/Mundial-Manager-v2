@@ -296,6 +296,33 @@ function renderEvento(){
   `;
 }
 
+// Tarjeta de los uniformes de árbitros: muestra hasta los tres primeros (Kit 1, Kit 2 y Kit 3) con
+// el mismo render que los uniformes de selecciones, más la marca de ropa vigente.
+function refereeKitsCardHTML(){
+  if(typeof ensureRefereeKits!=="function") return "";
+  const t = ensureRefereeKits();
+  if(!t) return "";
+  const kits = (t.kits||[]).slice(0,10);
+  const marca = refereeKitSponsorName();
+  return `
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:${kits.length?'12px':'0'};">
+      <div style="font-size:12.5px;color:var(--muted);">Patrocinador de ropa: ${marca?`<b style="color:var(--ink);">${escapeHtml(marca)}</b>`:'<span style="color:var(--muted);">sin definir</span>'}</div>
+      <div style="font-size:12px;color:var(--muted);">${(t.kits||[]).length} uniforme${(t.kits||[]).length===1?'':'s'}</div>
+    </div>
+    ${kits.length ? `
+    <div style="display:flex;gap:18px;flex-wrap:wrap;">
+      ${kits.map(k=>`
+        <div style="text-align:center;width:96px;">
+          <div class="kit-render" data-pending data-team-id="${t.id}" data-kit-id="${k.id}" data-action="edit-kit" data-team="${t.id}" data-id="${k.id}" style="width:96px;height:96px;background:var(--surface-2);border-radius:8px;cursor:pointer;" title="Editar este uniforme"></div>
+          <div style="font-weight:700;font-size:13px;margin-top:6px;">${escapeHtml(k.label)}</div>
+          ${(k.refLocalKit&&k.refLocalCountry)?`<div style="font-size:10.5px;color:var(--muted);">Local · ${escapeHtml(countryShortLabel(k.refLocalCountry))}</div>`:""}
+          ${k.refFinalKit?`<div style="font-size:10.5px;color:var(--gold,#d4af37);">Final</div>`:""}
+        </div>`).join("")}
+    </div>` : `<div class="empty" style="margin:0;"><h3>Sin uniformes de árbitro</h3><p>Agrégalos con “Editar uniformes”.</p></div>`}
+  </div>`;
+}
+
 /* ---- Detalle del evento: formato, llaves, cruces, criterios y premios ---- */
 function renderEventoDetail(){
   const ev = DB.event;
@@ -411,21 +438,32 @@ function renderEventoDetail(){
       </div>`).join("") || `<div class="empty">Sin premios definidos</div>`}
   </div>
 
+  <div class="section-title"><h2>Uniformes de árbitros del torneo</h2><button class="btn ghost sm" data-action="manage-kits" data-team="${REFEREE_KIT_TEAM_ID}">Editar uniformes</button></div>
+  ${refereeKitsCardHTML()}
+
   <div class="section-title"><h2>Historial</h2><button class="btn ghost sm" data-action="edit-event-general">Editar historial</button></div>
   ${(ev.history&&ev.history.length)?`
   <div class="card" style="padding:0;overflow:hidden;">
     <div class="tbl-wrap"><table>
       <thead><tr><th style="width:64px;">Año</th><th>Sede(s)</th><th>Campeón</th><th>Subcampeón</th><th>Tercer lugar</th><th>Cuarto lugar</th></tr></thead>
       <tbody>
-        ${ev.history.slice().sort((a,b)=>(b.year||0)-(a.year||0)).map(h=>`
+        ${ev.history.slice().sort((a,b)=>(a.year||0)-(b.year||0)).map(h=>{
+          const played = !!(h.champion||"").trim() || (h.hosts||[]).length>0;
+          if(!played) return `
           <tr>
             <td class="mono"><b>${escapeHtml(String(h.year||"—"))}</b></td>
-            <td>${(h.hosts||[]).map(x=>escapeHtml(x)).join(", ")||"—"}</td>
-            <td>${escapeHtml(h.champion||"—")}</td>
-            <td>${escapeHtml(h.runnerUp||"—")}</td>
-            <td>${escapeHtml(h.third||"—")}</td>
-            <td>${escapeHtml(h.fourth||"—")}</td>
-          </tr>`).join("")}
+            <td colspan="5" style="color:var(--muted);font-style:italic;">No se disputó</td>
+          </tr>`;
+          return `
+          <tr>
+            <td class="mono"><b>${escapeHtml(String(h.year||"—"))}</b></td>
+            <td>${(h.hosts||[]).length ? (h.hosts||[]).map(x=>historyHostTagHTML(x)).join(" ") : "—"}</td>
+            <td>${historyCountryHTML(h.champion)}</td>
+            <td>${historyCountryHTML(h.runnerUp)}</td>
+            <td>${historyCountryHTML(h.third)}</td>
+            <td>${historyCountryHTML(h.fourth)}</td>
+          </tr>`;
+        }).join("")}
       </tbody>
     </table></div>
   </div>`:`<div class="empty">Aún no hay ediciones en el historial. Usa «Editar historial» para agregarlas.</div>`}
@@ -457,6 +495,24 @@ function findTeamByNameLoose(name){
   if(!t && ALIAS[n]) t = DB.teams.find(x=>normalizeName(x.commonName)===ALIAS[n]);
   return t||null;
 }
+// Nombre de país del historial: se muestra con su bandera pero SIN enlace — son países (algunos ya
+// extintos, como Yugoslavia o la Unión Soviética), no selecciones, así que no llevan a ninguna ficha.
+// País anfitrión como etiqueta gris con bandera, al estilo de las de clubes. No es clicable: es un
+// PAÍS (a veces ya extinto), no una selección, así que no lleva a ninguna ficha.
+function historyHostTagHTML(name){
+  const nm = (name||"").trim();
+  if(!nm) return "";
+  const country = (DB.countries||[]).find(c=>normLoose(c.commonName)===normLoose(nm));
+  return `<span class="badge conf" style="background:var(--surface-2);color:var(--muted);white-space:nowrap;">${flagIconHTML(country||nm)}${escapeHtml(nm)}</span>`;
+}
+
+function historyCountryHTML(name){
+  const nm = (name||"").trim();
+  if(!nm) return `<span style="color:var(--muted);">—</span>`;
+  const country = (DB.countries||[]).find(c=>normLoose(c.commonName)===normLoose(nm));
+  return `<span style="white-space:nowrap;">${flagIconHTML(country||nm)}${escapeHtml(nm)}</span>`;
+}
+
 function loadOfficialCalendarConfirm(){
   const msg = DB.fixtures.length>0
     ? "Se reemplazará el calendario actual por el oficial del Mundial 2026 (72 partidos de grupos con fechas, horarios del Este y estadios + 32 de eliminación directa). También se acomodan los grupos reales de las 48 selecciones. ¿Continuar?"
@@ -479,7 +535,7 @@ function doLoadOfficialCalendar(){
           conf:null, group:"", host:false,
           color1:"#3C4A42", color2:"#1F2A24", awayColor1:"#8a9a90", awayColor2:"#101713",
           kitSponsor:null, logoImg:null, kitHomeImg:null, kitAwayImg:null,
-          fifaPoints:null, eloRating:null, players:[], kits:[]
+          fifaPoints:null, eloRating:null, players:[], coaches:[], kits:[]
         };
         DB.teams.push(t);
       }
@@ -498,12 +554,14 @@ function doLoadOfficialCalendar(){
     const [date,time,g,md,a,b,venue,city] = row;
     const ta = teamByName[normalizeName(a)], tb = teamByName[normalizeName(b)];
     if(!ta || !tb) return;
-    fx.push({id:newId("f"), stage:"grupos", group:g, matchday:md, teamA:ta.id, teamB:tb.id,
+    const matchNo = (typeof matchNumberFor==="function") ? matchNumberFor(g, a, b) : null;
+    fx.push({id:newId("f"), stage:"grupos", group:g, matchday:md, teamA:ta.id, teamB:tb.id, matchNo,
              played:false, scoreA:null, scoreB:null, date, time, venue, city});
   });
   WC26_SCHEDULE_KNOCKOUT.forEach(row=>{
     const [date,time,round,code,sa,sb,venue,city] = row;
     fx.push({id:newId("f"), stage:"eliminatoria", round, code, slotA:sa, slotB:sb, group:null,
+             matchNo: /^M\d+$/i.test(code||"") ? parseInt(code.slice(1),10) : null,
              teamA:null, teamB:null, played:false, scoreA:null, scoreB:null, date, time, venue, city});
   });
   DB.fixtures = fx;
@@ -539,7 +597,11 @@ function modalEditEventGeneral(){
   const templateField = (id, label, value, inputStyle) => {
     const val = value || "";
     const hasTag = val.includes(YEAR_TAG);
-    const style = styleMap[id.replace("ev-", "")] || "short";
+    // Mapa id del campo -> clave en yearLabelStyle. OJO: "ev-official" y "ev-short" NO se derivan
+    // quitando el prefijo (las claves reales son officialName/shortName); con el replace() anterior
+    // la elección XXXX de esos dos campos nunca se leía al reabrir y se perdía al guardar.
+    const STYLE_KEY = {"ev-official":"officialName","ev-name":"name","ev-short":"shortName","ev-code":"code"};
+    const style = styleMap[STYLE_KEY[id] || id.replace("ev-", "")] || "short";
     const preview = renderTemplate(val, resolveYearLabel(style, currentYear));
     const styleBtn = (st, lbl) => `<button type="button" class="btn ${st===style?"gold":"ghost"} sm" data-action="ev-set-field-style" data-field="${id}" data-style="${st}" style="padding:2px 8px;font-size:11px;">${lbl}</button>`;
     return `
@@ -876,6 +938,15 @@ function eventFieldText(ev, field){
   const raw = ev[field] || "";
   const style = (ev.yearLabelStyle && ev.yearLabelStyle[field]) || "short";
   return renderTemplate(raw, resolveYearLabel(style, ev.year||2026));
+}
+// Nombre común y Nombre corto del evento, ya con el año resuelto. Con respaldo a WC_LABEL si aún
+// no hay evento (p. ej. durante la construcción de la base). Se usan en títulos y etiquetas de
+// Estadios y Patrocinadores para que sigan cualquier renombre del torneo.
+function eventCommonName(){
+  try{ return (DB && DB.event && eventFieldText(DB.event,'name')) || WC_LABEL; }catch(e){ return WC_LABEL; }
+}
+function eventShortNameLabel(){
+  try{ return (DB && DB.event && eventFieldText(DB.event,'shortName')) || WC_LABEL; }catch(e){ return WC_LABEL; }
 }
 
 // Convierte un color #RRGGBB a rgba(r,g,b,alpha). Si el hex es inválido, usa el dorado por defecto.

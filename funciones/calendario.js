@@ -79,16 +79,62 @@ function knockoutRoundName(code){
 }
 function fixtureSortKey(f){ return (f.date||"9999")+"T"+(f.time||"99:99"); }
 
-// Nombre de sede: resuelve el estadio por cualquiera de sus nombres para mostrar siempre el
-// nombre de torneo FIFA, pero se muestra como texto (no es un enlace clicable).
+// Resuelve la sede de un partido contra el catálogo de estadios. Los partidos guardan el nombre que
+// tenía la sede cuando se cargó el calendario, así que si el estadio fue renombrado (por ejemplo
+// "Estadio San Francisco Bay Area" → "Estadio Bahía de San Francisco") ya no coincide por nombre.
+// Para esos casos se usa la semilla oficial como puente: del nombre del partido se obtiene el nombre
+// OFICIAL de la sede (Levi's Stadium, BC Place…), que no suele cambiar, y con ese se busca de nuevo.
+function findStadiumForVenue(name){
+  const nm = (name||"").trim();
+  if(!nm) return null;
+  const direct = findStadiumByName(nm);
+  if(direct) return direct;
+  const key = normLoose(nm);
+  const seed = (typeof STADIUMS_SEED!=="undefined" ? STADIUMS_SEED : []).find(x=>
+    normLoose(x.tournamentName||"")===key || normLoose(x.officialName||"")===key);
+  if(!seed) return null;
+  const alt = [seed.officialName, seed.tournamentName].map(x=>(x||"").trim()).filter(Boolean);
+  for(const a of alt){
+    const hit = findStadiumByName(a);
+    if(hit) return hit;
+  }
+  // Último intento: el nombre oficial de la semilla contenido en alguno de los nombres del estadio
+  // (cubre renombres del tipo "BC Place" → "Estadio BC Place Vancouver").
+  const off = normLoose(seed.officialName||"");
+  if(off) return (DB.stadiums||[]).find(s=>
+    [s.tournamentName, s.officialName, s.nickname].some(n=> n && normLoose(n).includes(off))) || null;
+  return null;
+}
+// Nombre de sede para el calendario. Si el estadio existe en el catálogo, se arma con SUS datos
+// (los mismos del editor de estadios), en este orden:
+//   [Nombre de torneo FIFA], [Ciudad], [Estado/provincia si lo tiene], [País]
+// Así se evitan los códigos abreviados que traen algunos partidos ("MEX", "PA"). Si el estadio no
+// está en el catálogo, se usa lo que traiga el partido.
 function venueLinkHTML(venueName, cityName){
   const nm = (venueName||"").trim();
   if(!nm) return "";
-  const st = findStadiumByName(nm);
-  const shown = st ? stadiumDisplayName(st) : nm;
-  const cityPart = cityName ? `, ${escapeHtml(cityName)}` : "";
-  return `${escapeHtml(shown)}${cityPart}`;
+  const st = findStadiumForVenue(nm);
+  if(!st){
+    const cityPart = cityName ? `, ${escapeHtml(cityName)}` : "";
+    return `${escapeHtml(nm)}${cityPart}`;
+  }
+  const shown = (st.tournamentName||"").trim() || stadiumDisplayName(st);
+  const parts = [shown, (st.city||"").trim(), (st.state||"").trim(), (st.country||"").trim()]
+    .map(x=>x.trim()).filter(Boolean);
+  return escapeHtml([...new Set(parts)].join(", "));
 }
+// Tercera línea de cada partido: el árbitro (o los árbitros) designados, según el número oficial
+// del partido. Se muestra el central primero; si hay varios, se listan separados por coma.
+function fixtureRefereeLineHTML(f){
+  if(!f || !f.matchNo || typeof refereesForMatch!=="function") return "";
+  const refs = refereesForMatch(f.matchNo);
+  if(!refs.length) return "";
+  const label = refs.length===1 ? "Árbitro" : "Árbitros";
+  // Texto plano: en el calendario no hay enlaces (solo las tablas de la derecha llevan a las selecciones).
+  const names = refs.map(r=>escapeHtml(playerDisplayName(r))).join(", ");
+  return `<div style="font-size:11px;color:var(--muted);margin-top:1px;">${label}: ${names}</div>`;
+}
+
 function renderCalendario(){
   const groupFx = DB.fixtures.filter(f=>!f.stage || f.stage==="grupos");
   const koFx = DB.fixtures.filter(f=>f.stage==="eliminatoria");
@@ -138,8 +184,9 @@ function renderCalendario(){
             return `
             <div class="player-row">
               <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;">${ta?escapeHtml(ta.commonName):'<span class="mono">?</span>'} <span style="color:var(--muted);">vs</span> ${tb?escapeHtml(tb.commonName):'<span class="mono">?</span>'}</div>
+                <div style="font-size:13px;">${f.matchNo?`<span class="mono" style="color:var(--muted);font-size:11px;margin-right:5px;">M${f.matchNo}</span>`:""}${ta?escapeHtml(ta.commonName):'<span class="mono">?</span>'} <span style="color:var(--muted);">vs</span> ${tb?escapeHtml(tb.commonName):'<span class="mono">?</span>'}</div>
                 ${f.date?`<div style="font-size:11px;color:var(--muted);margin-top:1px;">${fmtFixtureDate(f.date)} · ${f.time||""}${f.venue?` · ${venueLinkHTML(f.venue, f.city)}`:(f.city?`, ${escapeHtml(f.city)}`:"")}</div>`:""}
+                ${fixtureRefereeLineHTML(f)}
               </div>
               ${f.played ? `<span class="mono" style="font-weight:700;">${f.scoreA} - ${f.scoreB}</span>` :
                 `<button class="btn sm gold" data-action="open-sim" data-fixture="${f.id}">Tirar chapas</button>`}
@@ -173,7 +220,7 @@ function renderCalendario(){
                 <td>${cruce}${f.played?` <span class="mono" style="font-weight:700;">(${f.scoreA} - ${f.scoreB})</span>`:""}</td>
                 <td class="mono">${fmtFixtureDate(f.date)}</td>
                 <td class="mono">${f.time||""}</td>
-                <td style="font-size:12.5px;">${f.venue?venueLinkHTML(f.venue, f.city):(f.city?`<span style="color:var(--muted);">${escapeHtml(f.city)}</span>`:"")}</td>
+                <td style="font-size:12.5px;">${f.venue?venueLinkHTML(f.venue, f.city):(f.city?`<span style="color:var(--muted);">${escapeHtml(f.city)}</span>`:"")}${fixtureRefereeLineHTML(f)}</td>
               </tr>`;
             }).join("")}
             </tbody>

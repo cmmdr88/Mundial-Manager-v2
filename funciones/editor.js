@@ -62,17 +62,20 @@ function renderEditor(){
     <div class="card">
       <h3 style="margin-top:0;font-size:13px;">Ligas (${(DB.leagues||[]).length})</h3>
       <div class="tag-list">
-        ${(DB.leagues||[]).length? DB.leagues.map(c=>`<span class="badge conf">${escapeHtml(c)} <button data-action="delete-catalog-item" data-cat="leagues" data-value="${encodeURIComponent(c)}" style="border:none;background:none;cursor:pointer;color:inherit;margin-left:2px;">×</button></span>`).join("") : `<span style="font-size:12.5px;color:var(--muted);">Aún ninguna</span>`}
+        ${(DB.leagues||[]).length? sortAlpha(DB.leagues).map(c=>`<span class="badge conf">${escapeHtml(c)} <button data-action="delete-catalog-item" data-cat="leagues" data-value="${encodeURIComponent(c)}" style="border:none;background:none;cursor:pointer;color:inherit;margin-left:2px;">×</button></span>`).join("") : `<span style="font-size:12.5px;color:var(--muted);">Aún ninguna</span>`}
       </div>
     </div>
     <div class="card">
-      <h3 style="margin-top:0;font-size:13px;">Marcas de ropa</h3>
-      <p style="font-size:12px;color:var(--muted);margin:0;">Las marcas de ropa ahora son <b>patrocinadores</b> (categoría «Indumentaria»). Adminístralas desde la pestaña <b>Patrocinadores</b>. Al escribirlas en una selección o jugador se crean solas como patrocinador.</p>
+      <h3 style="margin-top:0;font-size:13px;">Ciudades (${allCities().length})</h3>
+      <div class="tag-list">
+        ${allCities().length? allCities().map(c=>`<span class="badge conf">${escapeHtml(c)} <button data-action="delete-catalog-item" data-cat="cities" data-value="${encodeURIComponent(c)}" style="border:none;background:none;cursor:pointer;color:inherit;margin-left:2px;">×</button></span>`).join("") : `<span style="font-size:12.5px;color:var(--muted);">Aún ninguna</span>`}
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin:8px 0 0;">Se llenan solas con las ciudades de estadios y clubes.</p>
     </div>
     <div class="card">
       <h3 style="margin-top:0;font-size:13px;">Categorías de patrocinio (${DB.sponsorCategories.length})</h3>
       <div class="tag-list">
-        ${DB.sponsorCategories.map(c=>`<span class="badge conf">${c} <button data-action="delete-catalog-item" data-cat="sponsorCategories" data-value="${encodeURIComponent(c)}" style="border:none;background:none;cursor:pointer;color:inherit;margin-left:2px;">×</button></span>`).join("")}
+        ${sortAlpha(DB.sponsorCategories).map(c=>`<span class="badge conf">${c} <button data-action="delete-catalog-item" data-cat="sponsorCategories" data-value="${encodeURIComponent(c)}" style="border:none;background:none;cursor:pointer;color:inherit;margin-left:2px;">×</button></span>`).join("")}
       </div>
     </div>
   </div>

@@ -224,7 +224,7 @@ function renderPlayerDetail(playerId){
   </div>
   <div class="card" style="margin-top:14px;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
     <div style="width:150px;height:150px;border-radius:12px;overflow:hidden;background:var(--surface-2);flex-shrink:0;">
-      <img src="${p.photo||PLAYER_PHOTO_DEFAULT}" style="width:100%;height:100%;object-fit:cover;display:block;">
+      <img src="${p.photo||personPhotoDefault(p)}" style="width:100%;height:100%;object-fit:cover;display:block;">
     </div>
     <div style="flex:1;min-width:200px;">
       <h2 style="margin:0 0 2px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -232,18 +232,23 @@ function renderPlayerDetail(playerId){
         <span>${playerDisplayNameHTML(p)}</span>
         <span class="pos-chip pos-${p.pos}">${p.pos}</span>
       </h2>
-      <div style="font-size:12.5px;color:var(--indigo-bright);font-weight:600;margin-bottom:6px;">${playerAgeText(p)}${p.height!=null?` · ${p.height} cm`:""} · ${p.club?`<span class="badge conf tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}" style="background:var(--surface-2);color:var(--muted);">${escapeHtml(p.club)}</span>`:`<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">Sin club</span>`}</div>
+      <div style="font-size:12.5px;color:var(--indigo-bright);font-weight:600;margin-bottom:6px;">${playerAgeText(p)}${p.height!=null?` · ${p.height} cm`:""} · ${p.club?`<span class="badge conf tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}" style="background:var(--surface-2);color:var(--muted);">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">Sin club</span>`}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
         ${(()=>{
           const country = playerCountryName(p);
           if(!country && !team) return `<span style="font-size:13px;color:var(--muted);">Sin selección asignada</span>`;
           const calledUp = team && p.number!=null && p.number>0;
-          const label = country || (team?team.commonName:"");
-          const tag = calledUp
-            ? `<span class="badge conf tag-clickable" data-action="open-team" data-id="${team.id}">${escapeHtml(label)}</span>`
-            : `<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">${escapeHtml(label)}</span>`;
-          const sn = calledUp ? ` <span class="badge" style="background:rgba(109,99,245,0.16);color:var(--indigo-bright);font-size:9px;padding:1px 5px;" title="Seleccionado nacional (convocado con dorsal)">SN</span>` : "";
-          return tag + sn;
+          const natCo = nationalityCountryOf(p);
+          const label = personDemonym(p) || country || (team?team.commonName:"");   // gentilicio (masc.) o país
+          const flag = flagIconHTML(natCo || country || (team?team.commonName:""));
+          // La etiqueta de nacionalidad ya NO enlaza a la selección: bandera + gentilicio, en gris.
+          const tag = `<span class="badge" style="background:var(--surface-2);color:var(--muted);">${flag}${escapeHtml(label)}</span>`;
+          // El enlace a la selección ahora vive en la etiqueta "Internacional" (solo si está convocado).
+          // Mismo tono morado y misma altura que la etiqueta de nacionalidad (ambas .badge conf).
+          const intl = calledUp
+            ? ` <span class="badge conf tag-clickable" data-action="open-team" data-id="${team.id}" style="cursor:pointer;" title="Convocado a la selección — ver">Internacional</span>`
+            : "";
+          return tag + intl;
         })()}
         <span style="font-size:13px;color:var(--muted);">Partidos: ${p.caps!=null?p.caps:"-"} / Goles: ${p.goalsNational!=null?p.goalsNational:"-"}</span>
       </div>
@@ -331,11 +336,11 @@ function renderJugadores(){
       <tbody>
       ${filtered.map(p=>`
         <tr data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
-          <td><img src="${p.photo||PLAYER_PHOTO_DEFAULT}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;">${playerDisplayNameHTML(p)}</td>
+          <td><img src="${p.photo||personPhotoDefault(p)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;">${playerDisplayNameHTML(p)}</td>
           <td><span class="pos-chip pos-${p.pos}">${p.pos}</span></td>
-          <td>${playerCountryName(p)||"—"}</td>
+          <td>${(()=>{const cn=playerCountryName(p);return cn?flagIconHTML(cn)+escapeHtml(cn):"—";})()}</td>
           <td>${playerAge(p)!=null?playerAge(p):'—'}</td>
-          <td>${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</td>
+          <td>${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</td>
           <td class="mono">${p.rating}</td>
           <td><button class="btn ghost sm" data-action="edit-player" data-team="${p.teamId}" data-id="${p.id}">Editar</button></td>
         </tr>
@@ -417,12 +422,17 @@ function modalAddEditPlayer(teamId, player){
             <input id="f-pbirth" type="date" value="${player.birthDate||''}">
             <span id="f-page-hint" style="font-size:10px;color:var(--muted);font-weight:400;">${player.birthDate&&computeAge(player.birthDate)!=null?`Edad: ${computeAge(player.birthDate)} años`:'Opcional — de aquí se calcula la edad.'}</span>
           </label>
+          <label class="field">Género
+            <select id="f-pgender">
+              ${PERSON_GENDERS.map(g=>`<option value="${g}" ${g===(player.gender||"Masculino")?"selected":""}>${g}</option>`).join("")}
+            </select>
+          </label>
 
           <label class="field">${T('player.rating.label')}<input id="f-prating" type="number" min="0" max="99" value="${player.rating}"></label>
           <label class="field">Rating potencial (0-99)<input id="f-prating-potential" type="number" min="0" max="99" value="${player.ratingPotential!=null?player.ratingPotential:''}" placeholder="—"></label>
           <label class="field">${T('player.club.label')}
             <input id="f-pclub" list="club-list" value="${player.club}" placeholder="${T('player.club.placeholder')}">
-            <datalist id="club-list">${DB.clubs.slice().sort((a,b)=>a.localeCompare(b,'es')).map(c=>`<option value="${c}">`).join("")}</datalist>
+            <datalist id="club-list">${datalistOptions(DB.clubs.slice().sort((a,b)=>a.localeCompare(b,'es')))}</datalist>
           </label>
 
           <div class="subhead">${T('player.nationalities.label')}</div>
@@ -431,7 +441,7 @@ function modalAddEditPlayer(teamId, player){
               ${(nationalityNames.length?nationalityNames:[""]).map(n=>nationalityRowHTML(n)).join("")}
             </div>
             <div><button type="button" class="btn ghost sm" data-action="add-nationality-row">+ Agregar nacionalidad</button></div>
-            <datalist id="nation-list">${sortedCountries().map(c=>`<option value="${escapeHtml(c.commonName)}">`).join("")}</datalist>
+            <datalist id="nation-list">${datalistOptions(sortedCountries().map(c=>c.commonName))}</datalist>
           </div>
           <label class="field" style="grid-column:1/-1;">${T('player.declaredFor.label')}
             <select id="f-pdeclared">

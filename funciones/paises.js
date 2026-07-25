@@ -62,7 +62,7 @@ function buildMinimalTeamFromCountry(c){
     color1: col1, color2: col2, awayColor1: shiftColor(col2,60), awayColor2: shiftColor(col1,-20),
     kitSponsor: null, logoImg: null, kitHomeImg: null, kitAwayImg: null,
     fifaPoints: null, eloRating: null,
-    players: [], kits: []
+    players: [], coaches: [], kits: []
   };
 }
 // Crea una selección mínima (solo nombre + códigos) para cada país con confederación que aún no tenga una,
@@ -82,7 +82,14 @@ function integrateTeamsFromCountries(teamsArr, countriesArr){
 function findOrCreateCountryByName(name){
   name = (name||"").trim();
   if(!name) return null;
-  const existing = DB.countries.find(c=>c.commonName.toLowerCase()===name.toLowerCase());
+  // Coincidencia laxa: ignora acentos y signos, así "Mexico" encuentra "México" en vez de crear un
+  // país duplicado. También acepta la abreviatura de uso común ("EUA" → Estados Unidos).
+  const key = normLoose(name);
+  let existing = DB.countries.find(c=>normLoose(c.commonName)===key);
+  if(!existing && typeof COUNTRY_SHORT_LABELS!=="undefined"){
+    const full = Object.keys(COUNTRY_SHORT_LABELS).find(k=>normLoose(COUNTRY_SHORT_LABELS[k])===key);
+    if(full) existing = DB.countries.find(c=>normLoose(c.commonName)===full);
+  }
   if(existing) return existing.id;
   const c = {id:newId("co"), commonName:name, iocCode:null, fifaCode:null, parentOrStatus:null, conf:null, fifaAffiliated:false, iocAffiliated:false, teamLinks:{absoluta:null}};
   DB.countries.push(c);
@@ -128,6 +135,25 @@ function playerCountryName(p){
   }
   return "";
 }
+
+// Objeto país de la nacionalidad principal de un jugador o entrenador (primera nacionalidad, o el país
+// para el que está declarado). Sirve tanto para jugadores como entrenadores (misma forma de datos).
+function nationalityCountryOf(p){
+  const id = (p.nationalityIds && p.nationalityIds[0]) || p.declaredForCountryId || null;
+  return id ? (DB.countries||[]).find(c=>c.id===id) || null : null;
+}
+function capitalizeFirst(s){ s=(s||"").trim(); return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+// Gentilicio (por defecto masculino) de la nacionalidad principal, con mayúscula inicial. Si el país no
+// tiene gentilicio cargado, cae al nombre del país. gender: "m" (default) o "f".
+function personDemonym(p, gender){
+  const co = nationalityCountryOf(p);
+  if(co){
+    const g = (gender==="f") ? (co.gentilicioF||co.gentilicioM) : (co.gentilicioM||co.gentilicioF);
+    if(g) return capitalizeFirst(g);
+    return co.commonName;
+  }
+  return playerCountryName(p);
+}
 function sortedCountries(){
   return DB.countries.slice().sort((a,b)=>a.commonName.localeCompare(b.commonName));
 }
@@ -138,7 +164,7 @@ function countryRowHTML(c){
   const team = teamId ? getTeam(teamId) : null;
   return `
   <tr data-search="${search}">
-    <td><b>${c.commonName}</b></td>
+    <td><b>${flagIconHTML(c)}${escapeHtml(c.commonName)}</b></td>
     <td class="mono">${c.fifaCode||"—"}</td>
     <td class="mono">${c.iocCode||"—"}</td>
     <td>${c.conf ? confBadge(c.conf) : `<span style="color:var(--muted);">—</span>`}</td>
@@ -176,6 +202,8 @@ function modalAddEditCountry(country){
           <label class="field">${T('country.fifaCode.label')}<input id="f-c-fifa" value="${country.fifaCode||''}" maxlength="3"></label>
           <label class="field">${T('country.iocCode.label')}<input id="f-c-ioc" value="${country.iocCode||''}" maxlength="3"></label>
           <label class="field" style="grid-column:1/-1;">${T('country.parentOrStatus.label')}<input id="f-c-parent" value="${country.parentOrStatus||''}" placeholder="${T('country.parentOrStatus.placeholder')}"></label>
+          <label class="field">Gentilicio masculino<input id="f-c-gm" value="${(country.gentilicioM||'').replace(/"/g,'&quot;')}" placeholder="Ej: mexicano"></label>
+          <label class="field">Gentilicio femenino<input id="f-c-gf" value="${(country.gentilicioF||'').replace(/"/g,'&quot;')}" placeholder="Ej: mexicana"></label>
           <label class="field">${T('country.conf.label')}
             <select id="f-c-conf">
               <option value="">${T('country.conf.none')}</option>
@@ -188,6 +216,9 @@ function modalAddEditCountry(country){
           <label class="field" style="flex-direction:row;align-items:center;gap:8px;">
             <input type="checkbox" id="f-c-iocafil" style="width:auto;" ${country.iocAffiliated?"checked":""}> ${T('country.iocAffiliated.label')}
           </label>
+
+          <div class="subhead">Bandera</div>
+          ${imageUploadField("Bandera del país (opcional)", "cflag", country.flagImg, "Si no subes una, se usa la bandera automática por código ISO (cuando exista). Proporción 3:2 (p. ej. 1024×683 px) para que no se recorte.", 1024)}
 
           <div class="subhead">${T('country.section.languages')}</div>
           <label class="field" style="grid-column:1/-1;">${T('country.officialLanguages.label')}
@@ -232,4 +263,35 @@ function modalAddEditCountry(country){
       </div>
     </div>
   `);
+}
+
+// Nombre corto de un país para listas y etiquetas, donde un nombre largo desbalancea el diseño:
+// "Estados Unidos" se muestra como "EUA". Si no hay versión corta, se devuelve el nombre tal cual.
+function countryShortLabel(name){
+  const nm = (name||"").trim();
+  if(!nm) return "";
+  return (typeof COUNTRY_SHORT_LABELS!=="undefined" && COUNTRY_SHORT_LABELS[normLoose(nm)]) || nm;
+}
+
+// Genera las <option> de un datalist de forma que el navegador también las sugiera cuando se escribe
+// sin acentos. El <datalist> nativo filtra por coincidencia literal, así que además del valor con
+// acentos se añade, como opción extra, la versión normalizada (solo cuando difiere). Ambas apuntan al
+// mismo texto real mediante el atributo label, y al resolver el nombre se hace igualmente sin acentos.
+// Opciones de un datalist. UNA sola opción por valor (sin duplicar): el <datalist> nativo hace
+// coincidencia de subcadena contra el texto visible, así que se muestra el nombre real con acentos.
+// La búsqueda "sin acentos" se resuelve en el guardado: findOrCreateCountryByName y matchOrAddClub
+// hacen coincidencia laxa (normLoose), de modo que escribir "Mexico" o "EUA" y guardar apunta al país
+// correcto aunque el desplegable no lo haya sugerido mientras escribías sin tilde.
+function datalistOptions(values){
+  const out = [];
+  const seen = new Set();
+  (values||[]).forEach(v=>{
+    const val = (v==null?"":String(v)).trim();
+    if(!val) return;
+    const k = val.toLowerCase();
+    if(seen.has(k)) return;
+    seen.add(k);
+    out.push(`<option value="${escapeHtml(val)}"></option>`);
+  });
+  return out.join("");
 }

@@ -87,7 +87,8 @@ function crestHTML(t, extraStyle){
   if(t.logoImg){
     return `<div class="crest-mini has-img" style="${extraStyle||''}"><img src="${t.logoImg}" alt="${t.commonName}"></div>`;
   }
-  return `<div class="crest-mini" style="background:linear-gradient(160deg, ${t.color1}, ${t.color2});${extraStyle||''}">${t.fifaCode||initials(t.commonName)}</div>`;
+  // Sin logo propio: escudo genérico recoloreado con los colores de la selección (ver defaultCrestBoxHTML).
+  return defaultCrestBoxHTML(t, extraStyle);
 }
 
 function teamCardHTML(t){
@@ -96,10 +97,11 @@ function teamCardHTML(t){
   return `
   <div class="card team-card" data-action="open-team" data-id="${t.id}">
     <div class="team-card-top">
-      ${crestHTML(t, t.logoImg ? "width:50px;height:50px;" : "")}
+      ${crestHTML(t, "width:50px;height:50px;")}
       <div class="meta">
         <div class="name">${t.commonName} ${fifaBadge(t)}</div>
         <div class="sub">
+          ${flagBadgeHTML(t)}
           ${confBadge(t.conf)}
           ${t.host?`<span class="badge host">${T('general.badge.host')}</span>`:''}
           <span class="badge ${status}">${t.players.length} jugadores</span>
@@ -188,7 +190,7 @@ function renderTeamDetail(teamId){
   if(!t){ activeTeamId=null; return renderSelecciones(); }
   const rating = teamRating(t);
   const ratings = teamRatings(t);
-  const sponsorsOfTeam = DB.sponsors.filter(s=>s.teamId===t.id);
+  const sponsorsOfTeam = DB.sponsors.filter(s=>sponsorEffectiveLinks(s).some(l=>l.type==="team" && l.id===t.id));
   const fifaRankNow = computeFifaRanks()[t.id] || null;
   const orderedT = orderedTeamsForNav();
   const tIdx = orderedT.findIndex(x=>x.id===t.id);
@@ -198,11 +200,11 @@ function renderTeamDetail(teamId){
     ${detailNavHTML('nav-team-arrow', tIdx, orderedT.length)}
   </div>
   <div class="card" style="margin-top:14px;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
-    ${crestHTML(t, t.logoImg ? "width:150px;height:150px;" : "width:150px;height:150px;font-size:32px;")}
+    ${crestHTML(t, "width:150px;height:150px;")}
     <div style="flex:1;min-width:200px;">
       <h2 style="margin:0 0 2px;">${t.commonName} ${fifaBadge(t)}</h2>
       ${firstNicknameDisplay(t) ? `<div style="font-size:12.5px;color:var(--indigo-bright);font-weight:600;margin-bottom:2px;">${firstNicknameDisplay(t)}</div>` : ""}
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${t.federationName ? t.federationName + (t.federationAbbr ? ` (${t.federationAbbr})` : "") : ""}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${flagIconHTML(t)}${t.federationName ? t.federationName + (t.federationAbbr ? ` (${t.federationAbbr})` : "") : ""}</div>
       <div class="tag-list">
         ${confBadge(t.conf)}
         <span class="badge conf">Grupo ${t.group||"—"}</span>
@@ -254,13 +256,23 @@ function renderTeamDetail(teamId){
       <div class="player-row" data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
         <span class="num-badge">${p.number!=null?p.number:"–"}</span>
         <span class="pos-chip pos-${p.pos}">${p.pos}</span>
-        <span class="pname"><img src="${p.photo||PLAYER_PHOTO_DEFAULT}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(p)}</span>
-        <span class="pmeta">${playerAgeText(p)} · ${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</span>
+        <span class="pname"><img src="${p.photo||personPhotoDefault(p)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(p)}</span>
+        <span class="pmeta">${playerAgeText(p)} · ${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</span>
         <span class="prating">${p.rating}</span>
         <button class="btn ghost sm" data-action="edit-player" data-team="${t.id}" data-id="${p.id}">Editar</button>
         <button class="btn danger sm" data-action="delete-player" data-team="${t.id}" data-id="${p.id}">✕</button>
       </div>
     `).join("")}
+  </div>`}
+
+  <div class="section-title"><h2>Cuerpo técnico</h2><button class="btn gold sm" data-action="add-coach" data-team="${t.id}">+ Agregar entrenador</button></div>
+  ${(t.coaches||[]).length===0
+    ? `<div class="empty"><h3>Sin entrenadores cargados</h3><p>Agrega el cuerpo técnico desde aquí.</p></div>`
+    : `<div class="card">
+    ${(t.coaches||[]).slice().sort((a,b)=>
+        playerSortName(a).toLowerCase().localeCompare(playerSortName(b).toLowerCase(),'es',{sensitivity:'base'})
+        || playerDisplayName(a).localeCompare(playerDisplayName(b))
+      ).map(c=>coachRowHTML(c, t)).join("")}
   </div>`}
 
   <div class="section-title"><h2>Patrocinadores ligados</h2></div>

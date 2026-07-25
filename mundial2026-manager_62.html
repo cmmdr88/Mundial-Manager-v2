@@ -82,7 +82,15 @@ a{color:inherit;}
   padding:6px 12px;border-radius:20px;font-weight:600;
 }
 
-.tabs{display:flex;gap:2px;max-width:1280px;margin:14px auto 0;overflow-x:auto;scrollbar-width:none;background:var(--bg);padding:4px;border-radius:14px 14px 0 0;}
+.tabs-wrap{position:relative;max-width:1280px;margin:14px auto 0;}
+.tabs{display:flex;gap:2px;max-width:none;margin:0;overflow-x:auto;scrollbar-width:none;background:var(--bg);padding:4px;border-radius:14px 14px 0 0;scroll-behavior:smooth;}
+.tabs-arrow{position:absolute;top:0;bottom:0;width:34px;border:none;cursor:pointer;z-index:5;
+  display:flex;align-items:center;justify-content:center;font-size:20px;line-height:1;color:var(--muted);
+  background:linear-gradient(to right, var(--bg) 55%, transparent);padding:0 0 2px;}
+.tabs-arrow.right{right:0;background:linear-gradient(to left, var(--bg) 55%, transparent);}
+.tabs-arrow.left{left:0;}
+.tabs-arrow:hover{color:var(--ink);}
+.tabs-arrow[hidden]{display:none;}
 .tabs::-webkit-scrollbar{display:none;}
 .tab-btn{
   background:transparent;border:none;color:var(--muted);
@@ -271,6 +279,20 @@ tr:hover td{background:var(--surface-2);}
   font-size:11.5px;font-weight:700;flex-shrink:0;
 }
 .club-chip{font-size:11px;color:var(--muted);background:var(--surface-2);padding:2px 8px;border-radius:20px;}
+.flag-ic{height:0.95em;width:calc(0.95em * 3 / 2);object-fit:contain;border-radius:2px;vertical-align:-0.12em;margin-right:5px;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.18);}
+.flag-lg{height:16px;width:calc(16px * 3 / 2);object-fit:contain;border-radius:3px;vertical-align:-0.2em;margin-right:7px;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.18);}
+.flag-badge{padding:3px 7px;background:var(--surface-2);}
+.flag-badge img{height:13px;width:calc(13px * 3 / 2);object-fit:contain;border-radius:2px;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.18);}
+.logo-ic{height:1em;width:auto;max-width:1.5em;object-fit:contain;vertical-align:-0.18em;margin-right:5px;flex-shrink:0;}
+.badge .logo-ic{margin-right:1px;}
+/* Tipografía del año en el badge de árbitro (Frutiger LT Com Bold, subconjunto de dígitos ~2 KB).
+   Va incrustada porque los navegadores bloquean cargar fuentes desde archivos locales (file://). */
+@font-face{
+  font-family:'FIFABadgeYear';
+  src:url(data:font/woff2;base64,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) format('woff2');
+  font-weight:700; font-style:normal; font-display:block;
+}
+.flag-ic-empty{display:inline-block;box-shadow:none;background:transparent;}
 .tag-clickable{cursor:pointer;transition:filter .12s ease, box-shadow .12s ease;}
 .tag-clickable:hover{filter:brightness(1.25);box-shadow:0 0 0 1.5px var(--indigo-bright);}
 
@@ -315,7 +337,11 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
       </div>
       <div class="season-badge" id="season-badge">WIP &middot; JULIO 2026 &middot; VER 62</div>
     </div>
-    <nav class="tabs" id="tabs"></nav>
+    <div class="tabs-wrap">
+      <button type="button" class="tabs-arrow left" id="tabs-arrow-left" aria-label="Ver pestañas anteriores">‹</button>
+      <nav class="tabs" id="tabs"></nav>
+      <button type="button" class="tabs-arrow right" id="tabs-arrow-right" aria-label="Ver más pestañas">›</button>
+    </div>
   </div>
   <main id="view"><div class="empty"><h3>Cargando base de datos...</h3></div></main>
 </div>
@@ -323,6 +349,12 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 <div class="toast" id="toast"></div>
 
 <script src="datos/constantes.js"></script>
+<script src="datos/paises-iso.js"></script>
+<script src="datos/gentilicios.js"></script>
+<script src="datos/entrenadores-seed.js"></script>
+<script src="datos/arbitros-seed.js"></script>
+<script src="datos/partidos-numerados.js"></script>
+<script src="datos/historial-copas.js"></script>
 <script src="core/utilidades.js"></script>
 <script src="app/textos-ui.js"></script>
 <script src="funciones/medios.js"></script>
@@ -339,6 +371,8 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 <script src="funciones/evento.js"></script>
 <script src="funciones/calendario.js"></script>
 <script src="funciones/jugadores.js"></script>
+<script src="funciones/entrenadores.js"></script>
+<script src="funciones/arbitros.js"></script>
 <script src="funciones/selecciones.js"></script>
 <script src="funciones/editor.js"></script>
 <script src="uniformes/ui-kits.js"></script>
@@ -627,10 +661,16 @@ let rankingSort = {key:"fifaRank", dir:"asc"};
 let playerFilter = {q:"", team:"", pos:""};
 let bulkImportTeamId = "";
 let playerSort = {key:"rating", dir:"desc"};
+/* ---------- ENTRENADORES ---------- */
+let coachFilter = {q:"", team:""};
+let coachSort = {key:"rating", dir:"desc"};
+let refereeFilter = {q:"", role:"", country:""};
+let refereeSort = {key:"name", dir:"asc"};
 /* ---------- ESTADIOS ---------- */
 let clubsSort = {key:"name", dir:"asc"};
 let clubFilter = {q:"", country:"", league:""};
 let stadiumsView = "separados"; // "separados" (Copa del Mundo y Otros) u "alfabetico" (todos juntos, A-Z)
+let sponsorsView = "separados"; // "separados" (Copa Mundial + Todos) u "alfabetico"
 
 // Mientras el campo de destino esté "vinculado" (linked=1), se recalcula en vivo cada vez que
 // cambia alguna de sus fuentes — en cuanto el usuario edita el campo de destino directamente, se
@@ -665,11 +705,96 @@ document.addEventListener("input", (e)=>{
     const linked = document.getElementById("f-pshirtname-club-linked");
     if(linked) linked.value = "0";
   }
+  // Árbitro: el nombre en camiseta sigue al apellido hasta que se escriba a mano.
+  if(id==="f-rlastname" || id==="f-rcommonname"){
+    const linked = document.getElementById("f-r-shirtname-linked");
+    const field = document.getElementById("f-r-shirtname");
+    if(linked && linked.value==="1" && field){
+      const last = (document.getElementById("f-rlastname")||{}).value || "";
+      const common = (document.getElementById("f-rcommonname")||{}).value || "";
+      field.value = String(last.trim() || common.trim()).toUpperCase();
+    }
+  } else if(id==="f-r-shirtname"){
+    const linked = document.getElementById("f-r-shirtname-linked");
+    if(linked) linked.value = "0";
+  }
   if(id==="f-pbirth"){
     const hint = document.getElementById("f-page-hint");
     if(hint){
       const a = computeAge(e.target.value);
       hint.textContent = a!=null ? `Edad: ${a} años` : "Opcional — de aquí se calcula la edad.";
+    }
+  }
+});
+
+// Mismo mecanismo de auto-relleno para el modal de entrenador: mientras "Nombre completo" siga
+// vinculado (linked=1) se recalcula con Nombre + Apellido; se desvincula en cuanto se edita a mano.
+document.addEventListener("input", (e)=>{
+  const id = e.target.id;
+  if(id==="f-cfirstname" || id==="f-clastname"){
+    const linked = document.getElementById("f-cfullname-linked");
+    const full = document.getElementById("f-cfullname");
+    if(linked && linked.value==="1" && full){
+      const fn = document.getElementById("f-cfirstname").value;
+      const ln = document.getElementById("f-clastname").value;
+      full.value = `${fn} ${ln}`.trim();
+    }
+  } else if(id==="f-cfullname"){
+    const linked = document.getElementById("f-cfullname-linked");
+    if(linked) linked.value = "0";
+  }
+  if(id==="f-cbirth"){
+    const hint = document.getElementById("f-cage-hint");
+    if(hint){
+      const a = computeAge(e.target.value);
+      hint.textContent = a!=null ? `Edad: ${a} años` : "Opcional — de aquí se calcula la edad.";
+    }
+  }
+});
+
+// Muestra u oculta el campo "Puesto personalizado" del entrenador según se elija (o no) "Otro…".
+document.addEventListener("change", (e)=>{
+  if(e.target.id==="f-c-role"){
+    const wrap = document.getElementById("f-c-role-otro-wrap");
+    if(wrap) wrap.style.display = (e.target.value==="__otro__") ? "" : "none";
+  }
+  // Fila "Ligado a" del patrocinador: al cambiar el tipo, apunta el input a la lista correcta.
+  if(e.target.classList && e.target.classList.contains("sponsor-link-type")){
+    const row = e.target.closest(".sponsor-link-row");
+    const input = row && row.querySelector(".sponsor-link-name");
+    if(input){
+      const t = e.target.value;
+      const tournName = (typeof eventShortNameLabel==="function") ? eventShortNameLabel() : "Copa Mundial 2026™";
+      input.setAttribute("list", t==="tournament" ? "sponsor-link-tournaments" : t==="club" ? "sponsor-link-clubs" : "sponsor-link-teams");
+      input.placeholder = t==="tournament" ? tournName : t==="club" ? "Nombre del club" : "Nombre de la selección";
+      // Al cambiar el tipo se limpia lo escrito (un nombre de club no sirve como selección, etc.);
+      // si el tipo nuevo es Torneo, se prellena con el Nombre corto del evento.
+      input.value = (t==="tournament") ? tournName : "";
+    }
+  }
+  // "Kit local" de los árbitros: el selector de país solo tiene sentido si la casilla está marcada.
+  if(e.target.id==="f-kit-ref-local"){
+    // El menú de país solo aparece cuando la casilla está marcada (si no, mostraba un país que
+    // en realidad no estaba seleccionado).
+    // El menú de país siempre está a la vista, pero solo se llena y se habilita al marcar la casilla:
+    // deshabilitado y vacío se ve gris, sin dar a entender que ya hay un país elegido.
+    const sel = document.getElementById("f-kit-ref-local-country");
+    if(sel){
+      sel.disabled = !e.target.checked;
+      sel.innerHTML = e.target.checked
+        ? refereeLocalKitCountries().map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")
+        : "";
+    }
+  }
+  // Fila "Equipos" del estadio: al cambiar el tipo (Selección/Club) se ajusta la lista y se borra el texto.
+  if(e.target.classList && e.target.classList.contains("stadium-team-type")){
+    const row = e.target.closest(".stadium-team-row");
+    const input = row && row.querySelector(".stadium-team-name");
+    if(input){
+      const t = e.target.value;
+      input.setAttribute("list", t==="team" ? "stadium-link-teams" : "club-list-stadium");
+      input.placeholder = t==="team" ? "Nombre de la selección" : "Escribe o elige un club";
+      input.value = "";
     }
   }
 });
@@ -880,7 +1005,10 @@ document.addEventListener("drop", (e)=>{
   const [moved] = team.kits.splice(fromIdx,1);
   const toIdx = team.kits.findIndex(k=>k.id===toId);
   team.kits.splice(toIdx, 0, moved);
-  ensureTeamKits(team);
+  // Los uniformes de árbitro se renumeran (Kit 1, Kit 2…); los de selección/club usan su propia
+  // función, que además garantiza los mínimos. Llamar a la de selecciones sobre los árbitros creaba
+  // de la nada 2 uniformes de jugador y 1 de portero cada vez que se reordenaba.
+  if(team.isRefereeKits) ensureRefereeKits(); else ensureTeamKits(team);
   persist(); render();
   modalManageKits(team);
 });
@@ -958,6 +1086,7 @@ document.addEventListener("change", (e)=>{
 });
 
 </script>
+<script src="app/datalist-autocomplete.js"></script>
 <script src="app/init.js"></script>
 </body>
 </html>
