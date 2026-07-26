@@ -618,6 +618,47 @@ function countryIsoCode(x){
 }
 // URL/base64 de la bandera de un país (objeto o nombre). Prioriza la bandera SUBIDA MANUALMENTE
 // (country.flagImg, base64, igual que los logos de club), luego el archivo por código ISO. null si no hay.
+// Índice memoizado de países por nombre (normLoose) y por código FIFA, para que flagSrc no recorra
+// DB.countries en cada llamada (en listas grandes se llamaba una vez por fila -> coste cuadrático).
+// Se invalida al editar países o al recargar/importar la base (invalidateCountryIndex).
+let _countryIdxCache = null;
+function _countryIndex(){
+  if(_countryIdxCache) return _countryIdxCache;
+  const byName = Object.create(null), byFifa = Object.create(null);
+  (DB.countries||[]).forEach(c=>{
+    if(c.commonName) byName[normLoose(c.commonName)] = c;
+    if(c.fifaCode) byFifa[c.fifaCode.toUpperCase()] = c;
+  });
+  _countryIdxCache = { byName, byFifa };
+  return _countryIdxCache;
+}
+function invalidateCountryIndex(){ _countryIdxCache = null; }
+
+// --- Deduplicación de imágenes base64 por render (banderas y logos) ---
+// Una misma imagen base64 (bandera de Inglaterra, escudo de un club) se repetía incrustada en cada
+// fila de una lista grande (p. ej. 26 jugadores => 26 copias del mismo base64 = MBs de HTML). En su
+// lugar registramos cada base64 una sola vez por render y las filas la referencian por clase CSS
+// (background-image). render() llama a beginFlagDedup() antes de construir la vista y antepone
+// flushFlagDedupStyle() al HTML. El registro es genérico: lo usan flagIconHTML/flagBadgeHTML y
+// teamLogoIconHTML/clubLogoIconHTML.
+let _flagDyn = null;
+function beginFlagDedup(){ _flagDyn = { map:new Map(), css:[] }; }
+function flushFlagDedupStyle(){
+  const d = _flagDyn; _flagDyn = null;
+  if(!d || !d.css.length) return "";
+  return `<style data-flag-dyn>${d.css.join("")}</style>`;
+}
+function _flagDedupClass(dataUri){
+  if(!_flagDyn) return null;
+  let id = _flagDyn.map.get(dataUri);
+  if(id===undefined){
+    id = _flagDyn.map.size;
+    _flagDyn.map.set(dataUri, id);
+    _flagDyn.css.push(`.fdyn-${id}{background-image:url("${dataUri}")}`);
+  }
+  return `fdyn-${id}`;
+}
+
 function flagSrc(x){
   if(!x) return null;
   let name = null, fifa = null, isoCand = null;
@@ -625,9 +666,8 @@ function flagSrc(x){
     if(x.flagImg) return x.flagImg;                 // país con bandera manual
     name = x.commonName; fifa = x.fifaCode; isoCand = x.iso;
   } else { name = x; }
-  const co = (DB.countries||[]).find(c =>
-      (fifa && c.fifaCode && c.fifaCode.toUpperCase()===fifa.toUpperCase()) ||
-      (name && normLoose(c.commonName)===normLoose(name)));
+  const idx = _countryIndex();
+  const co = (fifa && idx.byFifa[fifa.toUpperCase()]) || (name && idx.byName[normLoose(name)]) || null;
   if(co && co.flagImg) return co.flagImg;
   if(co && !isoCand) isoCand = co.iso;
   const iso = isoCand
