@@ -303,9 +303,10 @@ function handleAction(action, el){
       break;
     }
     case "nav-player-arrow": {
-      const {team} = getPlayerWithTeam(activePlayerId);
-      if(!team) break;
-      const ordered = orderedTeamPlayers(team);
+      const {player, team} = getPlayerWithTeam(activePlayerId);
+      if(!team || !player) break;
+      const isConvocado = player.number!=null;
+      const ordered = orderedTeamPlayers(team).filter(x=> (x.number!=null)===isConvocado);
       if(ordered.length===0) break;
       const idx = ordered.findIndex(x=>x.id===activePlayerId);
       if(idx<0) break;
@@ -328,17 +329,40 @@ function handleAction(action, el){
     }
     case "sort-players": {
       toggleSort(playerSort, el.dataset.key, playerDefaultDir(el.dataset.key));
+      playerPage = 1; uncalledPage = 1;
       render();
+      break;
+    }
+    case "players-page": {
+      const p = el.dataset.goto ? parseInt(((el.closest(".pager")||{}).querySelector?.(".pager-goto-input")||{}).value, 10) : parseInt(el.dataset.page, 10);
+      if(p && p>=1){ playerPage = p; render(); }
+      break;
+    }
+    case "uncalled-page": {
+      const p = el.dataset.goto ? parseInt(((el.closest(".pager")||{}).querySelector?.(".pager-goto-input")||{}).value, 10) : parseInt(el.dataset.page, 10);
+      if(p && p>=1){ uncalledPage = p; render(); }
       break;
     }
     case "sort-coaches": {
       toggleSort(coachSort, el.dataset.key, coachDefaultDir(el.dataset.key));
+      coachPage = 1;
       render();
+      break;
+    }
+    case "coaches-page": {
+      const p = el.dataset.goto ? parseInt(((el.closest(".pager")||{}).querySelector?.(".pager-goto-input")||{}).value, 10) : parseInt(el.dataset.page, 10);
+      if(p && p>=1){ coachPage = p; render(); }
       break;
     }
     case "sort-referees": {
       toggleSort(refereeSort, el.dataset.key, refereeDefaultDir(el.dataset.key));
+      refereePage = 1;
       render();
+      break;
+    }
+    case "referees-page": {
+      const p = el.dataset.goto ? parseInt(((el.closest(".pager")||{}).querySelector?.(".pager-goto-input")||{}).value, 10) : parseInt(el.dataset.page, 10);
+      if(p && p>=1){ refereePage = p; render(); }
       break;
     }
     case "nav-referee-arrow": {
@@ -665,7 +689,7 @@ function handleAction(action, el){
       break;
     }
 
-    case "add-player": modalAddEditPlayer(el.dataset.team, null); break;
+    case "add-player": modalAddEditPlayer(el.dataset.team || null, null); break;
     case "edit-player": {
       const team = getTeam(el.dataset.team);
       modalAddEditPlayer(el.dataset.team, team.players.find(p=>p.id===el.dataset.id));
@@ -732,14 +756,27 @@ function handleAction(action, el){
         brand,
         favNumbersTeam, favNumbersClub, shirtNameTeam, shirtNameClub
       };
-      const team = getTeam(teamId);
+      let team = getTeam(teamId);
+      if(!team){
+        // Jugador nuevo desde la lista global (sin selección preseleccionada): el equipo sale de la
+        // nacionalidad. Se usa la declarada; si no, la primera nacionalidad con selección vinculada.
+        const candidates = [declaredForCountryId, ...nationalityIds].filter(Boolean);
+        let linkedTeamId = null;
+        for(const cid of candidates){
+          const c = (DB.countries||[]).find(x=>x.id===cid);
+          if(c && c.teamLinks && c.teamLinks.absoluta){ linkedTeamId = c.teamLinks.absoluta; break; }
+        }
+        team = linkedTeamId ? getTeam(linkedTeamId) : null;
+        if(!team){ showToast("Esa nacionalidad no tiene selección; elige una que tenga selección."); return; }
+      }
       if(id){ Object.assign(team.players.find(p=>p.id===id), data); }
       else { team.players.push({id:newId("p"), ...data}); }
       if(typeof invalidateClubPlayerIndex==="function") invalidateClubPlayerIndex(); persist(); closeModal(); render();
       break;
     }
 
-    case "add-coach": modalAddEditCoach(el.dataset.team, null); break;
+    case "add-coach": modalAddEditCoach(el.dataset.team || null, null); break;
+    case "add-coach-club": modalAddEditCoach(null, null, {contractClub: el.dataset.club||""}); break;
     case "edit-coach": {
       const team = getTeam(el.dataset.team);
       modalAddEditCoach(el.dataset.team, (team.coaches||[]).find(c=>c.id===el.dataset.id));
@@ -785,10 +822,26 @@ function handleAction(action, el){
         photo: (photoEl && photoEl.value) ? photoEl.value : null,
         contractCountryId, contractClub, contractRole
       };
-      const team = getTeam(teamId);
-      if(!Array.isArray(team.coaches)) team.coaches = [];
-      if(id){ Object.assign(team.coaches.find(c=>c.id===id), data); }
-      else { team.coaches.push({id:newId("c"), ...data}); }
+      // El entrenador vive en la selección con la que tiene contrato; si no tiene contrato de
+      // selección, vive en el equipo oculto de agentes libres. (El club de contrato es independiente:
+      // solo determina en qué club aparece su cuerpo técnico, no dónde se almacena.)
+      const cc = contractCountryId ? (DB.countries||[]).find(x=>x.id===contractCountryId) : null;
+      const linkedTeamId = cc && cc.teamLinks && cc.teamLinks.absoluta;
+      let targetTeam = linkedTeamId ? getTeam(linkedTeamId) : null;
+      if(!targetTeam) targetTeam = freeAgentTeam();
+      if(!Array.isArray(targetTeam.coaches)) targetTeam.coaches = [];
+      if(id){
+        const cur = getCoachWithTeam(id).team;
+        if(cur && cur!==targetTeam){
+          cur.coaches = (cur.coaches||[]).filter(x=>x.id!==id);   // mover de equipo si cambió el contrato
+          targetTeam.coaches.push({id, ...data});
+        } else {
+          const existing = (cur||targetTeam).coaches.find(x=>x.id===id);
+          if(existing) Object.assign(existing, data); else targetTeam.coaches.push({id, ...data});
+        }
+      } else {
+        targetTeam.coaches.push({id:newId("c"), ...data});
+      }
       persist(); closeModal(); render();
       break;
     }
@@ -1605,8 +1658,29 @@ function handleAction(action, el){
       const cat = el.dataset.cat;
       const value = decodeURIComponent(el.dataset.value);
       const catLabel = ({leagues:"la liga", brands:"la marca", sponsorCategories:"la categoría", cities:"la ciudad"})[cat] || "el elemento";
-      modalConfirm(`¿Eliminar ${catLabel} "${value}" del catálogo?`, ()=>{
-        if(DB[cat]){ DB[cat] = DB[cat].filter(v=>v!==value); persist(); render(); }
+      const extra = (cat==="cities" || cat==="leagues" || cat==="sponsorCategories")
+        ? " Se quitará también de los elementos que la tengan asignada." : "";
+      modalConfirm(`¿Eliminar ${catLabel} "${value}" del catálogo?${extra}`, ()=>{
+        // Coincidencia EXACTA (con acentos): "Los Ángeles" y "Los Angeles" son entradas distintas,
+        // así que borrar una NO borra la otra ni la limpia de las entidades.
+        const same = (a)=> (a||"") === value;
+        // 1) Quitar del catálogo
+        if(Array.isArray(DB[cat])) DB[cat] = DB[cat].filter(v=> !same(v));
+        // 2) Cascada: quitarlo de las entidades que lo tienen seleccionado. Para las CIUDADES esto es
+        //    además imprescindible, porque allCities() re-deriva la ciudad desde clubes y estadios: si no
+        //    se limpian, el badge reaparece y la ciudad "no se borra".
+        if(cat==="cities"){
+          (DB.clubsData||[]).forEach(c=>{ if(same(c.city)) c.city=""; });
+          (DB.stadiums||[]).forEach(s=>{ if(same(s.city)) s.city=""; });
+        } else if(cat==="leagues"){
+          (DB.clubsData||[]).forEach(c=>{ if(same(c.league)) c.league=""; });
+        } else if(cat==="sponsorCategories"){
+          (DB.sponsors||[]).forEach(sp=>{
+            if(Array.isArray(sp.categories)) sp.categories = sp.categories.filter(x=> !same(x));
+            if(same(sp.category)) sp.category=""; // por compatibilidad con datos antiguos
+          });
+        }
+        persist(); render();
       });
       break;
     }
@@ -1725,14 +1799,35 @@ function handleAction(action, el){
       if(!txt) return;
       try{
         const parsed = JSON.parse(txt);
-        if(!parsed.teams) throw new Error("Formato inválido");
-        DB = parsed;
-        migrateDB();
-        HISTORY = []; saveHistory(); PREV_DB_JSON = JSON.stringify(DB); // el historial de la base anterior ya no aplica
-        activeTeamId = null;
-        resetNavHistory();
-        persist(true); render();
-        showToast("Base de datos importada y actualizada a la versión más reciente");
+        if(parsed && parsed.__type==="copa-manager-backup"){
+          // RESPALDO DELTA: se parte de una base limpia y se aplican encima solo tus cambios
+          // (datos duros editados, logos, uniformes, colores, fotos, tipografías, catálogos).
+          if(typeof applyBackup!=="function") throw new Error("applyBackup no disponible");
+          const rebuilt = applyBackup(parsed);
+          if(!rebuilt || !rebuilt.teams) throw new Error("Respaldo inválido");
+          DB = rebuilt;
+          migrateDB();
+          HISTORY = []; saveHistory(); PREV_DB_JSON = JSON.stringify(DB);
+          activeTeamId = null;
+          resetNavHistory();
+          persist(true); render();
+          showToast("Respaldo importado: base + tus cambios");
+        } else if(parsed && parsed.__type==="copa-manager-visual-pack"){
+          // PACK VISUAL: se FUSIONA por id sobre la base actual (logos, uniformes, colores,
+          // patrocinadores y fotos). No reemplaza ni toca los datos duros.
+          if(typeof applyVisualPack!=="function" || !applyVisualPack(parsed)) throw new Error("Pack visual inválido");
+          persist(true); render();
+          showToast("Pack visual aplicado (logos, uniformes, colores y fotos)");
+        } else {
+          if(!parsed.teams) throw new Error("Formato inválido");
+          DB = parsed;
+          migrateDB();
+          HISTORY = []; saveHistory(); PREV_DB_JSON = JSON.stringify(DB); // el historial de la base anterior ya no aplica
+          activeTeamId = null;
+          resetNavHistory();
+          persist(true); render();
+          showToast("Base de datos importada y actualizada a la versión más reciente");
+        }
       }catch(err){ alert("JSON inválido: " + err.message); }
       break;
     }

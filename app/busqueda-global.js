@@ -56,12 +56,12 @@ function runGlobalSearch(qRaw){
     .slice(0,6)
     .map(t=>({type:"team", id:t.id, label:t.commonName, sub:"Selección"+(t.fifaCode?` · ${t.fifaCode}`:"")}));
 
-  // Clubes (por nombre, nombre corto, código, país o liga), etiquetados con su país.
-  // (el país acepta tanto el nombre completo como su abreviatura de uso común)
+  // Clubes: solo por sus NOMBRES (nombre común, oficial, completo, corto, alias) y CÓDIGOS (code,
+  // codeAlt). No se buscan apodos ni atributos de otra entidad (país/liga).
   const clubHits = (DB.clubsData||[])
-    .filter(c=> has(clubDisplayName(c)) || has(c.commonName) || has(c.shortName) || has(c.code) ||
-                has(c.country) || has(c.league) ||
-                (typeof countryShortLabel==="function" && has(countryShortLabel(c.country))))
+    .filter(c=> has(clubDisplayName(c)) || has(c.commonName) || has(c.officialName) || has(c.fullName) ||
+                has(c.shortName) || has(c.code) || has(c.codeAlt) ||
+                (Array.isArray(c.aliases) && c.aliases.some(a=> has(a))))
     .sort((a,b)=>clubDisplayName(a).localeCompare(clubDisplayName(b),'es'))
     .slice(0,8)
     .map(c=>{
@@ -71,11 +71,11 @@ function runGlobalSearch(qRaw){
       return {type:"club", id:c.id, label:clubDisplayName(c), sub:partes.join(" · ")};
     });
 
-  // Jugadores (por nombre visible, apellido o club), etiquetados con su selección
+  // Jugadores: solo por sus nombres (nombre visible, nombre, apellido, nombre completo).
   const playerHits = [];
   for(const t of DB.teams){
     for(const p of t.players){
-      if(has(playerDisplayName(p)) || has(p.lastName) || has(p.firstName) || has(p.club)){
+      if(has(playerDisplayName(p)) || has(p.firstName) || has(p.lastName) || has(p.fullName)){
         // "Jugador · País · Club" (el club solo si lo tiene).
         const partes = ["Jugador", t.commonName];
         if((p.club||"").trim()) partes.push(p.club.trim());
@@ -86,11 +86,11 @@ function runGlobalSearch(qRaw){
   playerHits.sort((a,b)=>a.label.localeCompare(b.label));
   const players = playerHits.slice(0,8);
 
-  // Entrenadores (por nombre visible, apellido, nombre, puesto o club), etiquetados con su selección
+  // Entrenadores: solo por sus nombres (nombre visible, nombre, apellido, nombre completo).
   const coachHits = [];
   for(const t of DB.teams){
     for(const c of (t.coaches||[])){
-      if(has(playerDisplayName(c)) || has(c.lastName) || has(c.firstName) || has(c.contractRole) || has(c.contractClub)){
+      if(has(playerDisplayName(c)) || has(c.firstName) || has(c.lastName) || has(c.fullName)){
         coachHits.push({type:"coach", id:c.id, label:playerDisplayName(c), sub:`Entrenador · ${t.commonName}`});
       }
     }
@@ -98,10 +98,10 @@ function runGlobalSearch(qRaw){
   coachHits.sort((a,b)=>a.label.localeCompare(b.label));
   const coaches = coachHits.slice(0,8);
 
-  // Árbitros (por nombre visible, apellido, nombre o rol), etiquetados con su rol y país.
+  // Árbitros: solo por sus nombres (nombre visible, nombre, apellido, nombre completo).
   const refereeHits = [];
   for(const r of (DB.referees||[])){
-    if(has(playerDisplayName(r)) || has(r.lastName) || has(r.firstName) || has(r.role)){
+    if(has(playerDisplayName(r)) || has(r.firstName) || has(r.lastName) || has(r.fullName)){
       const cn = (typeof countryNameById==="function" && r.countryRepresentsId) ? (countryNameById(r.countryRepresentsId)||"") : "";
       refereeHits.push({type:"referee", id:r.id, label:playerDisplayName(r), sub:`${r.role||"Árbitro"}${cn?` · ${cn}`:""}`});
     }

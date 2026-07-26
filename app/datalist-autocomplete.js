@@ -47,9 +47,29 @@
     return panel;
   }
 
+  // id del <datalist> asociado. Tras desengancharlo del navegador (detachNative) el atributo "list"
+  // ya no existe, así que se guarda en dataset.acList.
+  function listIdFor(input){
+    return (input.dataset && input.dataset.acList) || input.getAttribute("list") || "";
+  }
+
+  // Desactiva el <datalist> NATIVO del navegador para este input, conservando el id de la lista en
+  // dataset.acList. El desplegable nativo filtra por coincidencia LITERAL: al escribir "niger" mostraba
+  // "Nigeria" pero nunca "Níger", y ese popup nativo se superponía a nuestro panel, dando la impresión
+  // de que faltaban países con tilde. Al quitar el atributo "list" el navegador deja de mostrar su
+  // propio desplegable y el único que aparece es el nuestro, que compara sin acentos. El <datalist>
+  // sigue existiendo en el DOM como fuente de opciones (lo leemos por id).
+  function detachNative(input){
+    const id = input.getAttribute("list");
+    if(id){
+      input.dataset.acList = id;
+      input.removeAttribute("list");
+    }
+  }
+
   // Opciones de un input, leídas de su <datalist>.
   function optionsFor(input){
-    const id = input.getAttribute("list");
+    const id = listIdFor(input);
     if(!id) return [];
     const dl = document.getElementById(id);
     if(!dl) return [];
@@ -89,8 +109,11 @@
       else if(n.includes(q)) contains.push(name);
     }
     const list = starts.concat(contains).slice(0, 40);
-    // Si la única coincidencia es idéntica a lo ya escrito, no molesta con el panel.
-    if(!list.length || (list.length===1 && norm(list[0])===q)){ close(); return; }
+    // Se oculta el panel solo si la única coincidencia es LITERALMENTE idéntica a lo ya escrito (mismo
+    // texto, acentos incluidos): en ese caso no hay nada que elegir. Si difiere por acentos/signos
+    // (p. ej. escribiste "mexico" y la opción es "México"), el panel se mantiene para que puedas
+    // hacer clic e insertar la forma correcta con tilde.
+    if(!list.length || (list.length===1 && list[0] === (input.value||""))){ close(); return; }
     const p = ensurePanel();
     p.innerHTML = list.map((name,i)=>
       `<div data-ac-value="${escapeAttr(name)}" role="option" style="padding:6px 9px;border-radius:6px;cursor:pointer;white-space:nowrap;${i===activeIndex?'background:var(--surface-2,#262838);':''}">${escapeHtml2(name)}</div>`
@@ -123,18 +146,20 @@
     items[activeIndex].scrollIntoView({block:"nearest"});
   }
 
-  // Solo campos ligados a un datalist.
+  // Solo campos ligados a un datalist (con "list" nativo aún puesto, o ya desenganchado en acList).
   function isTarget(el){
-    return el && el.tagName==="INPUT" && el.hasAttribute("list");
+    return el && el.tagName==="INPUT" && (el.hasAttribute("list") || !!(el.dataset && el.dataset.acList));
   }
 
   document.addEventListener("input", (e)=>{
     if(!isTarget(e.target)) return;
+    detachNative(e.target);
     activeIndex = -1;
     render(e.target);
   });
   document.addEventListener("focusin", (e)=>{
     if(!isTarget(e.target)) return;
+    detachNative(e.target);
     if(e.target.value) render(e.target);
   });
   document.addEventListener("keydown", (e)=>{

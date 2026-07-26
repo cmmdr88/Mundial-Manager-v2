@@ -44,6 +44,9 @@ function openModal(html){
     }
   });
   renderKitPreviews();
+  // Inicializa el estado de los modales de persona (elegibilidad automática + botón Guardar
+  // desactivado si falta nacionalidad). En modales sin nacionalidad es inofensivo (no hace nada).
+  if(typeof refreshDeclaredForOptions==="function") refreshDeclaredForOptions();
 }
 function closeModal(){ document.getElementById("modal-root").innerHTML = ""; }
 // Confirm propio, basado en nuestros modales — no depende de window.confirm(), que puede venir
