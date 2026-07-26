@@ -33,6 +33,11 @@ async function loadDB(){
 }
 
 function persist(immediate){
+  // Los índices memoizados (países para banderas, clubes por nombre, jugadores por club) dependen de
+  // la base; se invalidan en cada escritura y se reconstruyen perezosamente en la próxima lectura.
+  if(typeof invalidateCountryIndex==="function") invalidateCountryIndex();
+  if(typeof invalidateClubNameIndex==="function") invalidateClubNameIndex();
+  if(typeof invalidateClubPlayerIndex==="function") invalidateClubPlayerIndex();
   if(saveTimer) clearTimeout(saveTimer);
   const doSave = async ()=>{
     try{
