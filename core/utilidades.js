@@ -96,3 +96,57 @@ function hexToRgb(hex){
   if(hex.length===3) hex = hex.split("").map(c=>c+c).join("");
   return [parseInt(hex.slice(0,2),16)||0, parseInt(hex.slice(2,4),16)||0, parseInt(hex.slice(4,6),16)||0];
 }
+
+// --- Paginación de listas grandes (jugadores, entrenadores, árbitros, clubes) ---
+// Con listas de 100 filas por página el HTML por render es pequeño y la navegación es fluida, sin
+// necesidad de trucos de deduplicación. El estado vive aquí (scope global de scripts clásicos) y se
+// reinicia a 1 al cambiar filtro u orden. El orden lo fija el ordenamiento antes de partir en páginas,
+// así que se mantiene consistente entre páginas.
+const LIST_PAGE_SIZE = 100;
+let playerPage = 1, coachPage = 1, refereePage = 1, clubPage = 1, uncalledPage = 1;
+
+// Calcula el corte de la página actual. Devuelve {page, pageCount, start, items, total}.
+function paginate(list, page){
+  const total = list.length;
+  const pageCount = Math.max(1, Math.ceil(total / LIST_PAGE_SIZE));
+  let p = page || 1;
+  if(p > pageCount) p = pageCount;
+  if(p < 1) p = 1;
+  const start = (p - 1) * LIST_PAGE_SIZE;
+  return { page:p, pageCount, start, items:list.slice(start, start + LIST_PAGE_SIZE), total };
+}
+
+// Controles de paginación. `action` es el data-action que dispara el cambio de página (el handler lee
+// data-page; el botón "Ir" lleva data-goto y el handler lee el número del input contiguo). Ocupa todo
+// el ancho y SIEMPRE se muestra: si solo hay una página, los botones salen deshabilitados (grises).
+function pagerHTML(page, pageCount, action){
+  const one = pageCount <= 1;
+  const btn = (p, label, disabled, cur) =>
+    `<button class="pager-btn${cur?' cur':''}" data-action="${action}" data-page="${p}"${disabled?' disabled':''}>${label}</button>`;
+  let from = Math.max(1, page - 2), to = Math.min(pageCount, page + 2);
+  if(page <= 3) to = Math.min(pageCount, 5);
+  if(page >= pageCount - 2) from = Math.max(1, pageCount - 4);
+  let nums = "";
+  if(from > 1) nums += btn(1, "1", one, page===1) + (from > 2 ? `<span class="pager-gap">…</span>` : "");
+  for(let i = from; i <= to; i++) nums += btn(i, String(i), one, i === page);
+  if(to < pageCount) nums += (to < pageCount - 1 ? `<span class="pager-gap">…</span>` : "") + btn(pageCount, String(pageCount), one, page===pageCount);
+  return `<div class="pager">
+    <div class="pager-side pager-side-left">${btn(page - 1, "‹ Anterior", one || page <= 1, false)}</div>
+    <div class="pager-nums">${nums}</div>
+    <div class="pager-side pager-side-right">
+      ${btn(page + 1, "Siguiente ›", one || page >= pageCount, false)}
+      <span class="pager-goto">
+        <input type="number" class="pager-goto-input" min="1" max="${pageCount}" value="${page}" ${one?'disabled':''} aria-label="Ir a la página">
+        <button class="pager-btn pager-goto-btn" data-action="${action}" data-goto="1"${one?' disabled':''}>Ir</button>
+      </span>
+    </div>
+  </div>`;
+}
+
+// Filas de relleno para que todas las páginas midan lo mismo (evita que al pasar a la última página,
+// con menos filas, la lista se acorte y el scroll salte). Solo se usan cuando hay más de una página.
+function fillerRowsHTML(count, colspan){
+  if(count <= 0) return "";
+  const row = `<tr class="pager-filler"><td colspan="${colspan}"><span class="pager-filler-cell"></span></td></tr>`;
+  return new Array(count).fill(row).join("");
+}
