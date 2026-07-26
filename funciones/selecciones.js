@@ -123,13 +123,14 @@ function teamCardHTML(t){
 function orderedTeamsForSelecciones(){
   const key = (seleccionesSort && seleccionesSort.key) || "name";
   const dir = (seleccionesSort && seleccionesSort.dir) || "asc";
+  const teams = DB.teams.filter(t=>!t.hidden);   // oculta el equipo de agentes libres
   if(key==="rating"){
-    return DB.teams.slice().sort((a,b)=>
+    return teams.slice().sort((a,b)=>
       compareGeneric(teamRating(a), teamRating(b), "number", dir)
       || a.commonName.localeCompare(b.commonName,'es')  // desempate estable por nombre
     );
   }
-  return DB.teams.slice().sort((a,b)=>compareGeneric(a.commonName,b.commonName,"string",dir));
+  return teams.slice().sort((a,b)=>compareGeneric(a.commonName,b.commonName,"string",dir));
 }
 
 // Lista de selecciones para la NAVEGACIÓN con flechas en la ficha, según de dónde se abrió:
@@ -248,22 +249,28 @@ function renderTeamDetail(teamId){
     ${squadSortChip("Club","club")}
     ${squadSortChip("Rating","rating")}
   </div>
-  <div class="card">
-    ${t.players.slice().sort((a,b)=>
-        compareGeneric(playerValue(a,squadSort.key), playerValue(b,squadSort.key), playerType(squadSort.key), squadSort.dir)
-        || playerDisplayName(a).localeCompare(playerDisplayName(b))
-      ).map(p=>`
+  ${(()=>{
+    const row = p=>`
       <div class="player-row" data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
         <span class="num-badge">${p.number!=null?p.number:"–"}</span>
         <span class="pos-chip pos-${p.pos}">${p.pos}</span>
-        <span class="pname"><img src="${p.photo||personPhotoDefault(p)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(p)}</span>
+        <span class="pname">${personPhotoHTML(p, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;flex-shrink:0;")}${playerDisplayNameHTML(p)}</span>
         <span class="pmeta">${playerAgeText(p)} · ${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</span>
         <span class="prating">${p.rating}</span>
         <button class="btn ghost sm" data-action="edit-player" data-team="${t.id}" data-id="${p.id}">Editar</button>
         <button class="btn danger sm" data-action="delete-player" data-team="${t.id}" data-id="${p.id}">✕</button>
-      </div>
-    `).join("")}
-  </div>`}
+      </div>`;
+    const sorted = t.players.slice().sort((a,b)=>
+      compareGeneric(playerValue(a,squadSort.key), playerValue(b,squadSort.key), playerType(squadSort.key), squadSort.dir)
+      || playerDisplayName(a).localeCompare(playerDisplayName(b)));
+    const conv = sorted.filter(p=>p.number!=null);
+    const noconv = sorted.filter(p=>p.number==null);
+    return `
+    <div class="list-subhead"><h3>Convocados</h3><span class="hint">${conv.length} con dorsal</span></div>
+    <div class="card">${conv.length ? conv.map(row).join("") : `<p style="font-size:13px;color:var(--muted);margin:0;">Ningún jugador con dorsal asignado.</p>`}</div>
+    <div class="list-subhead" style="margin-top:18px;"><h3>No convocados</h3><span class="hint">${noconv.length} sin dorsal</span></div>
+    <div class="card">${noconv.length ? noconv.map(row).join("") : `<p style="font-size:13px;color:var(--muted);margin:0;">Todos los jugadores están convocados.</p>`}</div>`;
+  })()}`}
 
   <div class="section-title"><h2>Cuerpo técnico</h2><button class="btn gold sm" data-action="add-coach" data-team="${t.id}">+ Agregar entrenador</button></div>
   ${(t.coaches||[]).length===0

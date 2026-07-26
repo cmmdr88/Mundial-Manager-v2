@@ -108,18 +108,41 @@ function findCountryByName(name){
 // Reconstruye las opciones del select "declara elegibilidad" para que solo contenga las nacionalidades
 // que el jugador tiene cargadas en ese momento (se actualiza en vivo al editar las filas).
 function refreshDeclaredForOptions(){
-  const sel = document.getElementById("f-pdeclared");
-  if(!sel) return;
+  // Nacionalidades válidas escritas en las filas.
   const seen = new Set();
   const nats = [];
   [...document.querySelectorAll("#nationality-rows .nationality-name")].forEach(inp=>{
     const c = findCountryByName(inp.value);
     if(c && !seen.has(c.id)){ seen.add(c.id); nats.push(c); }
   });
-  const current = sel.value;
-  sel.innerHTML = `<option value="">${T('player.declaredFor.none')}</option>`
-    + nats.map(c=>`<option value="${c.id}">${(c.teamLinks&&c.teamLinks.absoluta)?"✓ ":""}${escapeHtml(c.commonName)}</option>`).join("");
-  sel.value = seen.has(current) ? current : "";
+  // Selects de elegibilidad: jugador (f-pdeclared, con ✓ si hay selección) y árbitro (f-r-represents).
+  [{id:"f-pdeclared", none:T('player.declaredFor.none'), check:true},
+   {id:"f-r-represents", none:"— Sin definir —", check:false}].forEach(cfg=>{
+    const sel = document.getElementById(cfg.id);
+    if(!sel) return;
+    const current = sel.value;
+    sel.innerHTML = `<option value="">${cfg.none}</option>`
+      + nats.map(c=>`<option value="${c.id}">${(cfg.check && c.teamLinks && c.teamLinks.absoluta)?"✓ ":""}${escapeHtml(c.commonName)}</option>`).join("");
+    // Con una sola nacionalidad se elige automáticamente como elegible; con varias se respeta la
+    // selección previa (o se deja sin elegir para elección manual).
+    if(nats.length===1) sel.value = nats[0].id;
+    else sel.value = seen.has(current) ? current : "";
+  });
+  updatePersonSaveState(nats.length>0);
+}
+
+// No se puede crear ninguna persona (jugador, entrenador o árbitro) sin al menos una nacionalidad
+// válida: el botón Guardar del modal se desactiva (gris) hasta que haya una.
+function updatePersonSaveState(hasNat){
+  if(hasNat===undefined){
+    hasNat = [...document.querySelectorAll("#nationality-rows .nationality-name")]
+      .some(inp=> !!findCountryByName(inp.value));
+  }
+  const btn = document.querySelector('[data-action="save-player"],[data-action="save-coach"],[data-action="save-referee"]');
+  if(btn){
+    btn.disabled = !hasNat;
+    btn.classList.toggle("btn-disabled", !hasNat);
+  }
 }
 // País del jugador (su nacionalidad principal). NO es lo mismo que la selección en la que está inscrito:
 // un jugador puede tener la nacionalidad de un país sin formar parte de su selección. Toma la primera

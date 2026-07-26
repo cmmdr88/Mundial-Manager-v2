@@ -158,8 +158,8 @@ function renderEditor(){
 
   <div class="section-title"><h2>Exportar / Importar</h2><span class="hint">Copia tu base de datos como JSON o pega una para reemplazarla</span></div>
   <div class="card">
-    <label class="field">JSON actual (puedes copiarlo como respaldo)
-      <textarea class="json-area" readonly>${JSON.stringify(DB, null, 1)}</textarea>
+    <label class="field">JSON actual (puedes copiarlo como respaldo) — solo tus cambios respecto a la base del juego (datos editados, logos, uniformes, colores, fotos, tipografías, catálogos). Lo que no tocaste no se incluye.
+      <textarea class="json-area" readonly>${JSON.stringify(buildBackup(DB), null, 1)}</textarea>
     </label>
     <div style="height:10px;"></div>
     <label class="field">Pegar JSON para importar

@@ -213,7 +213,10 @@ function renderPlayerDetail(playerId){
   if(!p){ activePlayerId = null; return renderJugadores(); }
   let pIdx = -1, pTotal = 0;
   if(team){
-    const op = orderedTeamPlayers(team);
+    // La navegación con flechas recorre solo el mismo grupo del jugador: convocados (con dorsal) entre
+    // sí, y no convocados (sin dorsal) entre sí.
+    const isConvocado = p.number!=null;
+    const op = orderedTeamPlayers(team).filter(x=> (x.number!=null)===isConvocado);
     pIdx = op.findIndex(x=>x.id===p.id);
     pTotal = op.length;
   }
@@ -301,54 +304,82 @@ function renderJugadores(){
   const all = DB.teams.flatMap(t=>t.players.map(p=>({...p, teamName:t.commonName, teamId:t.id})));
   const filtered = all.filter(p=>{
     if(playerFilter.q && !playerDisplayName(p).toLowerCase().includes(playerFilter.q.toLowerCase())) return false;
-    if(playerFilter.team && p.teamId!==playerFilter.team) return false;
+    if(playerFilter.nat){ const co=nationalityCountryOf(p); if(!co || co.id!==playerFilter.nat) return false; }
     if(playerFilter.pos && p.pos!==playerFilter.pos) return false;
     return true;
   }).sort((a,b)=>
     compareGeneric(playerValue(a,playerSort.key), playerValue(b,playerSort.key), playerType(playerSort.key), playerSort.dir)
     || playerDisplayName(a).localeCompare(playerDisplayName(b))
   );
+  // Nacionalidades presentes entre los jugadores, para el filtro.
+  const natOptions = [...new Map(all.map(p=>nationalityCountryOf(p)).filter(Boolean).map(c=>[c.id,c])).values()]
+    .sort((a,b)=>a.commonName.localeCompare(b.commonName,'es'));
+
+  // La pestaña Jugadores muestra TODOS los jugadores juntos (convocados y no convocados). La división
+  // por convocatoria vive en el perfil de cada selección.
+  const b = playerTableBlockHTML(filtered, playerPage, "players-page"); playerPage = b.page;
 
   return `
-  <div class="section-title"><h2>${tabLabel('jugadores','Jugadores')}</h2><span class="hint">${tabDescription('jugadores') || `${all.length} jugadores en total`}</span></div>
+  <div class="section-title"><h2>${tabLabel('jugadores','Jugadores')}</h2><span class="hint">${filtered.length} ${filtered.length===1?'jugador':'jugadores'} · mostrando ${b.range}</span></div>
   <div class="searchbar">
     <input type="text" id="player-q" placeholder="Buscar jugador..." value="${playerFilter.q}">
-    <select id="player-team-filter">
-      <option value="">Todas las selecciones</option>
-      ${DB.teams.slice().sort((a,b)=>a.commonName.localeCompare(b.commonName,'es')).map(t=>`<option value="${t.id}" ${playerFilter.team===t.id?"selected":""}>${t.commonName}</option>`).join("")}
+    <select id="player-nat-filter">
+      <option value="">Todas las nacionalidades</option>
+      ${natOptions.map(c=>`<option value="${c.id}" ${playerFilter.nat===c.id?"selected":""}>${escapeHtml(c.commonName)}</option>`).join("")}
     </select>
     <select id="player-pos-filter">
       <option value="">Todas las posiciones</option>
       ${["GK","DF","MF","FW"].map(p=>`<option value="${p}" ${playerFilter.pos===p?"selected":""}>${p}</option>`).join("")}
     </select>
+    <button class="btn gold sm" data-action="add-player" data-team="${playerFilter.team||''}">+ Agregar jugador</button>
   </div>
+  ${b.html}
+  `;
+}
+
+// Encabezados de la tabla de jugadores (compartidos por ambas listas).
+function playerTableHeadHTML(){
+  return `<thead><tr>
+    ${sortTh("Jugador","name",playerSort,"sort-players")}
+    ${sortTh("Pos","pos",playerSort,"sort-players")}
+    ${sortTh("País","country",playerSort,"sort-players")}
+    ${sortTh("Edad","age",playerSort,"sort-players")}
+    ${sortTh("Club","club",playerSort,"sort-players")}
+    ${sortTh("Rating","rating",playerSort,"sort-players")}
+    <th></th>
+  </tr></thead>`;
+}
+function playerRowHTML(p){
+  return `
+    <tr data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
+      <td>${personPhotoHTML(p, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(p)}</td>
+      <td><span class="pos-chip pos-${p.pos}">${p.pos}</span></td>
+      <td>${(()=>{const cn=playerCountryName(p);return cn?flagIconHTML(cn)+escapeHtml(cn):"—";})()}</td>
+      <td>${playerAge(p)!=null?playerAge(p):'—'}</td>
+      <td>${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</td>
+      <td class="mono">${p.rating}</td>
+      <td><button class="btn ghost sm" data-action="edit-player" data-team="${p.teamId}" data-id="${p.id}">Editar</button></td>
+    </tr>`;
+}
+// Bloque de una lista de jugadores: pager arriba, tabla (con relleno de altura), pager abajo.
+function playerTableBlockHTML(list, page, pageAction){
+  const pg = paginate(list, page);
+  const fillers = pg.pageCount>1 ? (LIST_PAGE_SIZE - pg.items.length) : 0;
+  const range = pg.total ? `${pg.start+1}–${pg.start+pg.items.length} de ${pg.total}` : "0";
+  const rows = pg.items.map(playerRowHTML).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--muted);">Sin jugadores en esta lista</td></tr>`;
+  const html = `
+  ${pagerHTML(pg.page, pg.pageCount, pageAction)}
   <div class="tbl-wrap">
     <table>
-      <thead><tr>
-        ${sortTh("Jugador","name",playerSort,"sort-players")}
-        ${sortTh("Pos","pos",playerSort,"sort-players")}
-        ${sortTh("País","country",playerSort,"sort-players")}
-        ${sortTh("Edad","age",playerSort,"sort-players")}
-        ${sortTh("Club","club",playerSort,"sort-players")}
-        ${sortTh("Rating","rating",playerSort,"sort-players")}
-        <th></th>
-      </tr></thead>
+      ${playerTableHeadHTML()}
       <tbody>
-      ${filtered.map(p=>`
-        <tr data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
-          <td><img src="${p.photo||personPhotoDefault(p)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;">${playerDisplayNameHTML(p)}</td>
-          <td><span class="pos-chip pos-${p.pos}">${p.pos}</span></td>
-          <td>${(()=>{const cn=playerCountryName(p);return cn?flagIconHTML(cn)+escapeHtml(cn):"—";})()}</td>
-          <td>${playerAge(p)!=null?playerAge(p):'—'}</td>
-          <td>${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</td>
-          <td class="mono">${p.rating}</td>
-          <td><button class="btn ghost sm" data-action="edit-player" data-team="${p.teamId}" data-id="${p.id}">Editar</button></td>
-        </tr>
-      `).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--muted);">Sin resultados</td></tr>`}
+      ${rows}
+      ${fillerRowsHTML(fillers, 7)}
       </tbody>
     </table>
   </div>
-  `;
+  ${pagerHTML(pg.page, pg.pageCount, pageAction)}`;
+  return { html, page: pg.page, total: pg.total, range };
 }
 
 // Convierte un texto "9, 10, 7" en hasta 5 números válidos (0-999), en el mismo orden que los
@@ -375,7 +406,7 @@ function modalAddEditPlayer(teamId, player){
   const isEdit = !!player;
   const team = getTeam(teamId);
   // Para un jugador nuevo, el dorsal arranca en 0 (sin asignar). Se puede cambiar en el formulario.
-  const teamCountry = DB.countries.find(c=>c.teamLinks && c.teamLinks.absoluta===teamId);
+  const teamCountry = teamId ? DB.countries.find(c=>c.teamLinks && c.teamLinks.absoluta===teamId) : null;
   player = player || {id:null, firstName:"", lastName:"", commonName:"", fullName:"", pos:"MF", age:24, birthDate:null, club:"", rating:70, ratingPotential:null, number:null, numberClub:null, numberUnassigned:true,
     nationalityIds: teamCountry ? [teamCountry.id] : [], declaredForCountryId: teamCountry ? teamCountry.id : null,
     photo:null, caps:null, goalsNational:null, brand:null, favNumbersTeam:[], favNumbersClub:[], shirtNameTeam:"", shirtNameClub:"",
@@ -388,7 +419,7 @@ function modalAddEditPlayer(teamId, player){
   if(player.fullNameLinked) player.fullName = computeDefaultFullName(player);
   if(player.shirtNameTeamLinked) player.shirtNameTeam = computeDefaultShirtNameValue(player);
   if(player.shirtNameClubLinked) player.shirtNameClub = computeDefaultShirtNameValue(player);
-  const numberTaken = player.number==null ? false : (player.id ? team.players.some(p=>p.id!==player.id && p.number===player.number) : team.players.some(p=>p.number===player.number));
+  const numberTaken = (!team || player.number==null) ? false : (player.id ? team.players.some(p=>p.id!==player.id && p.number===player.number) : team.players.some(p=>p.number===player.number));
   const nationalityNames = (player.nationalityIds||[]).map(countryNameById).filter(Boolean);
   const favNumbersTeamText = (player.favNumbersTeam||[]).join(", ");
   const favNumbersClubText = (player.favNumbersClub||[]).join(", ");
@@ -461,7 +492,7 @@ function modalAddEditPlayer(teamId, player){
 
           <div class="subhead">Dorsales y nombre en camiseta</div>
           <label class="field">Dorsal en selección
-            <input id="f-pnumber" type="number" min="0" max="99" value="${player.number!=null?player.number:0}" data-team="${team.id}" data-pid="${player.id||''}" oninput="checkNumberTaken(this)">
+            <input id="f-pnumber" type="number" min="0" max="99" value="${player.number!=null?player.number:0}" data-team="${team?team.id:''}" data-pid="${player.id||''}" oninput="checkNumberTaken(this)">
             <span style="font-size:10px;color:var(--muted);font-weight:400;">0 = sin dorsal asignado</span>
           </label>
           <label class="field">Dorsal en club
@@ -493,7 +524,7 @@ function modalAddEditPlayer(teamId, player){
       </div>
       <div class="modal-foot">
         <button class="btn ghost" data-action="close-modal">Cancelar</button>
-        <button class="btn gold" data-action="save-player" data-team="${teamId}" data-id="${player.id||''}">Guardar</button>
+        <button class="btn gold" data-action="save-player" data-team="${teamId||''}" data-id="${player.id||''}">Guardar</button>
       </div>
     </div>
   `);

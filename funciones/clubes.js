@@ -44,10 +44,23 @@ function registerCity(name){
 }
 
 function clubKey(name){ return normLoose(name||""); }
+// Índice memoizado de clubes por nombre común y alias (clubKey), para no recorrer DB.clubsData en
+// cada getClubByName (en la lista de jugadores se llamaba una vez por fila). Se invalida al editar
+// clubes o al recargar/importar (invalidateClubNameIndex).
+let _clubNameIdx = null;
+function invalidateClubNameIndex(){ _clubNameIdx = null; }
 function getClubByName(name){
   if(!name) return null;
   const key = clubKey(name);
-  return (DB.clubsData||[]).find(c=> clubKey(c.commonName)===key || (c.aliases||[]).some(a=>clubKey(a)===key)) || null;
+  if(!_clubNameIdx){
+    _clubNameIdx = Object.create(null);
+    (DB.clubsData||[]).forEach(c=>{
+      const ck = clubKey(c.commonName);
+      if(ck && !(ck in _clubNameIdx)) _clubNameIdx[ck] = c;
+      (c.aliases||[]).forEach(a=>{ const ak = clubKey(a); if(ak && !(ak in _clubNameIdx)) _clubNameIdx[ak] = c; });
+    });
+  }
+  return _clubNameIdx[key] || null;
 }
 function ensureClubObject(name){
   const nm = (name||"").trim();
@@ -356,6 +369,18 @@ function renderClubDetail(clubId){
       </div>
     `).join("")}
   </div>`}
+
+  <div class="section-title"><h2>Cuerpo técnico</h2><button class="btn gold sm" data-action="add-coach-club" data-club="${escapeHtml(c.commonName)}">+ Agregar entrenador</button></div>
+  ${(()=>{
+    // Entrenadores con contrato en ESTE club (derivado de contractClub, vivan donde vivan).
+    const staff = DB.teams.flatMap(t=>(t.coaches||[]).map(co=>({co, team:t})))
+      .filter(x=>{ const gc = x.co.contractClub ? getClubByName(x.co.contractClub) : null; return gc && gc.id===c.id; })
+      .sort((a,b)=> playerSortName(a.co).toLowerCase().localeCompare(playerSortName(b.co).toLowerCase(),'es',{sensitivity:'base'})
+        || playerDisplayName(a.co).localeCompare(playerDisplayName(b.co)));
+    return staff.length===0
+      ? `<div class="empty"><h3>Sin cuerpo técnico</h3><p>Aparecen aquí los entrenadores con contrato en este club.</p></div>`
+      : `<div class="card">${staff.map(x=>coachRowHTML(x.co, x.team)).join("")}</div>`;
+  })()}
   `;
 }
 

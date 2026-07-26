@@ -39,6 +39,21 @@ function coachRoleBadge(role){
 
 // Busca un entrenador por id recorriendo todas las selecciones — igual que getPlayerWithTeam, los
 // entrenadores no tienen un arreglo global propio: viven dentro de team.coaches.
+// Los que no tienen contrato con una selección viven en un equipo OCULTO de agentes libres, que no se
+// muestra en la lista de selecciones ni en la navegación, pero cuyos entrenadores sí salen en la
+// pestaña de Entrenadores (que aplana todos los equipos).
+const FREE_AGENT_TEAM_ID = "__free_agents";
+function freeAgentTeam(){
+  let t = DB.teams.find(x=>x.id===FREE_AGENT_TEAM_ID);
+  if(!t){
+    t = { id:FREE_AGENT_TEAM_ID, commonName:"Agentes libres", officialName:"Agentes libres",
+          shortName:"LIBRE", fifaCode:"", conf:"", group:"", host:false, hidden:true,
+          players:[], coaches:[], kits:[] };
+    DB.teams.push(t);
+  }
+  if(!Array.isArray(t.coaches)) t.coaches = [];
+  return t;
+}
 function getCoachWithTeam(coachId){
   for(const t of DB.teams){
     const c = (t.coaches||[]).find(x=>x.id===coachId);
@@ -159,7 +174,7 @@ function coachRowHTML(c, team){
   return `
   <div class="player-row" data-action="open-coach" data-id="${c.id}" style="cursor:pointer;">
     <span class="num-badge" style="width:auto;padding:0 6px;font-size:9px;letter-spacing:.04em;">${coachRoleBadge(c.contractRole)}</span>
-    <span class="pname"><img src="${c.photo||personPhotoDefault(c)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(c)}</span>
+    <span class="pname">${personPhotoHTML(c, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;flex-shrink:0;")}${playerDisplayNameHTML(c)}</span>
     <span class="pmeta">${playerAgeText(c)}${puesto?` · ${escapeHtml(puesto)}`:""}</span>
     <span class="prating">${c.rating!=null?c.rating:"-"}</span>
     <button class="btn ghost sm" data-action="edit-coach" data-team="${team.id}" data-id="${c.id}">Editar</button>
@@ -193,22 +208,31 @@ function renderEntrenadores(){
   const all = DB.teams.flatMap(t=>(t.coaches||[]).map(c=>({...c, teamName:t.commonName, teamId:t.id})));
   const filtered = all.filter(c=>{
     if(coachFilter.q && !playerDisplayName(c).toLowerCase().includes(coachFilter.q.toLowerCase())) return false;
-    if(coachFilter.team && c.teamId!==coachFilter.team) return false;
+    if(coachFilter.nat){ const co=nationalityCountryOf(c); if(!co || co.id!==coachFilter.nat) return false; }
     return true;
   }).sort((a,b)=>
     compareGeneric(coachValue(a,coachSort.key), coachValue(b,coachSort.key), coachType(coachSort.key), coachSort.dir)
     || playerDisplayName(a).localeCompare(playerDisplayName(b))
   );
+  const natOptions = [...new Map(all.map(c=>nationalityCountryOf(c)).filter(Boolean).map(c=>[c.id,c])).values()]
+    .sort((a,b)=>a.commonName.localeCompare(b.commonName,'es'));
+
+  const pg = paginate(filtered, coachPage);
+  coachPage = pg.page;
+  const rangeText = pg.total ? `${pg.start+1}–${pg.start+pg.items.length} de ${pg.total}` : "0";
+  const fillers = pg.pageCount>1 ? (LIST_PAGE_SIZE - pg.items.length) : 0;
 
   return `
-  <div class="section-title"><h2>${tabLabel('entrenadores','Entrenadores')}</h2><span class="hint">${tabDescription('entrenadores') || `${all.length} entrenadores en total`}</span></div>
+  <div class="section-title"><h2>${tabLabel('entrenadores','Entrenadores')}</h2><span class="hint">${filtered.length} ${filtered.length===1?'entrenador':'entrenadores'} · mostrando ${rangeText}</span></div>
   <div class="searchbar">
     <input type="text" id="coach-q" placeholder="Buscar entrenador..." value="${coachFilter.q}">
-    <select id="coach-team-filter">
-      <option value="">Todas las selecciones</option>
-      ${DB.teams.slice().sort((a,b)=>a.commonName.localeCompare(b.commonName,'es')).map(t=>`<option value="${t.id}" ${coachFilter.team===t.id?"selected":""}>${t.commonName}</option>`).join("")}
+    <select id="coach-nat-filter">
+      <option value="">Todas las nacionalidades</option>
+      ${natOptions.map(c=>`<option value="${c.id}" ${coachFilter.nat===c.id?"selected":""}>${escapeHtml(c.commonName)}</option>`).join("")}
     </select>
+    <button class="btn gold sm" data-action="add-coach" data-team="${coachFilter.team||''}">+ Agregar entrenador</button>
   </div>
+  ${pagerHTML(pg.page, pg.pageCount, "coaches-page")}
   <div class="tbl-wrap">
     <table>
       <thead><tr>
@@ -221,31 +245,33 @@ function renderEntrenadores(){
         <th></th>
       </tr></thead>
       <tbody>
-      ${filtered.map(c=>`
+      ${pg.items.map(c=>`
         <tr data-action="open-coach" data-id="${c.id}" style="cursor:pointer;">
-          <td><img src="${c.photo||personPhotoDefault(c)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;">${playerDisplayNameHTML(c)}</td>
+          <td>${personPhotoHTML(c, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(c)}</td>
           <td>${(()=>{const cn=playerCountryName(c);return cn?flagIconHTML(cn)+escapeHtml(cn):"—";})()}</td>
           <td>${playerAge(c)!=null?playerAge(c):'—'}</td>
-          <td>${coachEquipoCellHTML(c)||"—"}</td>
+          <td>${coachEquipoCellHTML(c) || `<span class="tag-free-agent">Agente libre</span>`}</td>
           <td>${c.contractRole?escapeHtml(c.contractRole):"—"}</td>
           <td class="mono">${c.rating!=null?c.rating:"—"}</td>
           <td><button class="btn ghost sm" data-action="edit-coach" data-team="${c.teamId}" data-id="${c.id}">Editar</button></td>
         </tr>
       `).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--muted);">Sin resultados</td></tr>`}
+      ${fillerRowsHTML(fillers, 7)}
       </tbody>
     </table>
   </div>
+  ${pagerHTML(pg.page, pg.pageCount, "coaches-page")}
   `;
 }
 
-function modalAddEditCoach(teamId, coach){
+function modalAddEditCoach(teamId, coach, prefill){
   const isEdit = !!coach;
   const team = getTeam(teamId);
   // Para un entrenador nuevo, hereda por defecto la nacionalidad del país de la selección (si lo tiene).
-  const teamCountry = DB.countries.find(c=>c.teamLinks && c.teamLinks.absoluta===teamId);
+  const teamCountry = teamId ? DB.countries.find(c=>c.teamLinks && c.teamLinks.absoluta===teamId) : null;
   coach = coach || {id:null, firstName:"", lastName:"", commonName:"", fullName:"", birthDate:null,
     rating:70, ratingPotential:null, nationalityIds: teamCountry ? [teamCountry.id] : [], photo:null, fullNameLinked:true,
-    contractCountryId: teamCountry ? teamCountry.id : null, contractClub:"", contractRole:""};
+    contractCountryId: teamCountry ? teamCountry.id : null, contractClub:(prefill&&prefill.contractClub)||"", contractRole:""};
   if(coach.fullNameLinked===undefined) coach.fullNameLinked = !coach.fullName;
   // Mientras esté "vinculado", el nombre completo se recalcula fresco al abrir el editor.
   if(coach.fullNameLinked) coach.fullName = computeDefaultFullName(coach);
@@ -315,7 +341,7 @@ function modalAddEditCoach(teamId, coach){
       </div>
       <div class="modal-foot">
         <button class="btn ghost" data-action="close-modal">Cancelar</button>
-        <button class="btn gold" data-action="save-coach" data-team="${teamId}" data-id="${coach.id||''}">Guardar</button>
+        <button class="btn gold" data-action="save-coach" data-team="${teamId||''}" data-id="${coach.id||''}">Guardar</button>
       </div>
     </div>
   `);

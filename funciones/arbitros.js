@@ -218,8 +218,13 @@ function renderArbitros(){
     .filter(c=>c.name)
     .sort((a,b)=>a.name.localeCompare(b.name,'es'));
 
+  const pg = paginate(filtered, refereePage);
+  refereePage = pg.page;
+  const rangeText = pg.total ? `${pg.start+1}–${pg.start+pg.items.length} de ${pg.total}` : "0";
+  const fillers = pg.pageCount>1 ? (LIST_PAGE_SIZE - pg.items.length) : 0;
+
   return `
-  <div class="section-title"><h2>${tabLabel('arbitros','Árbitros')}</h2><button class="btn gold sm" data-action="add-referee">+ Agregar árbitro</button></div>
+  <div class="section-title"><h2>${tabLabel('arbitros','Árbitros')}</h2><span class="hint">${all.length} árbitros · mostrando ${rangeText}</span></div>
   <div class="searchbar">
     <input type="text" id="referee-q" placeholder="Buscar árbitro..." value="${escapeHtml(refereeFilter.q)}">
     <select id="referee-role-filter">
@@ -230,7 +235,9 @@ function renderArbitros(){
       <option value="">Todos los países</option>
       ${countryIds.map(c=>`<option value="${c.id}" ${refereeFilter.country===c.id?"selected":""}>${escapeHtml(c.name)}</option>`).join("")}
     </select>
+    <button class="btn gold sm" data-action="add-referee">+ Agregar árbitro</button>
   </div>
+  ${pagerHTML(pg.page, pg.pageCount, "referees-page")}
   <div class="tbl-wrap">
     <table>
       <thead><tr>
@@ -242,11 +249,11 @@ function renderArbitros(){
         <th></th>
       </tr></thead>
       <tbody>
-      ${filtered.map(r=>{
+      ${pg.items.map(r=>{
         const cn = refereeMainCountryName(r);
         return `
         <tr data-action="open-referee" data-id="${r.id}" style="cursor:pointer;">
-          <td><img src="${r.photo||personPhotoDefault(r)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;">${playerDisplayNameHTML(r)}</td>
+          <td>${personPhotoHTML(r, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(r)}</td>
           <td>${cn?flagIconHTML(cn)+escapeHtml(cn):"—"}</td>
           <td>${playerAge(r)!=null?playerAge(r):'—'}</td>
           <td>${r.role?escapeHtml(r.role):"—"}</td>
@@ -254,9 +261,11 @@ function renderArbitros(){
           <td><button class="btn ghost sm" data-action="edit-referee" data-id="${r.id}">Editar</button></td>
         </tr>`;
       }).join("") || `<tr><td colspan="6" style="text-align:center;color:var(--muted);">Sin resultados</td></tr>`}
+      ${fillerRowsHTML(fillers, 6)}
       </tbody>
     </table>
   </div>
+  ${pagerHTML(pg.page, pg.pageCount, "referees-page")}
   `;
 }
 
