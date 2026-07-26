@@ -16,78 +16,230 @@
    ========================================================= */
 
 function buildDefaultDB(){
-  const teams = SEED_TEAMS.map(([name,conf,group,host,players])=>{
-    const [c1,c2] = colorsFor(name, conf);
-    const fifaCode = (FIFA_CODES[name] || initials(name)).slice(0,3).toUpperCase();
-    const team = {
-      id: uid(),
-      officialName: (OFFICIAL_NAMES[name] || name),
-      commonName: name.slice(0,50),
-      shortName: name.slice(0,30),
-      fifaCode,
-      iocCode: null,
-      federationName: FEDERATION_NAMES[name] || null,
-      federationAbbr: FEDERATION_ABBR[name] || null,
-      nicknames: NICKNAMES[name] ? NICKNAMES[name].map(n=>({...n})) : [],
-      conf, group, host,
-      color1:c1, color2:c2,
-      awayColor1: shiftColor(c2, 60), awayColor2: shiftColor(c1, -20),
-      kitSponsor: KIT_SPONSORS[name] || null,
-      logoImg: null, kitHomeImg: null, kitAwayImg: null,
-      fifaPoints: fifaRankingFor(fifaCode).points,
-      eloRating: ELO_RATING[name] ?? null,
-      players: players,
-      coaches: []
-    };
-    assignSquadNumbers(team);
-    return team;
+  // La BASE DE DATOS POR DEFECTO (datos duros + toolkit visual + genéricas) vive en
+  // datos/base-datos-seed.js (const BASE_DB_SEED). Las imágenes propias del usuario (logos de
+  // selección/club, fotos de jugador, uniformes, colores y patrocinadores) NO están aquí: se
+  // aplican encima importando el pack visual (applyVisualPack). Las banderas se sirven del folder
+  // banderas/ por código ISO; las fotos/escudos genéricos, desde constantes.js y las carpetas del repo.
+  const src = (typeof BASE_DB_SEED!=="undefined") ? BASE_DB_SEED
+            : (typeof window!=="undefined" ? window.BASE_DB_SEED : null);
+  if(!src) throw new Error("Falta datos/base-datos-seed.js (BASE_DB_SEED)");
+  const db = (typeof structuredClone==="function")
+    ? structuredClone(src)
+    : JSON.parse(JSON.stringify(src));
+
+  // Colores por defecto para selecciones/clubes que no traigan los suyos (los reales llegan en el
+  // pack visual). Así la base es funcional aunque todavía no se haya importado el pack.
+  const FALLBACK=["#1e293b","#e2e8f0"];
+  (db.teams||[]).forEach(t=>{
+    if(t.color1==null || t.color2==null){
+      const cc = (typeof colorsFor==="function") ? colorsFor(t.commonName, t.conf) : FALLBACK;
+      if(t.color1==null) t.color1=cc[0];
+      if(t.color2==null) t.color2=cc[1];
+    }
+    if(t.color3==null) t.color3="#FFFFFF";
+  });
+  (db.clubsData||[]).forEach(c=>{
+    if(c.color1==null || c.color2==null){
+      const cc = (typeof colorsFor==="function") ? colorsFor(c.commonName, c.country) : FALLBACK;
+      if(c.color1==null) c.color1=cc[0];
+      if(c.color2==null) c.color2=cc[1];
+    }
+    if(c.color3==null) c.color3="#FFFFFF";
   });
 
-  const clubSet = new Set();
-  teams.forEach(t=> t.players.forEach(p=>{ if(p.club) clubSet.add(p.club); }));
+  // Mantener el contador de ids por encima de los ids ya usados por el seed, para que los nuevos no choquen.
+  if(typeof _seedCounter==="number" && typeof db.nextIdSeed==="number") _seedCounter = Math.max(_seedCounter, db.nextIdSeed);
+  return db;
+}
 
-  const countries = buildDefaultCountries(teams);
-  integrateTeamsFromCountries(teams, countries);
+// Aplica un "pack visual" (visual-pack.json) sobre la base ACTUAL, fusionando por id: logos y uniformes
+// de selecciones/clubes, colores, patrocinadores, fotos de jugador, y logos de medios/confederaciones/
+// evento/FIFA. No toca los datos duros. Devuelve true si el pack era válido.
+function applyVisualPack(pack){
+  if(!pack || pack.__type!=="copa-manager-visual-pack") return false;
+  const teams = (DB && DB.teams) || [];
+  const tById={}, pById={};
+  teams.forEach(t=>{ tById[t.id]=t; (t.players||[]).forEach(p=>{ pById[p.id]=p; }); });
+  const cById={}; ((DB&&DB.clubsData)||[]).forEach(c=>{ cById[c.id]=c; });
 
-  return {
-    version:2,
-    nextIdSeed:_seedCounter,
-    teams,
-    confederations: buildDefaultConfederations(),
-    stadiums: buildDefaultStadiums(),
-    kitBases: buildDefaultKitBases(),
-    kitTexture: KIT_TEXTURE_DEFAULT,
-    kitTextureBack: KIT_TEXTURE_BACK_DEFAULT,
-    gkTexture: KIT_GK_TEXTURE_DEFAULT,
-    gkTextureBack: KIT_GK_TEXTURE_BACK_DEFAULT,
-    shortsBases: buildDefaultShortsBases(),
-    shortsTexture: SHORTS_TEXTURE_DEFAULT,
-    socksBases: buildDefaultSocksBases(),
-    socksTexture: SOCKS_TEXTURE_DEFAULT,
-    numberFonts: buildDefaultNumberFonts(),
-    backBases: buildDefaultBackBases(),
-    countries,
-    fifa: buildDefaultFifa(),
-    strings: {},
-    clubs: [...clubSet].sort(),
-    clubsData: buildDefaultClubsData([...clubSet]),
-    leagues: buildDefaultLeagues([...clubSet]),
-    brands: [...new Set([...APPAREL_BRANDS, ...Object.values(KIT_SPONSORS)])],
-    sponsorCategories: [...SPONSOR_CATEGORIES],
-    sponsors:[
-      {id:uid(), name:"Aguamarca", category:"Bebidas", value:80, teamId:null},
-      {id:uid(), name:"VoltCell Energía", category:"Tecnología", value:150, teamId:null},
-      {id:uid(), name:"Tres Estrellas Seguros", category:"Seguros", value:45, teamId: teams[0] ? teams[0].id : null},
-    ],
-    media:[
-      {id:uid(), name:"Canal Estadio", type:"TV abierta", country:"Internacional", reach:62},
-      {id:uid(), name:"RadioGol AM", type:"Radio", country:"Internacional", reach:24},
-      {id:uid(), name:"PlayDeportes+", type:"Streaming", country:"Internacional", reach:38},
-    ],
-    event: buildDefaultEvent(),
-    fixtures:[],
-    meta:{ createdNote:true }
-  };
+  Object.keys(pack.teams||{}).forEach(id=>{ if(tById[id]) Object.assign(tById[id], pack.teams[id]); });
+  Object.keys(pack.playerPhotos||{}).forEach(id=>{ if(pById[id]) pById[id].photo = pack.playerPhotos[id]; });
+  Object.keys(pack.clubs||{}).forEach(id=>{ if(cById[id]) Object.assign(cById[id], pack.clubs[id]); });
+  Object.keys(pack.media||{}).forEach(id=>{ const m=((DB&&DB.media)||[]).find(x=>x.id===id); if(m) m.logoImg=pack.media[id]; });
+  if(DB && DB.confederations) Object.keys(pack.confederations||{}).forEach(k=>{ if(DB.confederations[k]) DB.confederations[k].logoImg=pack.confederations[k]; });
+  if(pack.event && pack.event.logoImg && DB && DB.event) DB.event.logoImg = pack.event.logoImg;
+  if(pack.fifa && pack.fifa.logoImg && DB && DB.fifa) DB.fifa.logoImg = pack.fifa.logoImg;
+  // Tipografías extra del pack (la primera, "Default 01", ya viene en la base). Se anexan sin duplicar por id.
+  if(Array.isArray(pack.numberFonts) && DB){
+    if(!Array.isArray(DB.numberFonts)) DB.numberFonts=[];
+    const seen = new Set(DB.numberFonts.map(f=>f.id));
+    pack.numberFonts.forEach(f=>{ if(f && !seen.has(f.id)){ DB.numberFonts.push(f); seen.add(f.id); } });
+  }
+  return true;
+}
+
+/* Inversa de applyVisualPack: extrae SOLO los datos visuales (imágenes propias, uniformes, colores,
+   tipografías extra) de la base actual y produce un pack visual listo para respaldar/importar.
+   Los datos duros (id, nombre, conf, grupo, etc.) NO se incluyen: viven en base-datos-seed.js. */
+function buildVisualPack(db){
+  const src = db || (typeof DB!=="undefined" ? DB : null);
+  const pack = { __type:"copa-manager-visual-pack", version:(src&&src.version)||2,
+    teams:{}, playerPhotos:{}, clubs:{}, media:{}, confederations:{}, event:{}, fifa:{}, numberFonts:[] };
+  if(!src) return pack;
+  const TEAM_VISUAL = ["logoImg","kits","color1","color2","color3","kitSponsor"];
+  const CLUB_VISUAL = TEAM_VISUAL;
+  const has = v => !(v===null || v===undefined || v==="" || (Array.isArray(v)&&v.length===0));
+  const pick = (obj, fields)=>{ const out={}; fields.forEach(f=>{ if(has(obj[f])) out[f]=obj[f]; }); return out; };
+
+  (src.teams||[]).forEach(t=>{
+    const v = pick(t, TEAM_VISUAL);
+    if(Object.keys(v).length) pack.teams[t.id] = v;
+    (t.players||[]).forEach(p=>{ if(typeof p.photo==="string" && p.photo.startsWith("data:")) pack.playerPhotos[p.id]=p.photo; });
+  });
+  (src.clubsData||[]).forEach(c=>{
+    const v = pick(c, CLUB_VISUAL);
+    if(Object.keys(v).length) pack.clubs[c.id] = v;
+  });
+  (src.media||[]).forEach(m=>{ if(typeof m.logoImg==="string" && m.logoImg.startsWith("data:")) pack.media[m.id]=m.logoImg; });
+  if(src.confederations) Object.keys(src.confederations).forEach(k=>{
+    const lg = src.confederations[k] && src.confederations[k].logoImg;
+    if(typeof lg==="string" && lg.startsWith("data:")) pack.confederations[k]=lg;
+  });
+  if(src.event && typeof src.event.logoImg==="string" && src.event.logoImg.startsWith("data:")) pack.event.logoImg=src.event.logoImg;
+  if(src.fifa && typeof src.fifa.logoImg==="string" && src.fifa.logoImg.startsWith("data:")) pack.fifa.logoImg=src.fifa.logoImg;
+
+  // Tipografías: incluye solo las que NO están ya en la base seed (la primera, "Default 01", vive en la base).
+  const baseFontIds = new Set(((typeof BASE_DB_SEED!=="undefined" && BASE_DB_SEED.numberFonts)||[]).map(f=>f.id));
+  (src.numberFonts||[]).forEach(f=>{ if(f && !baseFontIds.has(f.id)) pack.numberFonts.push(f); });
+
+  return pack;
+}
+
+/* ---------- Respaldo delta (copa-manager-backup) ----------
+   El respaldo guarda SOLO lo que cambió respecto a la base del juego (buildDefaultDB): datos duros
+   editados, imágenes propias, colores, uniformes, tipografías, catálogos, etc. Lo que no se tocó no
+   se duplica (esos datos ya viven en el código). Al importar se parte de una base limpia y se aplican
+   los cambios encima, reproduciendo el estado exacto. Formato:
+     { __type:"copa-manager-backup", version, data:<parche> }
+   El parche es recursivo y entiende los arreglos indexados por id (teams, players, clubsData,
+   referees, media...): solo incluye los elementos añadidos, quitados o modificados; en los modificados
+   baja recursivamente para no arrastrar campos que no cambiaron. */
+
+function _isIdArray(a){
+  return Array.isArray(a) && a.length>0 && a.every(x=> x && typeof x==="object" && !Array.isArray(x) && "id" in x);
+}
+function _cloneVal(v){ return (typeof structuredClone==="function") ? structuredClone(v) : JSON.parse(JSON.stringify(v)); }
+
+// Devuelve el parche que lleva de `base` a `cur`, o undefined si son iguales.
+function diffVal(base, cur){
+  if(cur === base) return undefined;
+  if(cur === undefined) return { __del:true };
+  if(base === undefined) return { __set: cur };
+  if(cur === null || base === null) return (base===cur) ? undefined : { __set: cur };
+
+  if(Array.isArray(cur)){
+    if(_isIdArray(cur) && _isIdArray(base)){
+      const bById = Object.create(null); base.forEach(x=> bById[x.id]=x);
+      const cById = Object.create(null); cur.forEach(x=> cById[x.id]=x);
+      const changed=[], added=[], removed=[];
+      cur.forEach(x=>{
+        const b = bById[x.id];
+        if(b===undefined){ added.push(x); }
+        else { const d = diffVal(b, x); if(d!==undefined) changed.push({ id:x.id, patch:d }); }
+      });
+      base.forEach(x=>{ if(!(x.id in cById)) removed.push(x.id); });
+      // Reordenamiento: si el orden de los ids comunes (presentes en base y cur) cambió, hay que
+      // guardarlo. Los uniformes (team.kits) son arreglos por-id que el usuario reordena a mano, y sin
+      // esto el respaldo delta perdía el orden. `order` guarda la secuencia completa de ids de `cur`.
+      const curIds = cur.map(x=>x.id);
+      const baseIds = base.map(x=>x.id);
+      const commonCur  = curIds.filter(id=> baseIds.indexOf(id)>=0);
+      const commonBase = baseIds.filter(id=> cById[id]!==undefined);
+      const reordered = commonCur.join("\u0001") !== commonBase.join("\u0001");
+      if(!changed.length && !added.length && !removed.length && !reordered) return undefined;
+      const out = { __idarr:true };
+      if(changed.length) out.changed = changed;
+      if(added.length)   out.added   = added;
+      if(removed.length) out.removed = removed;
+      if(reordered || added.length) out.order = curIds;  // secuencia final de ids
+      return out;
+    }
+    return (JSON.stringify(base)===JSON.stringify(cur)) ? undefined : { __set: cur };
+  }
+
+  if(typeof cur === "object"){
+    if(typeof base !== "object" || Array.isArray(base)) return { __set: cur };
+    const obj = {}; let any=false;
+    for(const k in cur){ const d = diffVal(base[k], cur[k]); if(d!==undefined){ obj[k]=d; any=true; } }
+    for(const k in base){ if(!(k in cur)){ obj[k] = { __del:true }; any=true; } }
+    return any ? { __obj: obj } : undefined;
+  }
+
+  return { __set: cur };
+}
+
+// Aplica un parche de diffVal sobre `base` y devuelve el resultado.
+function applyPatch(base, patch){
+  if(patch==null) return base;
+  if("__set" in patch) return _cloneVal(patch.__set);
+  if(patch.__del) return undefined;   // el contenedor padre se encarga de borrar la clave
+  if(patch.__idarr){
+    const arr = Array.isArray(base) ? base.map(_cloneVal) : [];
+    const idx = Object.create(null); arr.forEach((x,i)=>{ if(x && typeof x==="object" && "id" in x) idx[x.id]=i; });
+    (patch.removed||[]).forEach(id=>{ if(id in idx) arr[idx[id]] = undefined; });
+    (patch.changed||[]).forEach(ch=>{ if(ch.id in idx && arr[idx[ch.id]]!==undefined) arr[idx[ch.id]] = applyPatch(arr[idx[ch.id]], ch.patch); });
+    (patch.added||[]).forEach(v=>{ arr.push(_cloneVal(v)); });
+    let out = arr.filter(x=> x!==undefined);
+    if(patch.order){
+      // Reordenar según la secuencia guardada. Los ids no listados (no debería haber) van al final,
+      // conservando su orden relativo (orden estable).
+      const pos = Object.create(null); patch.order.forEach((id,i)=> pos[id]=i);
+      out = out
+        .map((x,i)=>({ x, k: (x && typeof x==="object" && x.id in pos) ? pos[x.id] : (patch.order.length + i) }))
+        .sort((a,b)=> a.k - b.k)
+        .map(o=> o.x);
+    }
+    return out;
+  }
+  if(patch.__obj){
+    const out = (base && typeof base==="object" && !Array.isArray(base)) ? _cloneVal(base) : {};
+    for(const k in patch.__obj){
+      const p = patch.__obj[k];
+      if(p && p.__del) delete out[k];
+      else out[k] = applyPatch(out[k], p);
+    }
+    return out;
+  }
+  return base;
+}
+
+// Referencia determinista para el respaldo: el SEED CRUDO (constante congelada), no buildDefaultDB()
+// —que deriva colores en tiempo de ejecución—. Así la reconstrucción nunca depende de estado derivado
+// y TODO ajuste del usuario respecto al seed queda garantizado en el JSON, siempre.
+function _rawSeedClone(){
+  const src = (typeof BASE_DB_SEED!=="undefined") ? BASE_DB_SEED
+            : (typeof window!=="undefined" ? window.BASE_DB_SEED : null);
+  if(!src) throw new Error("Falta datos/base-datos-seed.js (BASE_DB_SEED)");
+  return (typeof structuredClone==="function") ? structuredClone(src) : JSON.parse(JSON.stringify(src));
+}
+
+// Construye el respaldo delta a partir del estado actual (o de `db`): todo lo que difiera del seed.
+function buildBackup(db){
+  const src = db || (typeof DB!=="undefined" ? DB : null);
+  const ref = _rawSeedClone();
+  const data = src ? (diffVal(ref, src) || {}) : {};
+  return { __type:"copa-manager-backup", version:(src&&src.version)||ref.version||2, data };
+}
+
+// Reconstruye la base completa aplicando un respaldo delta sobre el seed crudo. Devuelve el nuevo
+// objeto de base de datos, o null si el pack no es un respaldo delta válido.
+function applyBackup(pack){
+  if(!pack || pack.__type!=="copa-manager-backup") return null;
+  const result = applyPatch(_rawSeedClone(), pack.data || {});
+  // Mantener el contador de ids por encima de los ya usados, como hace buildDefaultDB.
+  if(typeof _seedCounter==="number" && result && typeof result.nextIdSeed==="number") _seedCounter = Math.max(_seedCounter, result.nextIdSeed);
+  return result;
 }
 
 let DB = null;
