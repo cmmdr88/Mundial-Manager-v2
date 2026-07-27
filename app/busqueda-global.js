@@ -50,6 +50,7 @@ function runGlobalSearch(qRaw){
   // Selecciones (por nombre común, oficial, nombre corto, código FIFA/COI o abreviatura de uso común
   // como "EUA" para Estados Unidos).
   const teamHits = DB.teams
+    .filter(t=> !t.hidden)   // nunca mostrar el equipo oculto (agentes libres)
     .filter(t=> has(t.commonName) || has(t.officialName) || has(t.shortName) ||
                 has(t.fifaCode) || has(t.iocCode) ||
                 (typeof countryShortLabel==="function" && has(countryShortLabel(t.commonName))))
@@ -91,7 +92,9 @@ function runGlobalSearch(qRaw){
   for(const t of DB.teams){
     for(const c of (t.coaches||[])){
       if(has(playerDisplayName(c)) || has(c.firstName) || has(c.lastName) || has(c.fullName)){
-        coachHits.push({type:"coach", id:c.id, label:playerDisplayName(c), sub:`Entrenador · ${t.commonName}`});
+        // Si el entrenador vive en el equipo oculto (agentes libres), no revelamos su nombre.
+        const sub = t.hidden ? "Entrenador · Agente libre" : `Entrenador · ${t.commonName}`;
+        coachHits.push({type:"coach", id:c.id, label:playerDisplayName(c), sub});
       }
     }
   }
