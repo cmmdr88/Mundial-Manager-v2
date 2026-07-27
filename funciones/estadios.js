@@ -309,7 +309,7 @@ function modalAddEditStadium(stadium){
           <label class="field" style="grid-column:1/-1;">${T('stadium.owner.label')}
             <input id="f-st-owner" list="club-list-stadium" value="${stadium.owner||''}" placeholder="${T('stadium.owner.placeholder')}">
             <datalist id="club-list-stadium">${datalistOptions(DB.clubs.slice().sort((a,b)=>a.localeCompare(b,'es')))}</datalist>
-            <datalist id="stadium-link-teams">${datalistOptions(DB.teams.slice().sort((a,b)=>a.commonName.localeCompare(b.commonName,'es')).map(t=>t.commonName))}</datalist>
+            <datalist id="stadium-link-teams">${datalistOptions(DB.teams.slice().filter(t=>!t.hidden).sort((a,b)=>a.commonName.localeCompare(b.commonName,'es')).map(t=>t.commonName))}</datalist>
           </label>
           <div class="field" style="grid-column:1/-1;display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">${T('stadium.teams.label')}
             <div id="stadium-team-rows">

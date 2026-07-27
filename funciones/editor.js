@@ -89,7 +89,7 @@ function renderEditor(){
       <label class="field" style="grid-column:1/-1;">Selección destino
         <select id="bulk-team-select">
           <option value="">— Elige una selección —</option>
-          ${DB.teams.slice().sort((a,b)=>a.commonName.localeCompare(b.commonName)).map(t=>`<option value="${t.id}" ${bulkImportTeamId===t.id?"selected":""}>${t.commonName}</option>`).join("")}
+          ${DB.teams.slice().filter(t=>!t.hidden).sort((a,b)=>a.commonName.localeCompare(b.commonName)).map(t=>`<option value="${t.id}" ${bulkImportTeamId===t.id?"selected":""}>${t.commonName}</option>`).join("")}
         </select>
       </label>
     </div>

@@ -91,7 +91,7 @@ function rankingDefaultDir(key){ return (key==="fifaPoints"||key==="elo"||key===
 function renderRankings(){
   const ranksMap = computeFifaRanks();
   const eloRanksMap = computeEloRanks();
-  const teams = rankingSection==="MUNDIAL" ? DB.teams.slice() : DB.teams.filter(t=>t.conf===rankingSection);
+  const teams = (rankingSection==="MUNDIAL" ? DB.teams.slice() : DB.teams.filter(t=>t.conf===rankingSection)).filter(t=>!t.hidden);
   const sorted = teams.sort((a,b)=>
     compareGeneric(rankingValue(a,rankingSort.key,ranksMap,eloRanksMap), rankingValue(b,rankingSort.key,ranksMap,eloRanksMap), rankingType(rankingSort.key), rankingSort.dir)
     || a.commonName.localeCompare(b.commonName)

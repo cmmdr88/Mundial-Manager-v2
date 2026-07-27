@@ -720,7 +720,7 @@ function modalEditEventGeneral(){
           <div style="margin-top:8px;">
             <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Copas del mundo anteriores. Cada entrada: año, sede(s), campeón, subcampeón y tercer lugar.</div>
             <datalist id="ev-country-list">${(DB.countries||[]).map(c=>`<option value="${escapeHtml(c.commonName)}">`).join("")}</datalist>
-            <datalist id="ev-team-list">${(DB.teams||[]).map(t=>`<option value="${escapeHtml(t.commonName)}">`).join("")}</datalist>
+            <datalist id="ev-team-list">${(DB.teams||[]).filter(t=>!t.hidden).map(t=>`<option value="${escapeHtml(t.commonName)}">`).join("")}</datalist>
             <div id="ev-history-rows">
               ${((ev.history&&ev.history.length)?ev.history:[]).map((h,i)=>eventHistoryRowHTML(h,i)).join("")}
             </div>

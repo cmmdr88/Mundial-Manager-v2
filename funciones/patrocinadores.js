@@ -272,7 +272,7 @@ function modalAddEditSponsor(sponsor){
               </div>
               <div><button type="button" class="btn ghost sm" data-action="add-sponsor-link-row">+ Agregar enlace</button></div>
               <datalist id="sponsor-link-tournaments"><option value="${escapeHtml(eventShortNameLabel())}"></datalist>
-              <datalist id="sponsor-link-teams">${datalistOptions(DB.teams.slice().sort((a,b)=>a.commonName.localeCompare(b.commonName,'es')).map(t=>t.commonName))}</datalist>
+              <datalist id="sponsor-link-teams">${datalistOptions(DB.teams.slice().filter(t=>!t.hidden).sort((a,b)=>a.commonName.localeCompare(b.commonName,'es')).map(t=>t.commonName))}</datalist>
               <datalist id="sponsor-link-clubs">${datalistOptions(DB.clubs.slice().sort((a,b)=>a.localeCompare(b,'es')))}</datalist>
             </div>
             <label class="field" style="flex:0 0 150px;">Valor (millones)<input id="f-sval" type="number" min="0" value="${sponsor.value}"></label>

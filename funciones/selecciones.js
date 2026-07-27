@@ -188,7 +188,7 @@ function orderedTeamPlayers(team){
 
 function renderTeamDetail(teamId){
   const t = getTeam(teamId);
-  if(!t){ activeTeamId=null; return renderSelecciones(); }
+  if(!t || t.hidden){ activeTeamId=null; return renderSelecciones(); }  // el equipo oculto (agentes libres) no tiene perfil visible
   const rating = teamRating(t);
   const ratings = teamRatings(t);
   const sponsorsOfTeam = DB.sponsors.filter(s=>sponsorEffectiveLinks(s).some(l=>l.type==="team" && l.id===t.id));
