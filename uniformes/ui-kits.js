@@ -98,9 +98,18 @@ async function drawBackNumberOnCanvas(ctx, size, kit){
 // número — o Back1 si no hay uno propio), lo recolorea con los colores de ese mismo uniforme, y
 // dibuja encima el dorsal y el "nombre en camiseta (selección)" del jugador, usando exactamente la
 // misma tipografía/color/contorno/tamaño/posición que ese uniforme tiene configurados para su dorso.
+// Caché global compartido de dorsos de playera: el simulador y el onboarding reutilizan el
+// mismo render (misma clave = jugador + equipo + dorsal + colores del kit + tamaño), así no se
+// vuelve a componer el canvas cada vez. Vive en window para que TODOS los módulos lo compartan.
+var _playerBadgeCache = (typeof window!=="undefined")
+  ? (window.__playerBadgeCache || (window.__playerBadgeCache = {}))
+  : {};
 async function buildPlayerNumberBadgeDataURL(player, team, size){
   size = size || 200;
   if(!team || !DB.backBases.length) return null;
+  const _ck = [player && player.id, team && team.id, size, player && player.number,
+    team && team.color1, team && team.color2, team && team.color3, player && player.pos].join("|");
+  if(_playerBadgeCache[_ck]) return _playerBadgeCache[_ck];
   // Los porteros usan los colores/configuración del uniforme de Portero Local, no del de Local.
   const refKit = player.pos==="GK"
     ? (team.kits.find(k=>k.category==="portero" && k.label==="Portero Local") || team.kits.find(k=>k.category==="portero"))
@@ -173,7 +182,9 @@ async function buildPlayerNumberBadgeDataURL(player, team, size){
     refKit.badgeNumberOffsetY!=null?refKit.badgeNumberOffsetY:refKit.backNumberOffsetY,
     1, size, outlineScale, badgeContainBounds);
   ctx.restore();
-  return canvas.toDataURL("image/png");
+  const _url = canvas.toDataURL("image/png");
+  _playerBadgeCache[_ck] = _url;
+  return _url;
 }
 // Genera la vista previa en vivo del cuadro de número+nombre dentro del editor de uniforme — usa
 // la configuración del badge tal como está en el formulario (tempKit), con el número/nombre de
