@@ -94,10 +94,19 @@ function renderEditor(){
       </label>
     </div>
     <label class="field">Pega aquí las filas
-      <textarea class="json-area" id="bulk-import-area" placeholder="Columnas: Dorsal, Pos, Nombre, Apellido, Nombre común, Nombre completo, Fecha nac., Estatura (cm), Caps, Goles, Club, Camiseta, Marca, Rating, Rating potencial&#10;Ej:&#10;10	FW	Lionel	Messi		Lionel Andrés Messi	June 24, 1987	170	191	112	Inter Miami	MESSI	Adidas	93	93&#10;16	FW	Julián	Quiñones		Julián Andrés Quiñones Quiñones	March 24, 1997	177	22	2	Al-Qadsiah	J.QUIÑONES	Nike	78	82"></textarea></textarea>
+      <textarea class="json-area" id="bulk-import-area" placeholder="Columnas: Dorsal, Pos, Nombre, Apellido, Nombre común, Nombre completo, Fecha nac., Estatura (cm), Caps, Goles, Club, Nombre en camiseta (selección), Marca, Rating, Rating potencial&#10;Ej:&#10;10	FW	Lionel	Messi		Lionel Andrés Messi	June 24, 1987	170	191	112	Inter Miami	MESSI	Adidas	93	93&#10;16	FW	Julián	Quiñones		Julián Andrés Quiñones Quiñones	March 24, 1997	177	22	2	Al-Qadsiah	J.QUIÑONES	Nike	78	82"></textarea>
     </label>
-    <div style="margin-top:10px;display:flex;gap:8px;">
-      <button class="btn gold" data-action="bulk-import-players">Importar jugadores</button>
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="bulk-only-new" style="flex:0 0 auto;margin-top:3px;width:16px;height:16px;">
+        <span style="flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--muted);line-height:1.55;">
+          <b style="color:var(--ink);">Cargar solo datos nuevos.</b> No agrega ni elimina jugadores: actualiza <b>cualquier dato presente</b> de los jugadores que ya existan y coincidan, <b>excepto las primeras 6 columnas</b> (Dorsal, Posición, Nombre, Apellido, Nombre común, Nombre completo), que solo sirven para emparejar. Una fila se carga solo si coinciden <b>Dorsal + Apellido</b> o <b>Nombre + Apellido</b>; si no, se salta.
+          <br><span style="display:block;margin-top:5px;font-size:11px;">Columnas (en este orden): Dorsal, Posición, Nombre, Apellido, Nombre común, Nombre completo <span style="opacity:.75;">(estas 6 solo emparejan)</span>, Fecha nac., Estatura, Caps, Goles, Club, Nombre en camiseta (selección), Nombre en camiseta (club), Marca, Rating, Rating pot., Perfil izquierdo, Perfil derecho, luego 10 pares <b>Posición · Valor</b> (código y valor 0–20), Dorsal favorito (selección), Dorsal favorito (club). Las celdas vacías no borran el dato existente.</span>
+        </span>
+      </label>
+      <div style="display:flex;gap:8px;">
+        <button class="btn gold" data-action="bulk-import-players">Importar jugadores</button>
+      </div>
     </div>
   </div>
 
@@ -159,8 +168,12 @@ function renderEditor(){
   <div class="section-title"><h2>Exportar / Importar</h2><span class="hint">Copia tu base de datos como JSON o pega una para reemplazarla</span></div>
   <div class="card">
     <label class="field">JSON actual (puedes copiarlo como respaldo) — solo tus cambios respecto a la base del juego (datos editados, logos, uniformes, colores, fotos, tipografías, catálogos). Lo que no tocaste no se incluye.
-      <textarea class="json-area" readonly>${JSON.stringify(buildBackup(DB), null, 1)}</textarea>
+      <textarea class="json-area" id="export-area" readonly placeholder="Pulsa «Generar JSON actual» para verlo y copiarlo."></textarea>
     </label>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+      <button class="btn ghost sm" data-action="export-json">Generar JSON actual</button>
+      <span class="hint" style="font-size:11px;">Se genera solo al pulsar: serializar todo el respaldo (con imágenes) es pesado, así el editor no se ralentiza en cada render.</span>
+    </div>
     <div style="height:10px;"></div>
     <label class="field">Pegar JSON para importar
       <textarea class="json-area" id="import-area" placeholder="Pega aquí un JSON exportado previamente..."></textarea>

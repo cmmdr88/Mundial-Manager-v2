@@ -253,8 +253,7 @@ function renderTeamDetail(teamId){
     const row = p=>`
       <div class="player-row" data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
         <span class="num-badge">${p.number!=null?p.number:"–"}</span>
-        <span class="pos-chip pos-${p.pos}">${p.pos}</span>
-        <span class="pname">${personPhotoHTML(p, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;flex-shrink:0;")}${playerDisplayNameHTML(p)}</span>
+        <span class="pname">${personPhotoHTML(p, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;flex-shrink:0;")}${playerDisplayNameHTML(p)}<span class="pos-chip pos-${p.pos}" style="margin-left:10px;">${p.pos}</span>${positionsText(p)?` <span style="color:var(--muted);font-size:12px;font-weight:400;">${positionsText(p)}</span>`:""}</span>
         <span class="pmeta">${playerAgeText(p)} · ${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</span>
         <span class="prating">${p.rating}</span>
         <button class="btn ghost sm" data-action="edit-player" data-team="${t.id}" data-id="${p.id}">Editar</button>

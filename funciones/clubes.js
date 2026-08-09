@@ -351,8 +351,7 @@ function renderClubDetail(clubId){
     ${sortedPlayers.map(p=>`
       <div class="player-row" data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
         <span class="num-badge">${p.number!=null?p.number:"–"}</span>
-        <span class="pos-chip pos-${p.pos}">${p.pos}</span>
-        <span class="pname"><img src="${p.photo||personPhotoDefault(p)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(p)}</span>
+        <span class="pname"><img src="${p.photo||personPhotoDefault(p)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(p)}<span class="pos-chip pos-${p.pos}" style="margin-left:10px;">${p.pos}</span>${positionsText(p)?` <span style="color:var(--muted);font-size:12px;font-weight:400;">${positionsText(p)}</span>`:""}</span>
         <span class="pmeta">${playerAgeText(p)} · ${(()=>{
           const natCo = nationalityCountryOf(p);
           const demonym = personDemonym(p) || playerCountryName(p) || "Sin país";
