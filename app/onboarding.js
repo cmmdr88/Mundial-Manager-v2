@@ -69,11 +69,11 @@ const ONB_CSS2 = [
 "#cm-onb .cv-counter b{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--indigo-bright);margin-left:4px;}",
 "#cm-onb .cv-counter b.ok{color:var(--success);}",
 "#cm-onb .cv-tools{display:flex;gap:8px;flex-wrap:wrap;}",
-"#cm-onb .cv-cols{display:grid;grid-template-columns:32px minmax(92px,1.1fr) minmax(100px,1.05fr) minmax(120px,1.5fr) 38px 52px 44px 54px;gap:8px;align-items:center;padding:0 12px 5px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);}",
+"#cm-onb .cv-cols{display:grid;grid-template-columns:32px minmax(92px,1.1fr) minmax(100px,1.05fr) minmax(116px,1.4fr) 38px 52px 44px 76px;gap:8px;align-items:center;padding:0 12px 5px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);}",
 "#cm-onb .cv-cols span{text-align:center;}",
 "#cm-onb .cv-cols span.l{text-align:left;}",
 "#cm-onb .cv-list{display:flex;flex-direction:column;gap:4px;}",
-"#cm-onb .cv-row{display:grid;grid-template-columns:32px minmax(92px,1.1fr) minmax(100px,1.05fr) minmax(120px,1.5fr) 38px 52px 44px 54px;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:4px 12px;}",
+"#cm-onb .cv-row{display:grid;grid-template-columns:32px minmax(92px,1.1fr) minmax(100px,1.05fr) minmax(116px,1.4fr) 38px 52px 44px 76px;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:4px 12px;}",
 "#cm-onb .cv-row.empty{background:transparent;border-style:dashed;}",
 "#cm-onb .cv-row.noconv{background:var(--surface-2);cursor:pointer;}",
 "#cm-onb .cv-row.open{position:relative;z-index:60;}",
@@ -97,6 +97,7 @@ const ONB_CSS2 = [
 "#cm-onb .cv-clubin{display:inline-flex;align-items:center;gap:5px;cursor:default;}",
 "#cm-onb .cv-clubin{min-width:0;}",
 "#cm-onb .cv-clubname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:var(--muted);}",
+"#cm-onb .cv-fav{white-space:normal;line-height:1.3;font-size:11.5px;word-spacing:1px;}",
 "#cm-onb .cv-c{text-align:center;font-family:'Inter',sans-serif;font-size:12px;color:var(--ink);}",
 "#cm-onb .cv-libre{grid-column:2 / -1;color:var(--muted);font-size:12px;}",
 "#cm-onb .cv-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:70;width:250px;max-height:280px;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5);padding:5px;}",
@@ -113,6 +114,23 @@ const ONB_CSS2 = [
 "#cm-onb .cv-menu.up{top:auto;bottom:calc(100% + 6px);}",
 "#cm-onb .cv-side{display:flex;flex-direction:column;min-width:0;align-items:stretch;}",
 "#cm-onb .cv-side .section-title{width:100%;justify-content:center;}",
+"#cm-onb .cv-tabs{display:flex;gap:6px;margin-bottom:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:4px;}",
+"#cm-onb .cv-tab{flex:1;border:none;background:transparent;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12.5px;padding:8px 6px;border-radius:9px;cursor:pointer;transition:background .15s,color .15s;}",
+"#cm-onb .cv-tab.on{background:var(--indigo);color:#fff;}",
+"#cm-onb .dp-modes{display:flex;gap:6px;margin-bottom:8px;}",
+"#cm-onb .dp-modes .seg-btn{flex:1;}",
+"#cm-onb .dp-hint{font-size:11px;color:var(--muted);text-align:center;margin-bottom:10px;}",
+"#cm-onb .dp-pitch{background:repeating-linear-gradient(180deg,#1c5e38 0 44px,#1a5834 44px 88px);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;gap:10px;}",
+"#cm-onb .dp-row{display:flex;flex-direction:column;align-items:center;gap:6px;}",
+"#cm-onb .dp-zone{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4);}",
+"#cm-onb .dp-cols{display:flex;gap:8px;align-items:stretch;justify-content:center;width:100%;}",
+"#cm-onb .dp-cell{flex:1 1 0;min-width:0;max-width:180px;display:flex;flex-direction:column;align-items:center;gap:5px;}",
+"#cm-onb .dp-label{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:rgba(255,255,255,.82);letter-spacing:.03em;}",
+"#cm-onb .dp-stack{display:flex;flex-direction:column;gap:5px;justify-content:center;width:100%;min-height:104px;}",
+"#cm-onb .dp-chip{display:flex;align-items:center;gap:7px;background:rgba(13,16,26,.72);border:1px solid rgba(255,255,255,.10);border-radius:9px;padding:5px 8px;min-width:0;}",
+"#cm-onb .dp-chip .num-badge{flex:0 0 auto;}",
+"#cm-onb .dp-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px;font-weight:600;color:#EDEFF5;}",
+"#cm-onb .dp-empty{text-align:center;color:rgba(255,255,255,.35);font-size:12px;padding:8px 0;}",
 "#cm-onb .st-table{display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;width:100%;margin:0;}",
 "#cm-onb .st-group{display:flex;flex-direction:column;gap:6px;}",
 "#cm-onb .st-group-head{display:flex;align-items:center;gap:8px;}",
@@ -471,7 +489,9 @@ const state = {
   style: null,          // "Ofensivo" | "Defensivo" | "Posesión"
   conv: null,           // {slots:{1..26:playerId|null}}
   convTeamId: null,     // selección para la que se construyó `conv` (se rearma al cambiar de equipo)
-  convMenu: null        // dorsal (1..26) con el menú de asignación abierto, o null
+  convMenu: null,       // dorsal (1..26) con el menú de asignación abierto, o null
+  squadTab: "conv",     // pestaña del panel derecho: 'conv' | 'depth'
+  depthMode: "full"     // vista de profundidad: 'full' (completa, repite jugadores) | 'player' (por jugador)
 };
 function team(){ return DATA.teams.find(t=>t.id===state.teamId) || null; }
 
@@ -1396,21 +1416,26 @@ function dorsalMenuHTML(n, up){
 // Celdas de un jugador en la convocatoria (columnas: Jugador, Pos+posiciones, Club, Edad, Goles,
 // Dorsal Fav). El # (dorsal) lo pone cada fila aparte.
 function cvPlayerCells(p){
-  // Posiciones del jugador igual que en el perfil/listas: valor ≥15, ordenadas, máximo 4.
-  const posText = (typeof positionsText==="function") ? positionsText(p) : "";
+  // Posiciones del jugador (valor ≥15, mismas que el perfil): en la convocatoria se muestran hasta 4
+  // y, si hay más, se agrega "…"; el tooltip lista todas.
+  const visibles = (typeof orderedPositions==="function")
+    ? orderedPositions(p).filter(e=> e.v>=15).map(e=> (typeof posCodeDisplay==="function") ? posCodeDisplay(p, e.code) : e.code)
+    : [];
+  const posShown = visibles.slice(0,4).join(", ") + (visibles.length>4 ? " …" : "");
+  const posTitle = visibles.join(", ");
   const club = (typeof getClubByName==="function" && p.club) ? getClubByName(p.club) : null;
   const clubName = (club && club.commonName) ? club.commonName : (p.club || "");
   const clubCell = p.club
-    ? `<span class="cv-clubin" title="${esc(clubName)}">${(typeof clubLogoIconHTML==="function")?clubLogoIconHTML(club):""}<span class="cv-clubname">${esc(clubName)}</span></span>`
+    ? `<span class="cv-clubin">${(typeof clubLogoIconHTML==="function")?clubLogoIconHTML(club):""}<span class="cv-clubname">${esc(clubName)}</span></span>`
     : `<span class="cv-clubname">—</span>`;
   return `
     <span class="cv-jug"><span class="cv-photo">${personPhotoHTML(p.photo, p.gender)}</span><span class="cv-name">${pNameHTML(p)}</span></span>
-    <span class="cv-pos">${posChipHTML(p.pos)}${posText?`<span class="cv-poslist">${posText}</span>`:""}</span>
+    <span class="cv-pos">${posChipHTML(p.pos)}${posShown?`<span class="cv-poslist" title="${esc(posTitle)}">${posShown}</span>`:""}</span>
     <span class="cv-c l cv-club">${clubCell}</span>
     <span class="cv-c">${ageOf(p)}</span>
     <span class="cv-c">${p.caps!=null?p.caps:0}</span>
     <span class="cv-c">${p.goalsNational!=null?p.goalsNational:0}</span>
-    <span class="cv-c">${esc(favNumbersText(p))}</span>`;
+    <span class="cv-c cv-fav">${esc(favNumbersText(p))}</span>`;
 }
 function dorsalRowHTML(n, rmap){
   const conv = ensureConv();
@@ -1463,6 +1488,58 @@ function squadTableHTML(rmap){
   return `<div class="st-table">${groups || `<div class="st-empty">Sin jugadores convocados todavía.</div>`}</div>`;
 }
 
+// ---- Profundidad de plantilla (vista alterna del panel derecho) --------------------------------
+// Filas por zona (arriba ataque, abajo portería). Cada columna cubre una posición (o un par de
+// posiciones agrupadas, p. ej. "LB / LWB"). Se muestran los jugadores CONVOCADOS con valor ≥15 en
+// esa posición. Modo 'full': un jugador aparece en todas sus posiciones válidas. Modo 'player': cada
+// jugador aparece solo en su posición principal (la de mayor valor).
+const DEPTH_ROWS = [
+  { zone:"FW", name:"Delanteros",     cols:[ {label:"LW", codes:["LW","LF"]}, {label:"ST", codes:["ST","CF"]}, {label:"RW", codes:["RW","RF"]} ] },
+  { zone:"MF", name:"Mediocampistas", cols:[ {label:"LM", codes:["LM"]}, {label:"CAM", codes:["CAM"]}, {label:"RM", codes:["RM"]} ] },
+  { zone:"MF", name:"",               cols:[ {label:"CDM", codes:["CDM"]}, {label:"CM", codes:["CM"]} ] },
+  { zone:"DF", name:"Defensas",       cols:[ {label:"LB / LWB", codes:["LB","LWB"]}, {label:"CB", codes:["CB"]}, {label:"RB / RWB", codes:["RB","RWB"]} ] },
+  { zone:"GK", name:"Porteros",       cols:[ {label:"GK", codes:["GK"]} ] }
+];
+// código de posición -> "fila-columna" (para el modo por jugador)
+const DEPTH_COL_OF = {};
+DEPTH_ROWS.forEach((row,ri)=>row.cols.forEach((col,ci)=>col.codes.forEach(code=>{ DEPTH_COL_OF[code] = ri+"-"+ci; })));
+function depthBestValue(p, codes){
+  let best = 0;
+  for(const c of codes){ const v = (p.positions && p.positions[c]!=null) ? (+p.positions[c]||0) : 0; if(v>best) best=v; }
+  return best;
+}
+function depthPrincipalCode(p){
+  const o = (typeof orderedPositions==="function") ? orderedPositions(p) : [];
+  return o.length ? o[0].code : null;
+}
+function depthChartHTML(rmap){
+  const conv = ensureConv();
+  const convoked = [];
+  for(let n=1;n<=SQUAD_MAX;n++){ const id = conv.slots[n]; if(!id) continue; const p = rmap[id]; if(p) convoked.push({ num:n, p }); }
+  const mode = state.depthMode || "full";
+  const rowsHTML = DEPTH_ROWS.map((row,ri)=>{
+    const cellsHTML = row.cols.map((col,ci)=>{
+      let list = convoked.filter(({p})=>{
+        if(depthBestValue(p, col.codes) < 15) return false;
+        if(mode==="player"){ return DEPTH_COL_OF[depthPrincipalCode(p)] === (ri+"-"+ci); }
+        return true;
+      });
+      list.sort((a,b)=> depthBestValue(b.p,col.codes)-depthBestValue(a.p,col.codes) || (b.p.rating||0)-(a.p.rating||0));
+      const chips = list.map(({num,p})=>`<div class="dp-chip"><span class="num-badge">${num}</span><span class="dp-name">${pNameHTML(p)}</span></div>`).join("");
+      return `<div class="dp-cell"><div class="dp-label">${esc(col.label)}</div><div class="dp-stack">${chips || `<div class="dp-empty">—</div>`}</div></div>`;
+    }).join("");
+    const head = row.name ? `<div class="dp-zone">${posChipHTML(row.zone)}<span>${esc(row.name)}</span></div>` : "";
+    return `<div class="dp-row dp-row-${row.cols.length}">${head}<div class="dp-cols">${cellsHTML}</div></div>`;
+  }).join("");
+  return `
+    <div class="dp-modes seg">
+      <button class="seg-btn ${mode==="full"?"on":""}" data-act="depth-mode-full">Profundidad completa</button>
+      <button class="seg-btn ${mode==="player"?"on":""}" data-act="depth-mode-player">Por jugador</button>
+    </div>
+    <div class="dp-hint">${mode==="full" ? "Un jugador puede aparecer en varias posiciones (valor ≥15)." : "Cada jugador aparece solo en su posición principal."}</div>
+    <div class="dp-pitch">${rowsHTML}</div>`;
+}
+
 function screenSquad(){
   const t = team();
   ensureConv();
@@ -1510,8 +1587,11 @@ function screenSquad(){
           </div>
         </section>
         <aside class="cv-side">
-          <div class="section-title"><h2>Convocatoria</h2></div>
-          ${squadTableHTML(rmap)}
+          <div class="cv-tabs">
+            <button class="cv-tab ${(state.squadTab||"conv")==="conv"?"on":""}" data-act="squad-tab-conv">Convocatoria</button>
+            <button class="cv-tab ${state.squadTab==="depth"?"on":""}" data-act="squad-tab-depth">Profundidad de plantilla</button>
+          </div>
+          ${state.squadTab==="depth" ? depthChartHTML(rmap) : squadTableHTML(rmap)}
         </aside>
       </div>
     </div>
@@ -1777,6 +1857,10 @@ function handleAct(act, el, e){
       state.conv = initConv(); state.convTeamId = state.teamId; state.convMenu = null; render(); break;
     case "conv-assign-all":
       assignMissing(); state.convMenu = null; render(); break;
+    case "squad-tab-conv":   state.squadTab = "conv";  render(); break;
+    case "squad-tab-depth":  state.squadTab = "depth"; render(); break;
+    case "depth-mode-full":  state.depthMode = "full";  render(); break;
+    case "depth-mode-player":state.depthMode = "player";render(); break;
     case "conv-clear-all": {
       const conv = ensureConv();
       for(let n=1;n<=SQUAD_MAX;n++) conv.slots[n] = null;
