@@ -28,8 +28,6 @@ const SAVE_ENABLED = false;
 // secuencias de cierre de bloque dentro del string.
 const ONB_CSS2 = [
 "#cm-onb .team-tile{content-visibility:auto;contain-intrinsic-size:auto 128px;}",
-"#cm-onb .atmosphere::before,#cm-onb .atmosphere::after{filter:blur(46px)!important;animation:none!important;will-change:auto!important;}",
-"#cm-onb .btn.ghost{backdrop-filter:none!important;}",
 "#cm-onb .section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;}",
 "#cm-onb .section-title h2{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;margin:0;letter-spacing:-0.01em;}",
 "#cm-onb .list-subhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:16px 4px 8px;}",
@@ -42,13 +40,13 @@ const ONB_CSS2 = [
 "#cm-onb .tac-stage{flex:1;overflow-y:auto;padding:8px clamp(20px,4vw,54px) 96px;}",
 "#cm-onb .tac-grid{display:grid;grid-template-columns:minmax(0,0.95fr) minmax(0,1.05fr);gap:30px;max-width:1080px;margin:6px auto 0;align-items:start;}",
 "#cm-onb .tac-board{display:flex;justify-content:center;position:sticky;top:6px;}",
-"#cm-onb .tac-pitch{position:relative;width:100%;max-width:410px;aspect-ratio:3/4;}",
+"#cm-onb .tac-pitch{position:relative;width:100%;max-width:410px;aspect-ratio:760/988;}",
 "#cm-onb .tac-field{position:absolute;inset:0;background-size:contain;background-position:center;background-repeat:no-repeat;filter:drop-shadow(0 14px 28px rgba(0,0,0,.42));}",
 "#cm-onb .lu-layer{position:absolute;inset:0;z-index:2;}",
 "#cm-onb .lu-slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:0;width:clamp(46px,13.5%,66px);}",
-"#cm-onb .lu-jersey{position:relative;width:clamp(40px,11vw,56px);aspect-ratio:1;display:flex;align-items:center;justify-content:center;}",
+"#cm-onb .lu-jersey{position:relative;width:clamp(40px,11vw,56px);height:clamp(40px,11vw,56px);aspect-ratio:1;flex:0 0 auto;display:flex;align-items:center;justify-content:center;}",
 "#cm-onb .lu-jersey img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 3px 6px rgba(0,0,0,.45));}",
-"#cm-onb .lu-jersey.empty{border:1px dashed rgba(255,255,255,.25);border-radius:10px;background:rgba(255,255,255,.04);}",
+"#cm-onb .lu-jersey.empty{padding:0;width:clamp(40px,11vw,56px);height:clamp(40px,11vw,56px);aspect-ratio:1;box-sizing:border-box;border:1px dashed rgba(255,255,255,.28);border-radius:10px;background:rgba(255,255,255,.04);}",
 "#cm-onb .lu-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:rgba(255,255,255,.9);text-shadow:0 2px 6px rgba(0,0,0,.6);}",
 "#cm-onb .lu-slot .pos-chip{margin-top:3px;min-width:28px;padding:2px 6px;font-size:9.5px;position:relative;z-index:3;box-shadow:0 3px 8px rgba(0,0,0,.45);}",
 "#cm-onb .tac-controls{display:flex;flex-direction:column;gap:14px;}",
@@ -64,18 +62,18 @@ const ONB_CSS2 = [
 "#cm-onb .tac-fchip.on .fl2{color:var(--indigo-bright);opacity:.85;}",
 "#cm-onb .tac-hint{color:var(--muted);font-size:12.5px;line-height:1.5;margin:6px 2px 0;min-height:20px;}",
 "#cm-onb .cv-stage{flex:1;overflow-y:auto;display:flex;padding:8px clamp(20px,4vw,54px) 96px;}",
-"#cm-onb .cv-grid{display:grid;grid-template-columns:minmax(0,620px) minmax(0,380px);justify-content:center;gap:40px;width:100%;margin:0 auto;align-items:start;}",
+"#cm-onb .cv-grid{display:grid;grid-template-columns:minmax(0,880px) minmax(0,380px);justify-content:center;gap:36px;width:100%;margin:0 auto;align-items:start;}",
 "#cm-onb .cv-list-wrap{display:flex;flex-direction:column;min-width:0;}",
 "#cm-onb .cv-list-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}",
 "#cm-onb .cv-counter{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:var(--ink);letter-spacing:-0.01em;}",
 "#cm-onb .cv-counter b{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--indigo-bright);margin-left:4px;}",
 "#cm-onb .cv-counter b.ok{color:var(--success);}",
 "#cm-onb .cv-tools{display:flex;gap:8px;flex-wrap:wrap;}",
-"#cm-onb .cv-cols{display:grid;grid-template-columns:36px 40px 26px minmax(0,1fr) 42px 60px 46px 64px;gap:8px;align-items:center;padding:0 12px 5px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);}",
+"#cm-onb .cv-cols{display:grid;grid-template-columns:32px minmax(92px,1.1fr) minmax(100px,1.05fr) minmax(120px,1.5fr) 38px 52px 44px 54px;gap:8px;align-items:center;padding:0 12px 5px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);}",
 "#cm-onb .cv-cols span{text-align:center;}",
 "#cm-onb .cv-cols span.l{text-align:left;}",
 "#cm-onb .cv-list{display:flex;flex-direction:column;gap:4px;}",
-"#cm-onb .cv-row{display:grid;grid-template-columns:36px 40px 26px minmax(0,1fr) 42px 60px 46px 64px;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:4px 12px;}",
+"#cm-onb .cv-row{display:grid;grid-template-columns:32px minmax(92px,1.1fr) minmax(100px,1.05fr) minmax(120px,1.5fr) 38px 52px 44px 54px;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:4px 12px;}",
 "#cm-onb .cv-row.empty{background:transparent;border-style:dashed;}",
 "#cm-onb .cv-row.noconv{background:var(--surface-2);cursor:pointer;}",
 "#cm-onb .cv-row.open{position:relative;z-index:60;}",
@@ -83,10 +81,22 @@ const ONB_CSS2 = [
 "#cm-onb .cv-numbtn{border:none;cursor:pointer;transition:box-shadow .14s,transform .08s;}",
 "#cm-onb .cv-row[data-act]{cursor:pointer;}",
 "#cm-onb .cv-row:hover .cv-numbtn{box-shadow:0 0 0 2px var(--indigo-bright);}",
-"#cm-onb .cv-row .pos-chip{justify-self:center;}",
+"#cm-onb .cv-row .pos-chip{justify-self:center;width:34px;min-width:34px;}",
 "#cm-onb .cv-photo{width:26px;height:26px;border-radius:7px;overflow:hidden;background:var(--surface-2);flex-shrink:0;justify-self:center;}",
 "#cm-onb .cv-photo img{width:100%;height:100%;object-fit:cover;display:block;}",
 "#cm-onb .cv-name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+"#cm-onb .cv-jug{display:flex;align-items:center;gap:8px;min-width:0;}",
+"#cm-onb .cv-jug .cv-name{flex:1;min-width:0;}",
+"#cm-onb .cv-pos{display:flex;align-items:center;gap:6px;min-width:0;}",
+"#cm-onb .cv-pos .pos-chip{justify-self:start;width:34px;min-width:34px;}",
+"#cm-onb .cv-poslist{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:#9aa4b2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+"#cm-onb .cv-club{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+"#cm-onb .cv-club{display:flex;align-items:center;gap:5px;justify-content:flex-start;}",
+"#cm-onb .cv-club .logo-ic{width:16px;height:16px;object-fit:contain;flex-shrink:0;}",
+"#cm-onb .cv-clubcode{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.02em;}",
+"#cm-onb .cv-clubin{display:inline-flex;align-items:center;gap:5px;cursor:default;}",
+"#cm-onb .cv-clubin{min-width:0;}",
+"#cm-onb .cv-clubname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:var(--muted);}",
 "#cm-onb .cv-c{text-align:center;font-family:'Inter',sans-serif;font-size:12px;color:var(--ink);}",
 "#cm-onb .cv-libre{grid-column:2 / -1;color:var(--muted);font-size:12px;}",
 "#cm-onb .cv-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:70;width:250px;max-height:280px;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5);padding:5px;}",
@@ -618,11 +628,7 @@ function prefetchJerseys(){
   const need = {};
   ["4-4-2","4-3-3"].forEach(fid=>{
     const f = FORMATIONS[fid]; if(!f) return;
-    const byCat = {};
-    (f.slots||[]).forEach(s=>{ byCat[s.cat] = (byCat[s.cat]||0)+1; });
-    Object.keys(byCat).forEach(cat=>{
-      bestByPosition(cat, byCat[cat]).forEach(p=>{ if(p && !_jerseyCache[p.id]) need[p.id]=1; });
-    });
+    fillLineup(f).forEach(p=>{ if(p && !_jerseyCache[p.id]) need[p.id]=1; });
   });
   const ids = Object.keys(need);
   let i = 0;
@@ -1068,6 +1074,12 @@ function posChipHTML(pos){
   const p = VALID_POS_SET.has(pos) ? pos : "MF";
   return `<span class="pos-chip pos-${p}">${p}</span>`;
 }
+// Chip para un slot de la alineación: muestra la posición específica del slot (ST, LWB, CDM, …)
+// dentro del rectángulo del color de su categoría (GK/DF/MF/FW).
+function slotChipHTML(code, cat){
+  const c = VALID_POS_SET.has(cat) ? cat : "MF";
+  return `<span class="pos-chip pos-${c}">${esc(code||c)}</span>`;
+}
 
 // Formaciones: cada línea cae en el centro de una franja (y en %), equidistantes
 // entre portero, defensas, mediocampistas y delanteros. x en % (banda izquierda→derecha).
@@ -1075,37 +1087,37 @@ function posChipHTML(pos){
 // Cada slot trae su columna/fila; la posición en % se calcula sobre el rectángulo jugable
 // (ajustable en FIELD) para que TODO quede centrado y alineado como en el mapa.
 const GRID_COLS = 12, GRID_ROWS = 11;
-const FIELD = { x0:11, x1:89, y0:6, y1:94 };
+const FIELD = { x0:5.92, x1:93.95, y0:4.66, y1:95.24 };
 function cellX(c){ return FIELD.x0 + (c-0.5)/GRID_COLS*(FIELD.x1-FIELD.x0); }
 function cellY(r){ return FIELD.y0 + (r-0.5)/GRID_ROWS*(FIELD.y1-FIELD.y0); }
 const FORMATIONS = {
-  "3-1-4-2":{label:"3-1-4-2",desc:"Formación 3-1-4-2. Ataque · Balance.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"CM",cat:"MF",c:4.0,r:5.0},{p:"CM",cat:"MF",c:9.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CDM",cat:"MF",c:6.5,r:5.5},{p:"CB",cat:"DF",c:3.5,r:8.0},{p:"CB",cat:"DF",c:6.5,r:8.0},{p:"CB",cat:"DF",c:9.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "3-4-1-2":{label:"3-4-1-2",desc:"Formación 3-4-1-2. Ataque.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"CAM",cat:"MF",c:6.5,r:4.0},{p:"LM",cat:"MF",c:2.0,r:4.5},{p:"RM",cat:"MF",c:11.0,r:4.5},{p:"CM",cat:"MF",c:4.5,r:5.5},{p:"CM",cat:"MF",c:8.5,r:5.5},{p:"CB",cat:"DF",c:3.5,r:8.0},{p:"CB",cat:"DF",c:6.5,r:8.0},{p:"CB",cat:"DF",c:9.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "3-4-2-1":{label:"3-4-2-1",desc:"Formación 3-4-2-1. Ataque.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"CAM",cat:"MF",c:4.0,r:3.0},{p:"CAM",cat:"MF",c:9.0,r:3.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CM",cat:"MF",c:5.0,r:6.0},{p:"CM",cat:"MF",c:8.0,r:6.0},{p:"CB",cat:"DF",c:3.5,r:8.0},{p:"CB",cat:"DF",c:6.5,r:8.0},{p:"CB",cat:"DF",c:9.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "3-4-3":{label:"3-4-3",desc:"Formación 3-4-3. Ataque.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LW",cat:"FW",c:3.0,r:3.0},{p:"RW",cat:"FW",c:10.0,r:3.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"CM",cat:"MF",c:5.0,r:5.0},{p:"CM",cat:"MF",c:8.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CB",cat:"DF",c:3.5,r:8.0},{p:"CB",cat:"DF",c:6.5,r:8.0},{p:"CB",cat:"DF",c:9.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "3-5-2":{label:"3-5-2",desc:"Formación 3-5-2. Balance · Ataque.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"CAM",cat:"MF",c:6.5,r:4.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CDM",cat:"MF",c:4.5,r:6.0},{p:"CDM",cat:"MF",c:8.5,r:6.0},{p:"CB",cat:"DF",c:3.5,r:8.0},{p:"CB",cat:"DF",c:6.5,r:8.0},{p:"CB",cat:"DF",c:9.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-1-2-1-2 (Narrow)":{label:"4-1-2-1-2 (Narrow)",desc:"Formación 4-1-2-1-2 (Narrow). Ataque.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"CAM",cat:"MF",c:6.5,r:4.0},{p:"CM",cat:"MF",c:4.0,r:5.5},{p:"CM",cat:"MF",c:9.0,r:5.5},{p:"CDM",cat:"MF",c:6.5,r:7.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-1-2-1-2 (Wide)":{label:"4-1-2-1-2 (Wide)",desc:"Formación 4-1-2-1-2 (Wide). Ataque.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"CAM",cat:"MF",c:6.5,r:4.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CDM",cat:"MF",c:6.5,r:7.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-1-3-2":{label:"4-1-3-2",desc:"Formación 4-1-3-2. Ataque.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"CM",cat:"MF",c:6.5,r:4.5},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CDM",cat:"MF",c:6.5,r:7.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-1-4-1":{label:"4-1-4-1",desc:"Formación 4-1-4-1. Defensa · Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"CM",cat:"MF",c:5.0,r:5.0},{p:"CM",cat:"MF",c:8.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CDM",cat:"MF",c:6.5,r:6.5},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-2-2-2":{label:"4-2-2-2",desc:"Formación 4-2-2-2. Ataque · Balance.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"CAM",cat:"MF",c:3.5,r:4.5},{p:"CAM",cat:"MF",c:9.5,r:4.5},{p:"CDM",cat:"MF",c:5.5,r:6.0},{p:"CDM",cat:"MF",c:7.5,r:6.0},{p:"LB",cat:"DF",c:2.0,r:8.0},{p:"CB",cat:"DF",c:4.5,r:8.0},{p:"CB",cat:"DF",c:8.5,r:8.0},{p:"RB",cat:"DF",c:11.0,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-2-3-1 (Narrow)":{label:"4-2-3-1 (Narrow)",desc:"Formación 4-2-3-1 (Narrow). Balance · Defensa.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"CAM",cat:"MF",c:4.5,r:3.5},{p:"CAM",cat:"MF",c:8.5,r:3.5},{p:"CAM",cat:"MF",c:6.5,r:5.0},{p:"CDM",cat:"MF",c:4.0,r:6.5},{p:"CDM",cat:"MF",c:9.0,r:6.5},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-2-3-1 (Wide)":{label:"4-2-3-1 (Wide)",desc:"Formación 4-2-3-1 (Wide). Balance · Defensa.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LM",cat:"MF",c:2.0,r:4.5},{p:"RM",cat:"MF",c:11.0,r:4.5},{p:"CAM",cat:"MF",c:6.5,r:5.0},{p:"CDM",cat:"MF",c:4.0,r:6.5},{p:"CDM",cat:"MF",c:9.0,r:6.5},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-2-4":{label:"4-2-4",desc:"Formación 4-2-4. Ataque.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"LW",cat:"FW",c:3.0,r:3.0},{p:"RW",cat:"FW",c:10.0,r:3.0},{p:"CM",cat:"MF",c:5.0,r:5.0},{p:"CM",cat:"MF",c:8.0,r:5.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-3-1-2":{label:"4-3-1-2",desc:"Formación 4-3-1-2. Balance · Ataque.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"CAM",cat:"MF",c:6.5,r:3.0},{p:"CM",cat:"MF",c:4.0,r:5.0},{p:"CM",cat:"MF",c:9.0,r:5.0},{p:"CM",cat:"MF",c:6.5,r:6.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-3-2-1":{label:"4-3-2-1",desc:"Formación 4-3-2-1. Balance · Ataque.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"CAM",cat:"MF",c:5.0,r:2.5},{p:"CAM",cat:"MF",c:8.0,r:2.5},{p:"CM",cat:"MF",c:4.0,r:5.0},{p:"CM",cat:"MF",c:6.5,r:5.0},{p:"CM",cat:"MF",c:9.0,r:5.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-3-3":{label:"4-3-3",desc:"Formación 4-3-3. Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LW",cat:"FW",c:3.0,r:2.5},{p:"RW",cat:"FW",c:10.0,r:2.5},{p:"CM",cat:"MF",c:4.0,r:5.0},{p:"CM",cat:"MF",c:6.5,r:5.0},{p:"CM",cat:"MF",c:9.0,r:5.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-3-3 (Attack)":{label:"4-3-3 (Attack)",desc:"Formación 4-3-3 (Attack). Ataque · Presión alta.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LW",cat:"FW",c:3.0,r:2.5},{p:"RW",cat:"FW",c:10.0,r:2.5},{p:"CAM",cat:"MF",c:6.5,r:4.5},{p:"CM",cat:"MF",c:4.0,r:5.0},{p:"CM",cat:"MF",c:9.0,r:5.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-3-3 (Defend)":{label:"4-3-3 (Defend)",desc:"Formación 4-3-3 (Defend). Defensa · Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LW",cat:"FW",c:3.0,r:2.5},{p:"RW",cat:"FW",c:10.0,r:2.5},{p:"CM",cat:"MF",c:6.5,r:5.0},{p:"CDM",cat:"MF",c:4.0,r:6.0},{p:"CDM",cat:"MF",c:9.0,r:6.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-3-3 (Holding)":{label:"4-3-3 (Holding)",desc:"Formación 4-3-3 (Holding). Balance · Defensa.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LW",cat:"FW",c:3.0,r:2.5},{p:"RW",cat:"FW",c:10.0,r:2.5},{p:"CM",cat:"MF",c:4.0,r:5.0},{p:"CM",cat:"MF",c:9.0,r:5.0},{p:"CDM",cat:"MF",c:6.5,r:6.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-4-1-1":{label:"4-4-1-1",desc:"Formación 4-4-1-1. Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"CAM",cat:"MF",c:6.5,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CM",cat:"MF",c:4.0,r:5.5},{p:"CM",cat:"MF",c:9.0,r:5.5},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-4-2":{label:"4-4-2",desc:"Formación 4-4-2. Balance.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"CM",cat:"MF",c:5.0,r:5.0},{p:"CM",cat:"MF",c:8.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-4-2 (Holding)":{label:"4-4-2 (Holding)",desc:"Formación 4-4-2 (Holding). Balance · Defensa.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CDM",cat:"MF",c:5.0,r:5.5},{p:"CDM",cat:"MF",c:8.0,r:5.5},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-5-1":{label:"4-5-1",desc:"Formación 4-5-1. Defensa · Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LM",cat:"MF",c:2.0,r:4.5},{p:"RM",cat:"MF",c:11.0,r:4.5},{p:"CM",cat:"MF",c:4.5,r:5.0},{p:"CM",cat:"MF",c:8.5,r:5.0},{p:"CM",cat:"MF",c:6.5,r:5.5},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "4-5-1 (Attack)":{label:"4-5-1 (Attack)",desc:"Formación 4-5-1 (Attack). Ataque · Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"CAM",cat:"MF",c:4.5,r:4.0},{p:"CAM",cat:"MF",c:8.5,r:4.0},{p:"LM",cat:"MF",c:2.0,r:5.0},{p:"RM",cat:"MF",c:11.0,r:5.0},{p:"CM",cat:"MF",c:6.5,r:6.0},{p:"LB",cat:"DF",c:2.5,r:8.0},{p:"CB",cat:"DF",c:5.0,r:8.0},{p:"CB",cat:"DF",c:8.0,r:8.0},{p:"RB",cat:"DF",c:10.5,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "5-2-1-2":{label:"5-2-1-2",desc:"Formación 5-2-1-2. Defensa · Contraataque.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"CAM",cat:"MF",c:6.5,r:4.0},{p:"CM",cat:"MF",c:4.5,r:5.0},{p:"CM",cat:"MF",c:8.5,r:5.0},{p:"LB",cat:"DF",c:2.0,r:7.0},{p:"RB",cat:"DF",c:11.0,r:7.0},{p:"CB",cat:"DF",c:4.0,r:8.0},{p:"CB",cat:"DF",c:6.5,r:8.0},{p:"CB",cat:"DF",c:9.0,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "5-3-2":{label:"5-3-2",desc:"Formación 5-3-2. Defensa · Balance.",slots:[{p:"ST",cat:"FW",c:5.0,r:2.0},{p:"ST",cat:"FW",c:8.0,r:2.0},{p:"CM",cat:"MF",c:3.0,r:4.5},{p:"CM",cat:"MF",c:10.0,r:4.5},{p:"CDM",cat:"MF",c:6.5,r:5.0},{p:"LB",cat:"DF",c:2.0,r:7.0},{p:"RB",cat:"DF",c:11.0,r:7.0},{p:"CB",cat:"DF",c:4.0,r:8.0},{p:"CB",cat:"DF",c:6.5,r:8.0},{p:"CB",cat:"DF",c:9.0,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
-  "5-4-1":{label:"5-4-1",desc:"Formación 5-4-1. Defensa · Ultradefensa.",slots:[{p:"ST",cat:"FW",c:6.5,r:2.0},{p:"LM",cat:"MF",c:2.0,r:4.0},{p:"RM",cat:"MF",c:11.0,r:4.0},{p:"CM",cat:"MF",c:4.5,r:5.0},{p:"CM",cat:"MF",c:8.5,r:5.0},{p:"LB",cat:"DF",c:2.0,r:7.0},{p:"RB",cat:"DF",c:11.0,r:7.0},{p:"CB",cat:"DF",c:4.0,r:8.0},{p:"CB",cat:"DF",c:6.5,r:8.0},{p:"CB",cat:"DF",c:9.0,r:8.0},{p:"GK",cat:"GK",c:6.5,r:11.0}]},
+  "3-1-4-2":{label:"3-1-4-2",desc:"Formación 3-1-4-2. Ataque · Balance.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"LM",cat:"MF",c:1.78,r:4.79},{p:"CM",cat:"MF",c:4.14,r:4.79},{p:"CM",cat:"MF",c:8.85,r:4.79},{p:"RM",cat:"MF",c:11.21,r:4.79},{p:"CDM",cat:"MF",c:6.5,r:5.36},{p:"CB",cat:"DF",c:3.84,r:8.38},{p:"CB",cat:"DF",c:6.5,r:8.38},{p:"CB",cat:"DF",c:9.16,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "3-4-1-2":{label:"3-4-1-2",desc:"Formación 3-4-1-2. Ataque.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"CAM",cat:"MF",c:6.5,r:3.65},{p:"LM",cat:"MF",c:1.78,r:4.22},{p:"RM",cat:"MF",c:11.21,r:4.22},{p:"CM",cat:"MF",c:4.67,r:5.36},{p:"CM",cat:"MF",c:8.33,r:5.36},{p:"CB",cat:"DF",c:3.84,r:8.38},{p:"CB",cat:"DF",c:6.5,r:8.38},{p:"CB",cat:"DF",c:9.16,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "3-4-2-1":{label:"3-4-2-1",desc:"Formación 3-4-2-1. Ataque.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"CAM",cat:"MF",c:4.67,r:3.09},{p:"CAM",cat:"MF",c:8.33,r:3.09},{p:"LM",cat:"MF",c:2.61,r:4.79},{p:"RM",cat:"MF",c:10.38,r:4.79},{p:"CM",cat:"MF",c:5.2,r:6.0},{p:"CM",cat:"MF",c:7.79,r:6.0},{p:"CB",cat:"DF",c:3.84,r:8.38},{p:"CB",cat:"DF",c:6.5,r:8.38},{p:"CB",cat:"DF",c:9.15,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "3-4-3":{label:"3-4-3",desc:"Formación 3-4-3. Ataque.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LW",cat:"FW",c:3.44,r:2.52},{p:"RW",cat:"FW",c:9.55,r:2.52},{p:"LM",cat:"MF",c:2.61,r:4.79},{p:"CM",cat:"MF",c:5.2,r:5.36},{p:"CM",cat:"MF",c:7.79,r:5.36},{p:"RM",cat:"MF",c:10.38,r:4.79},{p:"CB",cat:"DF",c:3.84,r:8.38},{p:"CB",cat:"DF",c:6.5,r:8.38},{p:"CB",cat:"DF",c:9.15,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "3-5-2":{label:"3-5-2",desc:"Formación 3-5-2. Balance · Ataque.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"CAM",cat:"MF",c:6.5,r:3.65},{p:"LM",cat:"MF",c:2.61,r:4.79},{p:"RM",cat:"MF",c:10.38,r:4.79},{p:"CDM",cat:"MF",c:5.2,r:6.0},{p:"CDM",cat:"MF",c:7.79,r:6.0},{p:"CB",cat:"DF",c:3.84,r:8.38},{p:"CB",cat:"DF",c:6.5,r:8.38},{p:"CB",cat:"DF",c:9.15,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-1-2-1-2 (Narrow)":{label:"4-1-2-1-2 (Narrow)",desc:"Formación 4-1-2-1-2 (Narrow). Ataque.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"CAM",cat:"MF",c:6.5,r:3.65},{p:"CM",cat:"MF",c:4.27,r:5.11},{p:"CM",cat:"MF",c:8.72,r:5.11},{p:"CDM",cat:"MF",c:6.5,r:6.67},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-1-2-1-2 (Wide)":{label:"4-1-2-1-2 (Wide)",desc:"Formación 4-1-2-1-2 (Wide). Ataque.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"CAM",cat:"MF",c:6.5,r:3.65},{p:"LM",cat:"MF",c:2.61,r:4.79},{p:"RM",cat:"MF",c:10.38,r:4.79},{p:"CDM",cat:"MF",c:6.5,r:6.67},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-1-3-2":{label:"4-1-3-2",desc:"Formación 4-1-3-2. Ataque.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"CM",cat:"MF",c:6.5,r:4.22},{p:"LM",cat:"MF",c:2.61,r:4.79},{p:"RM",cat:"MF",c:10.38,r:4.79},{p:"CDM",cat:"MF",c:6.5,r:6.67},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-1-4-1":{label:"4-1-4-1",desc:"Formación 4-1-4-1. Defensa · Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LM",cat:"MF",c:2.61,r:4.79},{p:"CM",cat:"MF",c:5.2,r:4.79},{p:"CM",cat:"MF",c:7.79,r:4.79},{p:"RM",cat:"MF",c:10.38,r:4.79},{p:"CDM",cat:"MF",c:6.5,r:6.67},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-2-2-2":{label:"4-2-2-2",desc:"Formación 4-2-2-2. Ataque · Balance.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.03,r:1.83},{p:"CAM",cat:"MF",c:3.55,r:4.22},{p:"CAM",cat:"MF",c:9.45,r:4.22},{p:"CDM",cat:"MF",c:5.2,r:6.0},{p:"CDM",cat:"MF",c:7.79,r:6.0},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-2-3-1 (Narrow)":{label:"4-2-3-1 (Narrow)",desc:"Formación 4-2-3-1 (Narrow). Balance · Defensa.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"CAM",cat:"MF",c:4.67,r:3.09},{p:"CAM",cat:"MF",c:8.33,r:3.09},{p:"CAM",cat:"MF",c:6.5,r:4.79},{p:"CDM",cat:"MF",c:4.27,r:6.24},{p:"CDM",cat:"MF",c:8.72,r:6.24},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-2-3-1 (Wide)":{label:"4-2-3-1 (Wide)",desc:"Formación 4-2-3-1 (Wide). Balance · Defensa.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LM",cat:"MF",c:1.78,r:4.22},{p:"RM",cat:"MF",c:11.21,r:4.22},{p:"CAM",cat:"MF",c:6.5,r:4.79},{p:"CDM",cat:"MF",c:4.27,r:6.24},{p:"CDM",cat:"MF",c:8.72,r:6.24},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-2-4":{label:"4-2-4",desc:"Formación 4-2-4. Ataque.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"LW",cat:"FW",c:2.61,r:2.52},{p:"RW",cat:"FW",c:10.38,r:2.52},{p:"CM",cat:"MF",c:5.2,r:5.11},{p:"CM",cat:"MF",c:7.79,r:5.11},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-3-1-2":{label:"4-3-1-2",desc:"Formación 4-3-1-2. Balance · Ataque.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"CAM",cat:"MF",c:6.5,r:3.09},{p:"CM",cat:"MF",c:4.14,r:4.79},{p:"CM",cat:"MF",c:8.85,r:4.79},{p:"CM",cat:"MF",c:6.5,r:6.0},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-3-2-1":{label:"4-3-2-1",desc:"Formación 4-3-2-1. Balance · Ataque.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"CAM",cat:"MF",c:4.67,r:3.09},{p:"CAM",cat:"MF",c:8.33,r:3.09},{p:"CM",cat:"MF",c:4.14,r:4.79},{p:"CM",cat:"MF",c:6.5,r:6.02},{p:"CM",cat:"MF",c:8.85,r:4.79},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-3-3":{label:"4-3-3",desc:"Formación 4-3-3. Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LW",cat:"FW",c:3.44,r:2.52},{p:"RW",cat:"FW",c:9.55,r:2.52},{p:"CM",cat:"MF",c:4.14,r:4.79},{p:"CM",cat:"MF",c:6.5,r:5.11},{p:"CM",cat:"MF",c:8.85,r:4.79},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-3-3 (Attack)":{label:"4-3-3 (Attack)",desc:"Formación 4-3-3 (Attack). Ataque · Presión alta.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LW",cat:"FW",c:3.44,r:2.52},{p:"RW",cat:"FW",c:9.55,r:2.52},{p:"CAM",cat:"MF",c:6.5,r:4.22},{p:"CM",cat:"MF",c:4.14,r:4.79},{p:"CM",cat:"MF",c:8.85,r:4.79},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-3-3 (Defend)":{label:"4-3-3 (Defend)",desc:"Formación 4-3-3 (Defend). Defensa · Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LW",cat:"FW",c:3.44,r:2.52},{p:"RW",cat:"FW",c:9.55,r:2.52},{p:"CM",cat:"MF",c:6.5,r:4.79},{p:"CDM",cat:"MF",c:4.14,r:6.0},{p:"CDM",cat:"MF",c:8.85,r:6.0},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-3-3 (Holding)":{label:"4-3-3 (Holding)",desc:"Formación 4-3-3 (Holding). Balance · Defensa.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LW",cat:"FW",c:3.44,r:2.52},{p:"RW",cat:"FW",c:9.55,r:2.52},{p:"CM",cat:"MF",c:4.14,r:4.79},{p:"CM",cat:"MF",c:8.85,r:4.79},{p:"CDM",cat:"MF",c:6.5,r:6.0},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-4-1-1":{label:"4-4-1-1",desc:"Formación 4-4-1-1. Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LM",cat:"MF",c:2.61,r:4.79},{p:"CAM",cat:"MF",c:6.5,r:3.65},{p:"RM",cat:"MF",c:10.38,r:4.79},{p:"CM",cat:"MF",c:4.84,r:5.36},{p:"CM",cat:"MF",c:8.16,r:5.36},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-4-2":{label:"4-4-2",desc:"Formación 4-4-2. Balance.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"LM",cat:"MF",c:2.61,r:5.11},{p:"CM",cat:"MF",c:5.2,r:5.11},{p:"CM",cat:"MF",c:7.79,r:5.11},{p:"RM",cat:"MF",c:10.38,r:5.11},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-4-2 (Holding)":{label:"4-4-2 (Holding)",desc:"Formación 4-4-2 (Holding). Balance · Defensa.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"LM",cat:"MF",c:2.61,r:5.11},{p:"RM",cat:"MF",c:10.38,r:5.11},{p:"CDM",cat:"MF",c:5.2,r:5.53},{p:"CDM",cat:"MF",c:7.79,r:5.53},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-5-1":{label:"4-5-1",desc:"Formación 4-5-1. Defensa · Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LM",cat:"MF",c:1.78,r:4.22},{p:"RM",cat:"MF",c:11.21,r:4.22},{p:"CM",cat:"MF",c:4.14,r:4.79},{p:"CM",cat:"MF",c:8.85,r:4.79},{p:"CM",cat:"MF",c:6.5,r:5.36},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "4-5-1 (Attack)":{label:"4-5-1 (Attack)",desc:"Formación 4-5-1 (Attack). Ataque · Balance.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"CAM",cat:"MF",c:4.14,r:3.65},{p:"CAM",cat:"MF",c:8.85,r:3.65},{p:"LM",cat:"MF",c:1.78,r:4.22},{p:"RM",cat:"MF",c:11.21,r:4.22},{p:"CM",cat:"MF",c:6.5,r:5.36},{p:"LB",cat:"DF",c:2.61,r:8.38},{p:"CB",cat:"DF",c:5.2,r:8.38},{p:"CB",cat:"DF",c:7.79,r:8.38},{p:"RB",cat:"DF",c:10.38,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "5-2-1-2":{label:"5-2-1-2",desc:"Formación 5-2-1-2. Defensa · Contraataque.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"CAM",cat:"MF",c:6.5,r:4.22},{p:"CM",cat:"MF",c:4.14,r:4.79},{p:"CM",cat:"MF",c:8.85,r:4.79},{p:"LB",cat:"DF",c:1.78,r:7.81},{p:"RB",cat:"DF",c:11.21,r:7.81},{p:"CB",cat:"DF",c:4.14,r:8.38},{p:"CB",cat:"DF",c:6.5,r:8.38},{p:"CB",cat:"DF",c:8.85,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "5-3-2":{label:"5-3-2",desc:"Formación 5-3-2. Defensa · Balance.",slots:[{p:"ST",cat:"FW",c:4.97,r:1.83},{p:"ST",cat:"FW",c:8.02,r:1.83},{p:"CM",cat:"MF",c:3.44,r:4.22},{p:"CM",cat:"MF",c:9.55,r:4.22},{p:"CDM",cat:"MF",c:6.5,r:5.11},{p:"LB",cat:"DF",c:1.78,r:7.81},{p:"RB",cat:"DF",c:11.21,r:7.81},{p:"CB",cat:"DF",c:4.14,r:8.38},{p:"CB",cat:"DF",c:6.5,r:8.38},{p:"CB",cat:"DF",c:8.85,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
+  "5-4-1":{label:"5-4-1",desc:"Formación 5-4-1. Defensa · Ultradefensa.",slots:[{p:"ST",cat:"FW",c:6.5,r:1.83},{p:"LM",cat:"MF",c:2.61,r:3.65},{p:"RM",cat:"MF",c:10.38,r:3.65},{p:"CM",cat:"MF",c:5.2,r:5.11},{p:"CM",cat:"MF",c:7.79,r:5.11},{p:"LB",cat:"DF",c:1.78,r:7.81},{p:"RB",cat:"DF",c:11.21,r:7.81},{p:"CB",cat:"DF",c:4.14,r:8.38},{p:"CB",cat:"DF",c:6.5,r:8.38},{p:"CB",cat:"DF",c:8.85,r:8.38},{p:"GK",cat:"GK",c:6.5,r:10.8}]},
 };
 const FORMATION_GROUPS = [{label:"Línea de 3",ids:["3-1-4-2", "3-4-1-2", "3-4-2-1", "3-4-3", "3-5-2"]},{label:"Línea de 4",ids:["4-1-2-1-2 (Narrow)", "4-1-2-1-2 (Wide)", "4-1-3-2", "4-1-4-1", "4-2-2-2", "4-2-3-1 (Narrow)", "4-2-3-1 (Wide)", "4-2-4", "4-3-1-2", "4-3-2-1", "4-3-3", "4-3-3 (Attack)", "4-3-3 (Defend)", "4-3-3 (Holding)", "4-4-1-1", "4-4-2", "4-4-2 (Holding)", "4-5-1", "4-5-1 (Attack)"]},{label:"Línea de 5",ids:["5-2-1-2", "5-3-2", "5-4-1"]}];
 const FORMATION_IDS = ["3-1-4-2", "3-4-1-2", "3-4-2-1", "3-4-3", "3-5-2", "4-1-2-1-2 (Narrow)", "4-1-2-1-2 (Wide)", "4-1-3-2", "4-1-4-1", "4-2-2-2", "4-2-3-1 (Narrow)", "4-2-3-1 (Wide)", "4-2-4", "4-3-1-2", "4-3-2-1", "4-3-3", "4-3-3 (Attack)", "4-3-3 (Defend)", "4-3-3 (Holding)", "4-4-1-1", "4-4-2", "4-4-2 (Holding)", "4-5-1", "4-5-1 (Attack)", "5-2-1-2", "5-3-2", "5-4-1"];
@@ -1125,26 +1137,71 @@ function bestByPosition(pos, count){
 
 // Once titular sobre la cancha: coloca cada slot en el centro de su celda de la rejilla del Excel,
 // con el dorso real de la playera (caché compartido) y el icono de categoría (GK/DF/MF/FW) debajo.
+// Asigna el mejor jugador disponible a cada slot según su valor en ESA posición específica
+// (positions[rol], 0–20). Si un jugador no tiene valor para el rol pero su categoría coincide, se usa
+// un ajuste base bajo por rating (siempre menor que cualquier valor de posición) para no dejar el
+// once vacío con datos antiguos. Cada jugador se usa una vez; si ningún jugador encaja en un slot,
+// queda vacío (cuadro punteado). Prioriza a quien mejor cumple la función, aunque no sea especialista.
+function fillLineup(f){
+  const players = teamPlayersRaw().filter(p=>p.number!=null);
+  const catOf = code => (typeof POS_CAT_OF==="object" && POS_CAT_OF[code]) || null;
+  // Preferencia de lado para los slots de defensa central: se ordenan los slots CB por columna;
+  // el más a la izquierda prefiere CB(L), el más a la derecha CB(R), y los del medio (líneas de
+  // 3 o 5 centrales) prefieren un CB sin lado asignado.
+  const cbSlots = f.slots.map((s,i)=>({i, c:s.c, p:s.p})).filter(o=>o.p==="CB").sort((a,b)=>a.c-b.c);
+  const sidePref = {};   // índice de slot -> 'L' | 'C' | 'R'
+  if(cbSlots.length===1){ sidePref[cbSlots[0].i]='C'; }
+  else if(cbSlots.length>=2){
+    sidePref[cbSlots[0].i]='L';
+    sidePref[cbSlots[cbSlots.length-1].i]='R';
+    for(let k=1;k<cbSlots.length-1;k++) sidePref[cbSlots[k].i]='C';
+  }
+  const fit = (p, s, si)=>{
+    const v = (p.positions && p.positions[s.p]!=null) ? (+p.positions[s.p]||0) : 0;
+    let base;
+    if(v>0) base = v;
+    else { const cat = catOf(s.p) || s.cat; base = (p.pos===cat) ? (p.rating||0)/1000 : 0; }
+    if(base<=0) return 0;
+    // Ajuste por lado en slots CB (solo desempata entre defensas centrales del mismo valor).
+    if(s.p==="CB" && sidePref[si]){
+      const pref = sidePref[si], side = p.cbSide||null;
+      const match = (pref==='L'&&side==='L') || (pref==='R'&&side==='R') || (pref==='C'&&!side);
+      if(match) base += 0.6;
+      else if((pref==='L'&&side==='R') || (pref==='R'&&side==='L')) base -= 0.3;  // lado contrario
+      else if(pref==='C' && side) base -= 0.15;                                    // con lado en el centro
+    }
+    return base;
+  };
+  const desires = [];
+  f.slots.forEach((s, si)=>{
+    players.forEach(p=>{ const fv = fit(p, s, si); if(fv>0) desires.push({si, p, fit:fv, rating:(p.rating||0)}); });
+  });
+  desires.sort((a,b)=> b.fit-a.fit || b.rating-a.rating);
+  const slotPlayer = new Array(f.slots.length).fill(null);
+  const usedPlayer = new Set();
+  desires.forEach(d=>{
+    if(slotPlayer[d.si] || usedPlayer.has(d.p.id)) return;
+    slotPlayer[d.si] = d.p; usedPlayer.add(d.p.id);
+  });
+  return slotPlayer;
+}
 function lineupHTML(fid){
   const f = FORMATIONS[fid] || FORMATIONS["4-4-2"];
-  const byCat = { GK:[], DF:[], MF:[], FW:[] };
-  f.slots.forEach(s=>{ (byCat[s.cat] || (byCat[s.cat]=[])).push(s); });
-  const picks = {}; ["GK","DF","MF","FW"].forEach(cat=>{ picks[cat] = bestByPosition(cat, (byCat[cat]||[]).length); });
-  const idx = { GK:0, DF:0, MF:0, FW:0 };
+  const slotPlayer = fillLineup(f);
   // Centrado horizontal: el mapa del Excel puede quedar medio corrido; desplazamos toda la
   // formación para que su centro caiga en la mitad de la cancha (respetando el ancho relativo).
   const cols = f.slots.map(s=>s.c);
   const mid = (Math.min.apply(null,cols) + Math.max.apply(null,cols)) / 2;
   const shift = (GRID_COLS+1)/2 - mid;   // centro de la rejilla (6.5) menos el centro real
-  const slotsHTML = f.slots.map(s=>{
-    const p = (picks[s.cat] || [])[idx[s.cat]++];
+  const slotsHTML = f.slots.map((s, si)=>{
+    const p = slotPlayer[si];
     const x = cellX(s.c + shift), y = cellY(s.r);
     const jersey = p
       ? `<div class="lu-jersey" data-pending data-player-id="${esc(p.id)}"><span class="lu-fallback mono">${p.number!=null?p.number:""}</span></div>`
       : `<div class="lu-jersey empty"></div>`;
     return `<div class="lu-slot" style="left:${x}%;top:${y}%;">
       ${jersey}
-      ${posChipHTML(s.cat)}
+      ${slotChipHTML(s.p, s.cat)}
     </div>`;
   }).join("");
   return `<div class="tac-pitch">${pitchImageHTML()}<div class="lu-layer">${slotsHTML}</div></div>`;
@@ -1242,18 +1299,68 @@ function pNameHTML(p){
 const NUMBER_POOLS = { GK:[1,12,13,22,23,26], DF:[2,3,4,5], MF:[6,7,8], FW:[9,10,11] };
 function assignMissing(){
   const conv = ensureConv();
-  const roster = teamPlayersRaw().slice().sort(prefSort);
+  const roster = teamPlayersRaw().slice();
   const taken = new Set(); for(let n=1;n<=SQUAD_MAX;n++){ if(conv.slots[n]) taken.add(n); }
   const free = n => n>=1 && n<=SQUAD_MAX && !taken.has(n);
   const has = id => numberOf(id)!=null;
   // El dorsal 1 solo es válido para porteros.
   const okFor = (p,n) => free(n) && !(n===1 && p.pos!=="GK");
   const claim = (id,n)=>{ conv.slots[n]=id; taken.add(n); };
-  // Regla: el dorsal 1 se reserva a un portero (el de mayor preferencia disponible).
-  if(free(1)){ const gk = roster.find(p=>p.pos==="GK" && !has(p.id)); if(gk) claim(gk.id,1); }
-  roster.forEach(p=>{ if(has(p.id)) return; const favs=(p.favNumbersTeam||[]).map(Number).filter(n=>okFor(p,n)); if(favs.length) claim(p.id, favs[0]); });
-  roster.forEach(p=>{ if(has(p.id)) return; const pool=(NUMBER_POOLS[p.pos]||[]).filter(n=>okFor(p,n)); if(pool.length) claim(p.id, pool[0]); });
-  roster.forEach(p=>{ if(has(p.id)) return; const rest=[]; for(let n=1;n<=SQUAD_MAX;n++) if(okFor(p,n)) rest.push(n); if(rest.length) claim(p.id, rest[Math.floor(Math.random()*rest.length)]); });
+  const expOf = p => (p.caps||0);                 // experiencia = participaciones en selección
+  // Favoritos sin repetir, conservando el orden (mayor a menor importancia).
+  const dedup = arr => { const seen=new Set(), out=[]; (arr||[]).forEach(x=>{ const n=Number(x); if(!isNaN(n) && !seen.has(n)){ seen.add(n); out.push(n); } }); return out; };
+  // Jugadores por experiencia desc: los de más participaciones eligen primero.
+  const byExp = roster.slice().sort((a,b)=> expOf(b)-expOf(a) || (b.rating||0)-(a.rating||0));
+
+  // El dorsal 1 es SIEMPRE de un portero (obligatorio en esta convocatoria). Se reserva primero:
+  // preferimos un GK que lo tenga como favorito; si ninguno, el portero de más experiencia.
+  if(free(1)){
+    const gks = roster.filter(p=>p.pos==="GK" && !has(p.id));
+    const wants1 = gks.filter(p=> dedup(p.favNumbersTeam).includes(1) || dedup(p.favNumbersClub).includes(1))
+                      .sort((a,b)=>expOf(b)-expOf(a));
+    const gk1 = wants1[0] || gks.slice().sort((a,b)=>expOf(b)-expOf(a))[0];
+    if(gk1) claim(gk1.id, 1);
+  }
+
+  // Draft por favoritos: en orden de experiencia, cada jugador toma su favorito disponible de mayor
+  // importancia (orden de su lista). Si su preferido ya lo tomó alguien con más experiencia, prueba
+  // el siguiente. Así "los de más experiencia tienen preferencia para elegir".
+  function favDraft(getFavs){
+    byExp.forEach(p=>{
+      if(has(p.id)) return;
+      for(const n of dedup(getFavs(p))){ if(okFor(p,n)){ claim(p.id,n); break; } }
+    });
+  }
+  favDraft(p=>p.favNumbersTeam);   // 1) dorsales favoritos de la selección
+  favDraft(p=>p.favNumbersClub);   // 2) dorsales favoritos de club (para quienes aún no tengan)
+
+  // 3) Números típicos por posición.
+  const POS_POOL = { GK:[1,12,13,22,23,26], DF:[2,3,4,5], MF:[6,7,8], FW:[9,10,11] };
+  byExp.forEach(p=>{
+    if(has(p.id)) return;
+    const pool = (POS_POOL[p.pos]||[]).filter(n=>okFor(p,n));
+    if(pool.length) claim(p.id, pool[0]);
+  });
+
+  // 4) Resto: números más altos para los menos experimentados; evitar 1–11 a quien no los tiene
+  //    como favorito (se usan >11 primero; 1–11 solo si se agotan). El más experimentado que quede
+  //    toma el número disponible más bajo del pool, dejando los altos para los de menos experiencia.
+  const rest = byExp.filter(p=>!has(p.id));
+  const pool = [];
+  for(let n=12;n<=SQUAD_MAX;n++) if(free(n)) pool.push(n);   // preferir >11
+  for(let n=2;n<=11;n++)          if(free(n)) pool.push(n);   // 1–11 solo si hace falta (1 se maneja aparte)
+  if(free(1)) pool.push(1);
+  rest.forEach(p=>{
+    for(let k=0;k<pool.length;k++){ const n=pool[k]; if(n!=null && okFor(p,n)){ claim(p.id,n); pool[k]=null; break; } }
+  });
+
+  // 5) Completitud: todos los dorsales 2–26 restantes se llenan con los jugadores que queden. El #1
+  //    NO se relaja: si por algún caso quedara libre, solo un portero puede tomarlo.
+  for(let n=1;n<=SQUAD_MAX;n++){
+    if(taken.has(n)) continue;
+    const p = byExp.find(pl=>!has(pl.id) && okFor(pl,n));
+    if(p) claim(p.id, n);
+  }
 }
 
 // Menú desplegable para un dorsal: lista de jugadores "N · Nombre" (N = su número actual, o —).
@@ -1286,21 +1393,32 @@ function dorsalMenuHTML(n, up){
 }
 
 // Fila de un dorsal (ocupado o libre). Toda la fila abre el menú de asignación.
+// Celdas de un jugador en la convocatoria (columnas: Jugador, Pos+posiciones, Club, Edad, Goles,
+// Dorsal Fav). El # (dorsal) lo pone cada fila aparte.
+function cvPlayerCells(p){
+  // Posiciones del jugador igual que en el perfil/listas: valor ≥15, ordenadas, máximo 4.
+  const posText = (typeof positionsText==="function") ? positionsText(p) : "";
+  const club = (typeof getClubByName==="function" && p.club) ? getClubByName(p.club) : null;
+  const clubName = (club && club.commonName) ? club.commonName : (p.club || "");
+  const clubCell = p.club
+    ? `<span class="cv-clubin" title="${esc(clubName)}">${(typeof clubLogoIconHTML==="function")?clubLogoIconHTML(club):""}<span class="cv-clubname">${esc(clubName)}</span></span>`
+    : `<span class="cv-clubname">—</span>`;
+  return `
+    <span class="cv-jug"><span class="cv-photo">${personPhotoHTML(p.photo, p.gender)}</span><span class="cv-name">${pNameHTML(p)}</span></span>
+    <span class="cv-pos">${posChipHTML(p.pos)}${posText?`<span class="cv-poslist">${posText}</span>`:""}</span>
+    <span class="cv-c l cv-club">${clubCell}</span>
+    <span class="cv-c">${ageOf(p)}</span>
+    <span class="cv-c">${p.caps!=null?p.caps:0}</span>
+    <span class="cv-c">${p.goalsNational!=null?p.goalsNational:0}</span>
+    <span class="cv-c">${esc(favNumbersText(p))}</span>`;
+}
 function dorsalRowHTML(n, rmap){
   const conv = ensureConv();
   const open = state.convMenu===n;
   const id = conv.slots[n];
   const p = id ? rmap[id] : null;
   const up = n>13;   // en la mitad inferior el menú se despliega hacia arriba (no se corta)
-  const body = p ? `
-    ${posChipHTML(p.pos)}
-    <span class="cv-photo">${personPhotoHTML(p.photo, p.gender)}</span>
-    <span class="cv-name">${pNameHTML(p)}</span>
-    <span class="cv-c">${ageOf(p)}</span>
-    <span class="cv-c">${p.caps!=null?p.caps:0}</span>
-    <span class="cv-c">${p.goalsNational!=null?p.goalsNational:0}</span>
-    <span class="cv-c">${esc(favNumbersText(p))}</span>`
-  : `<span class="cv-libre">Libre</span>`;
+  const body = p ? cvPlayerCells(p) : `<span class="cv-libre">Libre</span>`;
   return `<div class="cv-row${p?'':' empty'}${open?' open':''}" data-act="conv-open-menu" data-n="${n}" role="button" tabindex="0">
     <div class="cv-num-wrap">
       <span class="num-badge cv-numbtn">${n}</span>
@@ -1315,13 +1433,7 @@ function dorsalRowHTML(n, rmap){
 function unconvRowHTML(p){
   return `<div class="cv-row noconv" data-act="conv-return" data-id="${esc(p.id)}" role="button" tabindex="0" title="Devolver a un dorsal libre">
     <div class="cv-num-wrap"><span class="num-badge">–</span></div>
-    ${posChipHTML(p.pos)}
-    <span class="cv-photo">${personPhotoHTML(p.photo, p.gender)}</span>
-    <span class="cv-name">${pNameHTML(p)}</span>
-    <span class="cv-c">${ageOf(p)}</span>
-    <span class="cv-c">${p.caps!=null?p.caps:0}</span>
-    <span class="cv-c">${p.goalsNational!=null?p.goalsNational:0}</span>
-    <span class="cv-c">${esc(favNumbersText(p))}</span>
+    ${cvPlayerCells(p)}
   </div>`;
 }
 
@@ -1389,7 +1501,7 @@ function screenSquad(){
             </div>
           </div>
           <div class="cv-cols">
-            <span>#</span><span>Pos</span><span></span><span class="l">Jugador</span>
+            <span>#</span><span class="l">Jugador</span><span class="l">Pos</span><span class="l">Club</span>
             <span>Edad</span><span>Partidos</span><span>Goles</span><span>Dorsal fav.</span>
           </div>
           <div class="cv-list">

@@ -736,9 +736,21 @@ function handleAction(action, el){
       const shirtNameTeamLinked = document.getElementById("f-pshirtname-team-linked").value==="1";
       const shirtNameClubLinked = document.getElementById("f-pshirtname-club-linked").value==="1";
       const brand = (brandRaw && brandRaw.toLowerCase()!=="sin sponsor") ? matchOrAddBrand(brandRaw) : null;
+      // Perfiles (pie) y posiciones específicas (1–20 por posición); vacío = sin dato.
+      const footLeftRaw = (document.getElementById("f-pfootleft")||{}).value;
+      const footRightRaw = (document.getElementById("f-pfootright")||{}).value;
+      const clampFoot = v => (v==="" || v==null) ? null : Math.max(1, Math.min(20, parseInt(v)||0)) || null;
+      const positions = {};
+      document.querySelectorAll('.pos-val[data-poscode]').forEach(inp=>{
+        const code = inp.getAttribute('data-poscode');
+        const v = inp.value;
+        if(v!=="" && v!=null){ const n = Math.max(0, Math.min(20, parseInt(v)||0)); if(n>0) positions[code] = n; }
+      });
+      const cbSide = ((document.getElementById("f-pcbside")||{}).value) || null;
       const data = {
         firstName, lastName, commonName, fullName, fullNameLinked, shirtNameTeamLinked, shirtNameClubLinked,
         pos: document.getElementById("f-ppos").value,
+        footLeft: clampFoot(footLeftRaw), footRight: clampFoot(footRightRaw), positions, cbSide,
         number: (parseInt(numberRaw)>0) ? Math.min(99, parseInt(numberRaw)) : null,
         numberUnassigned: !(parseInt(numberRaw)>0),
         numberClub: (()=>{ const v=parseInt(document.getElementById("f-pnumber-club").value); return (v>0)?Math.min(99,v):null; })(),
@@ -1719,6 +1731,84 @@ function handleAction(action, el){
       if(!teamId){ alert("Elige primero la selección destino."); return; }
       const team = getTeam(teamId);
       const raw = document.getElementById("bulk-import-area").value;
+      const onlyNew = !!(document.getElementById("bulk-only-new") && document.getElementById("bulk-only-new").checked);
+
+      // ---- Modo "Cargar solo datos nuevos": no agrega ni elimina jugadores; actualiza CUALQUIER
+      // celda con dato de la columna 6 en adelante, en los jugadores que ya existan y coincidan por
+      // (Dorsal + Apellido) o (Nombre + Apellido). Las primeras 6 columnas solo emparejan. ----
+      if(onlyNew){
+        const rows = raw.split(/\r?\n/).map(l=>l.replace(/\s+$/,"")).filter(l=>l.trim().length);
+        const validPos = (typeof POS_CAT_OF==="object") ? POS_CAT_OF : {};
+        const num = v => { const n = parseInt(String(v).trim()); return isNaN(n)?null:n; };
+        const clamp0_20 = v => { const n = num(v); return n==null?null:Math.max(0,Math.min(20,n)); };
+        let matched=0, skipped=0;
+        rows.forEach(line=>{
+          const c = line.split("\t").map(s=>s.trim());
+          if(c.length < 4) { skipped++; return; }
+          const dorsal = num(c[0]);
+          const firstName = c[2]||"";
+          const lastName  = c[3]||"";
+          const keyLast = normLoose(lastName);
+          if(!keyLast){ skipped++; return; }
+          // Emparejar: (Dorsal + Apellido) o (Nombre + Apellido)
+          const player = team.players.find(pl=>{
+            const plLast = normLoose(pl.lastName||"");
+            if(plLast!==keyLast) return false;
+            const dorsalOk = dorsal!=null && pl.number!=null && pl.number===dorsal;
+            const nameOk   = firstName && normLoose(pl.firstName||"")===normLoose(firstName);
+            return dorsalOk || nameOk;
+          });
+          if(!player){ skipped++; return; }
+          // Con el checkbox activo se actualiza CUALQUIER celda que traiga dato de la columna 6 en
+          // adelante. Las primeras 6 (0 Dorsal · 1 Posición · 2 Nombre · 3 Apellido · 4 Nombre común
+          // · 5 Nombre completo) solo sirven para EMPAREJAR y nunca se modifican. Índices (formato
+          // extendido): 6 Fecha · 7 Estatura · 8 Caps · 9 Goles · 10 Club · 11 Camiseta (selección) ·
+          // 12 Camiseta (club) · 13 Marca · 14 Rating · 15 Rating pot. · 16 Perfil izq. · 17 Perfil der. ·
+          // 18–37 diez pares Posición·Valor · 38 Dorsal fav. (selección) · 39 Dorsal fav. (club).
+          const bd = parseBirthDate(c[6]);          if(bd)    player.birthDate = bd;
+          const h  = numInRange(c[7], 140, 230);    if(h!=null)  player.height = h;
+          const cp = numInRange(c[8], 0, 100000);   if(cp!=null) player.caps = cp;
+          const gl = numInRange(c[9], 0, 100000);   if(gl!=null) player.goalsNational = gl;
+          if(c[10]){ const cl = matchOrAddClub(c[10]); if(cl) player.club = cl; }
+          if(c[11]){ player.shirtNameTeam = c[11].slice(0,50); player.shirtNameTeamLinked = false; }
+          if(c[12]){ player.shirtNameClub = c[12].slice(0,50); player.shirtNameClubLinked = false; }
+          if(c[13] && c[13].toLowerCase()!=="sin sponsor"){ const br = matchOrAddBrand(c[13]); if(br) player.brand = br; }
+          if(c[14]!=null && c[14]!=="") player.rating          = Math.max(0, Math.min(99, parseInt(c[14])||0));
+          if(c[15]!=null && c[15]!=="") player.ratingPotential = Math.max(0, Math.min(99, parseInt(c[15])||0));
+          const fl = clamp0_20(c[16]); if(fl!=null) player.footLeft  = fl;
+          const fr = clamp0_20(c[17]); if(fr!=null) player.footRight = fr;
+          const positions = {};
+          let anyPos = false;
+          for(let i=18;i<=36;i+=2){
+            let rawcode = (c[i]||"").toUpperCase().trim();
+            if(!rawcode) continue;
+            // "CB (R)" / "CB (L)" / "CB R" / "CB-L" = defensa central por derecha / por izquierda.
+            let side = null;
+            const cbm = rawcode.match(/^CB\s*[\(\-\s]?\s*([LR])\s*\)?$/);
+            let code;
+            if(cbm){ code = "CB"; side = cbm[1]; }
+            else { code = rawcode.replace(/[^A-Z]/g, ""); }
+            if(validPos[code]!=null){
+              anyPos = true;
+              const val = clamp0_20(c[i+1]);
+              if(val!=null && val>0) positions[code] = val;   // 0 = no apto -> no se guarda
+              if(code==="CB" && side) player.cbSide = side;
+            }
+          }
+          if(anyPos) player.positions = positions;   // el bloque de 10 pares define el perfil posicional
+          const favTeam = (typeof parseFavNumbers==="function") ? parseFavNumbers(c[38]||"") : [];
+          const favClub = (typeof parseFavNumbers==="function") ? parseFavNumbers(c[39]||"") : [];
+          if(favTeam.length) player.favNumbersTeam = favTeam;
+          if(favClub.length) player.favNumbersClub = favClub;
+          matched++;
+        });
+        if(matched===0){ alert(`No coincidió ninguna fila (0 de ${rows.length}). Revisa que Dorsal+Apellido o Nombre+Apellido coincidan con jugadores ya cargados de ${team.commonName}.`); return; }
+        if(typeof invalidateClubPlayerIndex==="function") invalidateClubPlayerIndex();
+        persist(); render();
+        showToast(`${matched} jugador(es) actualizado(s), ${skipped} fila(s) sin coincidencia en ${team.commonName}`);
+        break;
+      }
+
       const parsed = parseBulkPlayers(raw);
       if(parsed.length===0){ alert("No se detectaron filas válidas para importar."); return; }
       const teamCountry = DB.countries.find(c=>c.teamLinks && c.teamLinks.absoluta===teamId);
@@ -1792,6 +1882,17 @@ function handleAction(action, el){
     }
     case "clear-history": {
       modalConfirm("Se vacía solo la lista del historial — tus datos no cambian. ¿Continuar?", ()=>{ HISTORY = []; saveHistory(); render(); showToast("Historial vaciado"); }, "Vaciar");
+      break;
+    }
+    case "export-json": {
+      // Genera el JSON del respaldo SOLO al pulsar. Antes se serializaba en cada render del Editor
+      // (buildBackup con las imágenes base64 = decenas de MB de texto), y Firefox se congelaba varios
+      // segundos conformando ese texto en el <textarea> en cada re-render.
+      const ta = document.getElementById("export-area");
+      if(ta){
+        ta.value = JSON.stringify(buildBackup(DB), null, 1);
+        try{ ta.focus(); ta.select(); }catch(e){}
+      }
       break;
     }
     case "import-json": {
