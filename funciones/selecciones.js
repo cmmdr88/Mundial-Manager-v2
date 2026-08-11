@@ -297,7 +297,7 @@ function squadSortChip(label, key){
 
 function modalAddEditTeam(team){
   const isEdit = !!team;
-  team = team || {id:null, officialName:"", commonName:"", shortName:"", fifaCode:"", iocCode:"", conf:"UEFA", group:"", host:false, color1:"#4F46E5", color2:"#15161D", awayColor1:"#FFFFFF", awayColor2:"#15161D", kitSponsor:"", logoImg:"", kitHomeImg:"", kitAwayImg:"", stadium:"", stadiums:[], trainingGround:""};
+  team = team || {id:null, officialName:"", commonName:"", shortName:"", fifaCode:"", iocCode:"", conf:"UEFA", group:"", host:false, color1:"#4F46E5", color2:"#15161D", awayColor1:"#FFFFFF", awayColor2:"#15161D", kitSponsor:"", logoImg:"", logoImgLight:"", kitHomeImg:"", kitAwayImg:"", stadium:"", stadiums:[], trainingGround:""};
   openModal(`
     <div class="modal-box">
       <div class="modal-head"><h2>${isEdit?"Editar selección":"Agregar selección"}</h2><button class="modal-close" data-action="close-modal">×</button></div>
@@ -351,7 +351,10 @@ function modalAddEditTeam(team){
           </label>
 
           <div class="subhead">${T('team.section.crest')}</div>
-          ${imageUploadField(T('team.logo.label'), "logo", team.logoImg, T('team.logo.hint'))}
+          <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
+            ${imageUploadFieldCol("Escudo — fondo oscuro", "logo", team.logoImg, "El que se usa en casi toda la app (fondo oscuro).")}
+            ${imageUploadFieldCol("Escudo — fondo claro", "logo-l", team.logoImgLight, "Para fondos claros.")}
+          </div>
 
           <div class="subhead">${T('team.section.colors')}</div>
           <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">

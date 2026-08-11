@@ -93,7 +93,7 @@ function buildDefaultClubsData(names){
     return {
       id:newClubId(), fullName:"", officialName:"", commonName:nm.slice(0,50), shortName:nm.slice(0,30),
       code:"", codeAlt:"", nicknames:[], city:"", country: seed?seed[0]:"", league: seed?seed[1]:"",
-      logoImg:null, color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF", stadium:"", stadiums:[], trainingGround:"", founded:null, kitSponsor:""
+      logoImg:null, logoImgLight:null, color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF", stadium:"", stadiums:[], trainingGround:"", founded:null, kitSponsor:""
     };
   });
 }
@@ -386,7 +386,7 @@ function renderClubDetail(clubId){
 function modalAddEditClub(club){
   const isEdit = !!club;
   club = club || {id:null, fullName:"", officialName:"", commonName:"", shortName:"", code:"", codeAlt:"",
-    nicknames:[], city:"", country:"", league:"", logoImg:"", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF",
+    nicknames:[], city:"", country:"", league:"", logoImg:"", logoImgLight:"", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF",
     stadium:"", stadiums:[], trainingGround:"", kitSponsor:""};
   openModal(`
     <div class="modal-box">
@@ -450,7 +450,10 @@ function modalAddEditClub(club){
           </label>
 
           <div class="subhead">Escudo</div>
-          ${imageUploadField("Escudo del club", "cl-logo", club.logoImg, "PNG o JPG. Cuadrado se ve mejor.")}
+          <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
+            ${imageUploadFieldCol("Escudo — fondo oscuro", "cl-logo", club.logoImg, "El que se usa en casi toda la app (fondo oscuro).")}
+            ${imageUploadFieldCol("Escudo — fondo claro", "cl-logo-l", club.logoImgLight, "Para fondos claros.")}
+          </div>
 
           <div class="subhead">Colores del club</div>
           <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">

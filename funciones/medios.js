@@ -37,7 +37,9 @@ function renderMedios(){
 
 function modalAddEditMedia(media){
   const isEdit = !!media;
-  media = media || {id:null, name:"", type:"TV abierta", country:"Internacional", reach:20, logoImg:null, color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF"};
+  media = media || {id:null, name:"", type:"TV abierta", country:"Internacional", reach:20, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF"};
+  // Compatibilidad: si solo existe el logo heredado, se muestra como "Horizontal — fondo oscuro".
+  if(media.logoImg && !media.logoVDark && !media.logoHDark && !media.logoVLight && !media.logoHLight){ media = Object.assign({}, media, {logoHDark: media.logoImg}); }
   openModal(`
     <div class="modal-box">
       <div class="modal-head"><h2>${isEdit?"Editar medio":"Agregar medio"}</h2><button class="modal-close" data-action="close-modal">×</button></div>
@@ -53,7 +55,21 @@ function modalAddEditMedia(media){
           <label class="field">${T('media.reach.label')}<input id="f-mreach" type="number" min="0" value="${media.reach}"></label>
 
           <div class="subhead">Logo</div>
-          ${imageUploadField("Logo del medio", "mlogo", media.logoImg, "PNG o JPG. Cuadrado se ve mejor.")}
+          <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+              ${imageUploadFieldCol("Vertical — fondo oscuro", "mlogo-vd", media.logoVDark, "")}
+              ${imageUploadFieldCol("Vertical — fondo claro", "mlogo-vl", media.logoVLight, "")}
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+              ${imageUploadFieldCol("Horizontal — fondo oscuro", "mlogo-hd", media.logoHDark, "")}
+              ${imageUploadFieldCol("Horizontal — fondo claro", "mlogo-hl", media.logoHLight, "")}
+            </div>
+            <div style="display:flex;align-items:center;gap:18px;font-size:12px;color:var(--muted);font-weight:600;">
+              <span>Logo principal:</span>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;"><input type="radio" name="media-principal" value="horizontal" style="width:auto;" ${((media.logoPrincipal||'horizontal')==='horizontal')?'checked':''}> Horizontal</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;"><input type="radio" name="media-principal" value="vertical" style="width:auto;" ${(media.logoPrincipal==='vertical')?'checked':''}> Vertical</label>
+            </div>
+          </div>
 
           <div class="subhead">Colores</div>
           <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">

@@ -48,7 +48,7 @@ function ensureApparelBrandSponsor(name, opts){
     return sp;
   }
   sp = { id:newId("sp"), name:nm, categories:[APPAREL_CATEGORY], value: opts.value!=null?opts.value:40,
-         teamId:null, global: !!opts.global, logoImg:null, color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF" };
+         teamId:null, global: !!opts.global, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF" };
   if(!DB.sponsors) DB.sponsors = [];
   DB.sponsors.push(sp);
   return sp;
@@ -218,11 +218,21 @@ function renderPatrocinadores(){
 }
 
 // Logo pequeño para patrocinadores y medios — mismo estilo/tamaño que los logos de equipos.
+// Logo para fondo OSCURO (el que usa casi toda la interfaz) en la orientación marcada como principal,
+// con respaldos: otra orientación oscura → logoImg heredado.
+function brandLogoDark(entity){
+  if(!entity) return null;
+  const pr = entity.logoPrincipal || "horizontal";
+  const vd = entity.logoVDark || null, hd = entity.logoHDark || null;
+  const primary = pr==="vertical" ? (vd || hd) : (hd || vd);
+  return primary || entity.logoImg || null;
+}
 function brandLogoHTML(entity, sizePx){
   const s = sizePx || 40;
   const style = `width:${s}px;height:${s}px;`;
-  if(entity.logoImg){
-    return `<div class="crest-mini has-img" style="${style}"><img src="${entity.logoImg}" alt="${escapeHtml(entity.name||'')}"></div>`;
+  const src = brandLogoDark(entity);
+  if(src){
+    return `<div class="crest-mini has-img" style="${style}"><img src="${src}" alt="${escapeHtml(entity.name||'')}"></div>`;
   }
   const c1 = entity.color1||"#4F46E5", c2 = entity.color2||"#15161D";
   return `<div class="crest-mini" style="background:linear-gradient(160deg, ${c1}, ${c2});${style}font-size:${Math.round(s*0.34)}px;">${escapeHtml(initials(entity.name||"?"))}</div>`;
@@ -237,7 +247,9 @@ function sponsorCategoryRowHTML(value){
 }
 function modalAddEditSponsor(sponsor){
   const isEdit = !!sponsor;
-  sponsor = sponsor || {id:null, name:"", categories:[], value:50, teamId:null, global:false, logoImg:null, color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF"};
+  sponsor = sponsor || {id:null, name:"", categories:[], value:50, teamId:null, global:false, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF"};
+  // Compatibilidad: si solo existe el logo heredado, se muestra como "Horizontal — fondo oscuro".
+  if(sponsor.logoImg && !sponsor.logoVDark && !sponsor.logoHDark && !sponsor.logoVLight && !sponsor.logoHLight){ sponsor = Object.assign({}, sponsor, {logoHDark: sponsor.logoImg}); }
   const cats = sponsorCategoriesOf(sponsor);
   const links = sponsor.id ? sponsorEffectiveLinks(sponsor) : sponsorLinksOf(sponsor);
   openModal(`
@@ -255,7 +267,21 @@ function modalAddEditSponsor(sponsor){
           </div>
 
           <div class="subhead">Logo</div>
-          ${imageUploadField("Logo del patrocinador", "slogo", sponsor.logoImg, "PNG o JPG. Cuadrado se ve mejor.")}
+          <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+              ${imageUploadFieldCol("Vertical — fondo oscuro", "slogo-vd", sponsor.logoVDark, "")}
+              ${imageUploadFieldCol("Vertical — fondo claro", "slogo-vl", sponsor.logoVLight, "")}
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+              ${imageUploadFieldCol("Horizontal — fondo oscuro", "slogo-hd", sponsor.logoHDark, "")}
+              ${imageUploadFieldCol("Horizontal — fondo claro", "slogo-hl", sponsor.logoHLight, "")}
+            </div>
+            <div style="display:flex;align-items:center;gap:18px;font-size:12px;color:var(--muted);font-weight:600;">
+              <span>Logo principal:</span>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;"><input type="radio" name="sponsor-principal" value="horizontal" style="width:auto;" ${((sponsor.logoPrincipal||'horizontal')==='horizontal')?'checked':''}> Horizontal</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;"><input type="radio" name="sponsor-principal" value="vertical" style="width:auto;" ${(sponsor.logoPrincipal==='vertical')?'checked':''}> Vertical</label>
+            </div>
+          </div>
 
           <div class="subhead">Colores</div>
           <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
