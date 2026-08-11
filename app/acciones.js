@@ -568,6 +568,7 @@ function handleAction(action, el){
         country: document.getElementById("f-cl-country").value.trim(),
         league,
         logoImg: document.getElementById("f-cl-logo-data").value || null,
+        logoImgLight: document.getElementById("f-cl-logo-l-data").value || null,
         color1: document.getElementById("f-cl-color1").value,
         color2: document.getElementById("f-cl-color2").value,
         color3: document.getElementById("f-cl-color3").value,
@@ -651,6 +652,7 @@ function handleAction(action, el){
         color2: document.getElementById("f-color2").value,
         color3: document.getElementById("f-color3").value,
         logoImg: document.getElementById("f-logo-data").value || null,
+        logoImgLight: document.getElementById("f-logo-l-data").value || null,
         fifaPoints: fifaPointsRaw ? parseFloat(fifaPointsRaw) : null,
         eloRating: eloRaw ? parseFloat(eloRaw) : null,
         host: document.getElementById("f-host").checked,
@@ -901,7 +903,7 @@ function handleAction(action, el){
         links,
         global: links.some(l=>l.type==="tournament"),
         teamId: (links.find(l=>l.type==="team")||{}).id || null,
-        logoImg: document.getElementById("f-slogo-data").value || null,
+        ...(()=>{ const vd=document.getElementById("f-slogo-vd-data").value||null, vl=document.getElementById("f-slogo-vl-data").value||null, hd=document.getElementById("f-slogo-hd-data").value||null, hl=document.getElementById("f-slogo-hl-data").value||null; const pr=(document.querySelector('input[name="sponsor-principal"]:checked')||{}).value||"horizontal"; return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoImg:(pr==="vertical"?(vd||hd):(hd||vd))||null }; })(),
         color1: document.getElementById("f-scolor1").value,
         color2: document.getElementById("f-scolor2").value,
         color3: document.getElementById("f-scolor3").value
@@ -968,7 +970,7 @@ function handleAction(action, el){
         type: document.getElementById("f-mtype").value,
         country: document.getElementById("f-mcountry").value.trim(),
         reach: Math.max(0, parseInt(document.getElementById("f-mreach").value)||0),
-        logoImg: document.getElementById("f-mlogo-data").value || null,
+        ...(()=>{ const vd=document.getElementById("f-mlogo-vd-data").value||null, vl=document.getElementById("f-mlogo-vl-data").value||null, hd=document.getElementById("f-mlogo-hd-data").value||null, hl=document.getElementById("f-mlogo-hl-data").value||null; const pr=(document.querySelector('input[name="media-principal"]:checked')||{}).value||"horizontal"; return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoImg:(pr==="vertical"?(vd||hd):(hd||vd))||null }; })(),
         color1: document.getElementById("f-mcolor1").value,
         color2: document.getElementById("f-mcolor2").value,
         color3: document.getElementById("f-mcolor3").value

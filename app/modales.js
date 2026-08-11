@@ -82,6 +82,25 @@ function imageUploadField(label, key, currentValue, hintText, maxDim){
     <input type="hidden" id="${hiddenId}" value="${currentValue||''}">
   </label>`;
 }
+// Igual que imageUploadField pero como columna flexible (sin ocupar todo el ancho), para poner
+// varias versiones del logo lado a lado en el mismo renglón (fondo oscuro / fondo claro, etc.).
+function imageUploadFieldCol(label, key, currentValue, hintText, maxDim){
+  const hiddenId = `f-${key}-data`;
+  const fileId = `f-${key}-file`;
+  const previewId = `f-${key}-preview`;
+  return `
+  <label class="field" style="flex:1 1 200px;min-width:0;">${label}
+    <div class="img-upload">
+      <div class="thumb"><img id="${previewId}" ${currentValue?`src="${currentValue}"`:''} style="display:${currentValue?'block':'none'};"></div>
+      <div class="controls">
+        <input type="file" id="${fileId}" accept="image/png,image/jpeg" data-imgfield data-target="${hiddenId}" data-preview="${previewId}" data-maxdim="${maxDim||300}">
+        <button type="button" class="btn ghost sm" data-action="clear-image" data-target="${hiddenId}" data-preview="${previewId}" style="width:fit-content;">Quitar imagen</button>
+      </div>
+    </div>
+    ${hintText?`<span style="font-size:11px;color:var(--muted);font-weight:400;">${hintText}</span>`:''}
+    <input type="hidden" id="${hiddenId}" value="${currentValue||''}">
+  </label>`;
+}
 // Caps de resolución para subir bases de prenda recoloreables (camisetas/shorts/calcetas/back) — estos
 // PNG son ilustraciones planas de pocos colores puros (no fotos), y necesitan conservar sus bordes
 // exactos para que el sistema de recoloreado funcione bien. Si se reducen demasiado al subirlos (con
