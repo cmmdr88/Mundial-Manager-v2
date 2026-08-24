@@ -38,6 +38,7 @@ function restoreScroll(y){ requestAnimationFrame(()=>{ window.scrollTo(0, y||0);
 
 function navigateTo(tab, teamId){
   saveScrollToCurrent();
+  if(typeof regionEditorReset==="function") regionEditorReset();   // el orden "reciente" del editor de regiones se reinicia al cambiar de ventana
   activeTab = tab;
   activeTeamId = teamId || null;
   activePlayerId = null;

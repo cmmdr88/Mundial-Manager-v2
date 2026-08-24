@@ -24,6 +24,11 @@ function attachHandlers(){
     if(!el) return;
     handleAction(el.dataset.action, el);
   };
+  // Cambios en vivo de los selects del Press Wall (editor de Formato).
+  view.onchange = (e)=>{
+    const s = e.target.closest('select[data-action="set-presswall-slot"]');
+    if(s && typeof setPressWallSlot==="function"){ setPressWallSlot(+s.dataset.slot, s.value); }
+  };
   renderKitPreviews();
 
   if(activeTab==="jugadores"){

@@ -69,11 +69,11 @@ const ONB_CSS2 = [
 "#cm-onb .cv-counter b{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--indigo-bright);margin-left:4px;}",
 "#cm-onb .cv-counter b.ok{color:var(--success);}",
 "#cm-onb .cv-tools{display:flex;gap:8px;flex-wrap:wrap;}",
-"#cm-onb .cv-cols{display:grid;grid-template-columns:32px minmax(92px,1.1fr) minmax(100px,1.05fr) minmax(116px,1.4fr) 38px 52px 44px 44px 76px;gap:8px;align-items:center;padding:0 12px 5px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);}",
+"#cm-onb .cv-cols{display:grid;grid-template-columns:32px minmax(120px,1.5fr) minmax(88px,0.9fr) minmax(74px,0.8fr) 38px 52px 44px 44px 76px;gap:8px;align-items:center;padding:0 12px 5px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);}",
 "#cm-onb .cv-cols span{text-align:center;}",
 "#cm-onb .cv-cols span.l{text-align:left;}",
 "#cm-onb .cv-list{display:flex;flex-direction:column;gap:4px;}",
-"#cm-onb .cv-row{display:grid;grid-template-columns:32px minmax(92px,1.1fr) minmax(100px,1.05fr) minmax(116px,1.4fr) 38px 52px 44px 44px 76px;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:4px 12px;}",
+"#cm-onb .cv-row{display:grid;grid-template-columns:32px minmax(120px,1.5fr) minmax(88px,0.9fr) minmax(74px,0.8fr) 38px 52px 44px 44px 76px;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:4px 12px;}",
 "#cm-onb .cv-row.empty{background:transparent;border-style:dashed;}",
 "#cm-onb .cv-row.noconv{background:var(--surface-2);cursor:pointer;}",
 "#cm-onb .cv-row.open{position:relative;z-index:60;}",
@@ -149,15 +149,17 @@ const ONB_CSS2 = [
 "#cm-onb .st-name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
 "#cm-onb .st-empty{color:var(--muted);font-size:12px;text-align:center;padding:14px 8px;}",
 "#cm-onb .news-paper{max-width:720px;width:100%;margin:0 auto;display:flex;flex-direction:column;height:560px;}",
-"#cm-onb .news-masthead{flex:0 0 auto;height:50px;background:var(--outlet-1,var(--indigo));border-bottom:none;padding:0 18px;gap:11px;align-items:center;}",
+"#cm-onb .news-masthead{flex:0 0 auto;height:56px;background:var(--outlet-1,var(--indigo));border-bottom:none;padding:0 24px;gap:12px;align-items:center;}",
 "#cm-onb .news-masthead .spacer{flex:1 1 auto;}",
-"#cm-onb .news-logo{flex:0 0 auto;width:auto;min-width:0;height:auto;max-height:27px;max-width:130px;border-radius:0;background:transparent;box-shadow:none;overflow:hidden;display:flex;align-items:center;justify-content:flex-start;}",
-"#cm-onb .news-logo img{width:auto;height:auto;max-height:27px;max-width:130px;object-fit:contain;display:block;}",
+"#cm-onb .news-logo{flex:0 0 auto;width:auto;min-width:0;height:auto;max-width:120px;max-height:44px;border-radius:0;background:transparent;box-shadow:none;overflow:hidden;display:flex;align-items:center;justify-content:flex-start;}",
+"#cm-onb .news-logo img{width:auto;height:auto;max-height:30px;max-width:120px;object-fit:contain;object-position:left center;display:block;}",
+"#cm-onb .news-logo.is-vertical{max-width:40px;max-height:40px;}",
+"#cm-onb .news-logo.is-vertical img{max-height:40px;max-width:40px;}",
 "#cm-onb .news-wordmark{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:15px;line-height:1;color:var(--outlet-3,#fff);white-space:nowrap;letter-spacing:-0.01em;}",
 "#cm-onb .news-masthead .news-live{margin-left:auto;flex:0 0 auto;font-size:9px;padding:3px 8px;color:var(--outlet-1,var(--indigo));background:var(--outlet-3,#fff);border:none;font-weight:800;}",
 "#cm-onb .news-body{flex:1 1 auto;min-height:0;overflow:hidden;box-sizing:border-box;padding:22px 26px;}",
 "#cm-onb .news-kicker{font-size:11px;margin-bottom:11px;}",
-"#cm-onb .news-headline{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:clamp(22px,3.3vw,32px);line-height:1.12;}",
+"#cm-onb .news-headline{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:clamp(22px,3.3vw,32px);line-height:1.12;min-height:3.36em;}",
 "#cm-onb .news-lede{overflow:hidden;font-size:14px;line-height:1.6;margin-top:14px;}",
 "#cm-onb .news-foot{flex:0 0 auto;padding:12px 26px;}",
 "#cm-onb .news-foot .byline{font-size:10.5px;}",
@@ -285,9 +287,21 @@ function buildData(){
   });
   teams.sort((a,b)=> a.group.localeCompare(b.group) || (a.slotIdx-b.slotIdx) || a._ord-b._ord);
   const seen={}; teams.forEach(t=>{ seen[t.group]=(seen[t.group]||0)+1; t.slot=t.group+seen[t.group]; });
-  const media = (DB.media||[]).map(m=>({ id:m.id, name:m.name, type:m.type, country:m.country, reach:m.reach,
-    color1:m.color1||"#4F46E5", color2:m.color2||"#15161D", color3:m.color3||"#FFFFFF",
-    logoImg:(typeof m.logoImg==="string"&&m.logoImg.indexOf("data:")===0)?m.logoImg:null }));
+  const dataUri = v => (typeof v==="string" && v.indexOf("data:")===0) ? v : null;
+  const media = (DB.media||[]).map(m=>{
+    // NOTICIAS usa el "Logo en gráficos" elegido (hd|hl|vd|vl), con respaldo a la misma orientación en
+    // el otro fondo, luego la otra orientación, y por último el logo heredado.
+    const slot = (o,b)=> dataUri(m[(o==="v"?"logoV":"logoH")+(b==="l"?"Light":"Dark")]);
+    const g = m.logoGrafico || "hd";
+    const o = g.charAt(0)==="v" ? "v" : "h", b = g.charAt(1)==="l" ? "l" : "d";
+    const alt = o==="v" ? "h" : "v", ab = b==="d" ? "l" : "d";
+    // El recuadro del encabezado usa la orientación ELEGIDA (horizontal/vertical). Para la imagen se
+    // respeta la variante elegida y, si no está cargada, se cae a otra versión.
+    const newsLogo = slot(o,b) || slot(o,ab) || slot(alt,b) || slot(alt,ab) || dataUri(m.logoImg);
+    return { id:m.id, name:m.name, type:m.type, categories:m.categories||null, newsSource:m.newsSource, country:m.country, coverage:Array.isArray(m.coverage)?m.coverage:null, coverageReach:(m.coverageReach&&typeof m.coverageReach==="object")?m.coverageReach:null, reach:m.reach,
+      color1:m.color1||"#4F46E5", color2:m.color2||"#15161D", color3:m.color3||"#FFFFFF",
+      logoImg:dataUri(m.logoImg), logoNews:newsLogo, logoNewsVert:(o==="v") };
+  });
   return { teams, media };
 }
 
@@ -525,6 +539,14 @@ function coachInfo(){
   const c = (t && t.coach) || null;
   return { name: c ? c.displayName : "El entrenador", gender: (c && c.gender) || "Masculino", photo: c ? c.photo : null };
 }
+// Foto del entrenador para las noticias: su foto o, si no tiene, la SILUETA POR DEFECTO DEL JUEGO
+// (resuelta aquí porque defaultPhotoFor/PERSON_DEFAULT viven en este módulo, no en el ámbito global).
+function coachNewsPhoto(){
+  const ci = coachInfo();
+  if(ci.photo) return ci.photo;
+  try{ if(typeof defaultPhotoFor==="function"){ const d = defaultPhotoFor(ci.gender); if(d) return d; } }catch(e){}
+  return null;
+}
 // Selector de concordancia: devuelve la forma femenina si el entrenador es mujer, la masculina si no.
 function G(masc, fem){ return normLoose(coachInfo().gender)==="femenino" ? fem : masc; }
 
@@ -564,6 +586,16 @@ function pShort(p){
   const last = (p.lastName||"").trim();
   if(last) return last.split(/\s+/).pop();
   return pName(p).split(/\s+/).pop();
+}
+// Nombre compacto "Inicial. Apellido" para los rectángulos (p. ej. "R. Jiménez", "G. Ochoa").
+function pInitialLast(p){
+  const first = (p.firstName||"").trim();
+  const last  = (p.lastName||"").trim();
+  if(first && last) return first.charAt(0).toUpperCase()+". "+last;
+  const disp = pName(p);
+  const parts = disp.split(/\s+/).filter(Boolean);
+  if(parts.length>=2) return parts[0].charAt(0).toUpperCase()+". "+parts.slice(1).join(" ");
+  return disp;
 }
 // Números favoritos de selección, separados por comas (hoy suelen venir vacíos → "—").
 function favNumbersText(p){
@@ -646,6 +678,18 @@ function render(){
   const active = $(".screen");
   if(active){ active.classList.add("active","enter"); }
   if(state.screen==="tactics"){ fillJerseys(); }
+  if(state.screen==="squad"){ requestAnimationFrame(applyTruncationTitles); }
+}
+// Activa el tooltip (title) SOLO en los textos que están recortados (no caben). Muestra el mismo texto
+// que se ve (data-full). En los que sí se leen completos, quita el tooltip.
+function applyTruncationTitles(){
+  try{
+    document.querySelectorAll('#cm-onb .cv-name[data-full], #cm-onb .cv-clubname[data-full], #cm-onb .cv-poslist[data-full]').forEach(el=>{
+      const full = el.getAttribute('data-full') || '';
+      if(el.scrollWidth > el.clientWidth + 1){ el.setAttribute('title', full); }
+      else { el.removeAttribute('title'); }
+    });
+  }catch(e){}
 }
 
 // Caché de playeras (dorso local real) por jugador para no recomputar el canvas en cada
@@ -988,21 +1032,110 @@ const COUNTRY_MEDIA_ALIAS = {
   "catar":"medio oriente", "jordania":"medio oriente", "iran":"medio oriente", "irak":"medio oriente"
 };
 // Devuelve la lista ordenada de medios candidatos para una selección: locales primero, luego internacionales.
-function outletsFor(t){
-  const target = new Set([normLoose(t.name), normLoose(t.officialName)]);
-  const alias = COUNTRY_MEDIA_ALIAS[normLoose(t.name)];
-  if(alias) target.add(normLoose(alias));
-  const local = [], intl = [];
-  DATA.media.forEach(m=>{
-    const mc = normLoose(m.country);
-    if(target.has(mc)) local.push(m);
-    else if(mc==="internacional" || mc==="") intl.push(m);
+// Cobertura efectiva de un medio (array): países, ciudades, confederaciones o regiones.
+function mediaCoverageEntries(m){ return (Array.isArray(m.coverage) && m.coverage.length) ? m.coverage : (m.country ? [m.country] : []); }
+// Índice normalizado de regiones: nombre de región → Set de países (normalizados).
+function regionIndex(){
+  // No se memoiza: las regiones pueden editarse en el editor (DB.regions).
+  const idx = Object.create(null);
+  try{
+    const R = (typeof getRegions==="function") ? getRegions() : (typeof MEDIA_REGIONS==="object" ? MEDIA_REGIONS : null);
+    if(R){ Object.keys(R).forEach(k=>{ idx[normLoose(k)] = new Set((R[k]||[]).map(normLoose)); }); }
+  }catch(e){}
+  return idx;
+}
+// Mapa normalizado: etiqueta de continente (p. ej. "europa") → clave de confederación ("UEFA").
+let _confLabelIdx = null;
+function confLabelIndex(){
+  if(_confLabelIdx) return _confLabelIdx;
+  _confLabelIdx = Object.create(null);
+  try{ if(typeof CONFEDERATION_LABELS==="object" && CONFEDERATION_LABELS){ Object.keys(CONFEDERATION_LABELS).forEach(k=>{ _confLabelIdx[normLoose(CONFEDERATION_LABELS[k])] = normLoose(k); }); } }catch(e){}
+  return _confLabelIdx;
+}
+// ¿El medio m cubre a la selección t? Una región/confederación se expande a sus países, de modo que
+// las selecciones de esos países usan ese medio para sus noticias. Devuelve {local}, {intl} o null.
+function coverageMatchesTeam(m, t){
+  const entries = mediaCoverageEntries(m);
+  if(!entries.length) return { intl:true };   // sin cobertura → internacional (compat)
+  const tn = normLoose(t.name), ton = normLoose(t.officialName), tconf = normLoose(t.conf);
+  const names = new Set([tn, ton]);
+  const al = COUNTRY_MEDIA_ALIAS[tn]; if(al) names.add(normLoose(al));
+  const regions = regionIndex();
+  let intl = false;
+  for(const raw of entries){
+    const e = normLoose(raw);
+    if(!e || e==="internacional" || e==="mundial" || e==="global"){ intl = true; continue; }
+    const reg = regions[e];
+    if(reg){ for(const nm of names){ if(reg.has(nm)) return { local:true }; } continue; }
+    const confKey = confLabelIndex()[e];
+    if((confKey && confKey===tconf) || e===tconf) return { local:true };   // confederación (etiqueta continente o sigla)
+    if(names.has(e)) return { local:true };   // país (incluye alias país→medio)
+  }
+  return intl ? { intl:true } : null;
+}
+// Alcance (millones) de CADA entrada de cobertura de un medio, normalizando el nombre para poder
+// cruzarlo con países/regiones/confederaciones. Se lee de m.coverageReach = { nombre: millones }.
+// Migración: los medios antiguos sin coverageReach usan su m.reach (alcance global único) en la
+// PRIMERA entrada; el resto en 0.
+function mediaReachMapFor(m){
+  const cov = mediaCoverageEntries(m);
+  const stored = (m.coverageReach && typeof m.coverageReach==="object") ? m.coverageReach : null;
+  const map = Object.create(null);
+  cov.forEach((name, i)=>{
+    let v = 0;
+    if(stored && stored[name]!=null) v = stored[name];
+    else if(!stored && i===0 && m.reach!=null) v = m.reach;
+    map[normLoose(name)] = Math.max(0, parseInt(v)||0);
   });
-  // Ordenar por alcance descendente dentro de cada grupo.
-  local.sort((a,b)=>b.reach-a.reach); intl.sort((a,b)=>b.reach-a.reach);
-  const rest = DATA.media.filter(m=>!local.includes(m)&&!intl.includes(m)).sort((a,b)=>b.reach-a.reach);
-  const ordered = [...local, ...intl, ...rest];
-  return (ordered.length ? ordered : DATA.media.slice()).slice(0, 5); // máximo 5 medios
+  return map;
+}
+// Alcance total del medio = suma de los alcances por cobertura.
+function mediaTotalReachM(m){ const mp = mediaReachMapFor(m); let s=0; for(const k in mp) s += mp[k]||0; return s; }
+// Prioridad de un medio para una selección + el alcance que decide el orden dentro de su nivel:
+//  tier 1) el PAÍS está explícito en la cobertura (solo o acompañado, da igual) → decide el alcance
+//          asignado a ESE país;
+//  tier 2) cubre al país vía REGIÓN o confederación → decide el alcance de esa entrada;
+//  tier 3) internacional (todo el mundo) → decide el alcance total del medio.
+// Devuelve { tier, reach } o null si el medio no cubre a esta selección.
+function mediaRankForTeam(m, t){
+  const entries = mediaCoverageEntries(m);
+  if(!entries.length) return { tier:3, reach: mediaTotalReachM(m) };   // sin cobertura → internacional (compat)
+  const tn = normLoose(t.name), ton = normLoose(t.officialName), tconf = normLoose(t.conf);
+  const names = new Set([tn, ton]); const al = COUNTRY_MEDIA_ALIAS[tn]; if(al) names.add(normLoose(al));
+  const regions = regionIndex(), confIdx = confLabelIndex();
+  const reachMap = mediaReachMapFor(m);
+  let countryReach = -1, regionReach = -1, intl = false;
+  for(const raw of entries){
+    const e = normLoose(raw);
+    const er = reachMap[e]!=null ? reachMap[e] : 0;
+    if(!e || e==="internacional" || e==="mundial" || e==="global"){ intl = true; continue; }
+    const reg = regions[e];
+    if(reg){ let hit=false; for(const nm of names){ if(reg.has(nm)){ hit=true; break; } } if(hit) regionReach = Math.max(regionReach, er); continue; }
+    if((confIdx[e] && confIdx[e]===tconf) || e===tconf){ regionReach = Math.max(regionReach, er); continue; }
+    if(names.has(e)) countryReach = Math.max(countryReach, er);   // país explícito (incluye alias país→medio)
+  }
+  if(countryReach >= 0) return { tier:1, reach: countryReach };
+  if(regionReach  >= 0) return { tier:2, reach: regionReach };
+  if(intl)              return { tier:3, reach: mediaTotalReachM(m) };
+  return null;   // el medio tiene cobertura pero no incluye a esta selección
+}
+// Compat: ¿el medio cubre a la selección? (país/región/confederación → local; internacional → intl).
+// Se conserva para pruebas y para cualquier código que solo pregunte "sí/no". El ORDEN lo maneja
+// mediaRankForTeam (ver outletsFor).
+// Lista ordenada de medios (solo "Fuente de noticias") por prioridad de cobertura; dentro de cada
+// nivel, mayor alcance primero. Al final, el resto como respaldo para que siempre haya medios.
+function outletsFor(t){
+  const pool = (DATA.media||[]).filter(m=>m.newsSource!==false);
+  const covered = [], rest = [];
+  pool.forEach(m=>{
+    const r = mediaRankForTeam(m, t);
+    if(!r){ rest.push(m); return; }
+    covered.push({ m, tier:r.tier, reach:r.reach||0 });
+  });
+  covered.sort((a,b)=> a.tier-b.tier || b.reach-a.reach);
+  rest.sort((a,b)=> (mediaTotalReachM(b)||0)-(mediaTotalReachM(a)||0));
+  const ordered = covered.map(x=>x.m).concat(rest);
+  return ordered.length ? ordered : pool.slice();
 }
 const NEWS_DATE = "1 de junio de 2026";
 function currentOutlet(t){
@@ -1024,6 +1157,15 @@ function pickNewsVersions(kind, poolLen, count){
     state.newsPick[kind] = { pool:poolLen, idxs: newsShuffle(Array.from({length:poolLen},(_,k)=>k)).slice(0, need) };
   }
   return state.newsPick[kind].idxs;
+}
+// Orden ALEATORIO (pero estable) en que se presentan los `n` medios de una tanda. Se guarda en el
+// estado, así al salir y volver salen los mismos medios en el mismo orden; cada tanda (primera /
+// convocatoria) tiene su propio orden independiente.
+function pickOutletOrder(kind, n){
+  state.newsOrder = state.newsOrder || {};
+  const cur = state.newsOrder[kind];
+  if(!cur || cur.n!==n){ state.newsOrder[kind] = { n, ord: newsShuffle(Array.from({length:n},(_,k)=>k)) }; }
+  return state.newsOrder[kind].ord;
 }
 // Gentilicio con género (para "El entrenador argentino" / "La entrenadora argentina", etc.).
 function genderDemonym(dem, gender){
@@ -1092,7 +1234,7 @@ function firstNewsVersion(t, v){
         b:`No hay margen de error. El cuerpo técnico de ${SEL} trabaja contrarreloj para definir a los ${N} jugadores rumbo al Mundial 2026.` },
       { h:`¿Quiénes estarán? ${pais} se prepara para conocer su lista mundialista`,
         b:`Faltan pocas horas para el anuncio oficial. ${NM} tiene la última palabra sobre los ${N} elegidos de ${SEL}.` },
-      { h:`La Federación de ${pais} confirma fecha para el anuncio de convocados`,
+      { h:`La ${fed} confirma fecha para el anuncio de convocados`,
         b:`Todo está listo para el gran anuncio. ${NM} dará a conocer los nombres que vestirán la camiseta de ${SEL} en el Mundial.` },
       { h:`Decisiones de último momento marcan la lista de ${nm}`,
         b:`Lesiones, forma física y estrategia: los factores que ${G('el entrenador','la entrenadora')} ${nac} evalúa antes de anunciar a los ${N} convocados de ${SEL}.` },
@@ -1109,7 +1251,7 @@ function firstNewsVersion(t, v){
   return V[((v%V.length)+V.length)%V.length];
 }
 // Tarjeta de noticia reutilizable (un medio + su titular/cuerpo), con paginador opcional.
-function newsCardHTML(t, m, headline, lede, pager, extraHTML){
+function newsCardHTML(t, m, headline, lede, pager, photoHTML){
   const pagerHTML = (pager && pager.total>1) ? `<div class="outlet-pager">
     <button class="pager-btn" data-act="outlet-prev" aria-label="Medio anterior">‹</button>
     <span class="pager-count mono">${pager.idx+1}/${pager.total}</span>
@@ -1117,15 +1259,19 @@ function newsCardHTML(t, m, headline, lede, pager, extraHTML){
   </div>` : "";
   return `<article class="news-paper" style="--outlet-1:${m.color1};--outlet-2:${m.color2};--outlet-3:${m.color3||'#fff'}">
     <header class="news-masthead">
-      <div class="news-logo">${m.logoImg?`<img src="${m.logoImg}" alt="${esc(m.name)}">`:`<span class="news-wordmark">${esc(m.name)}</span>`}</div>
+      <div class="news-logo${m.logoNewsVert?' is-vertical':''}">${(m.logoNews||m.logoImg)?`<img src="${m.logoNews||m.logoImg}" alt="${esc(m.name)}">`:`<span class="news-wordmark">${esc(m.name)}</span>`}</div>
       <div class="spacer"></div>
       <span class="news-live">Última hora</span>
     </header>
     <div class="news-body">
       <div class="news-kicker">${flagImgHTML(t.flag||t.iso, t.name)} Selección de ${esc(t.name)}</div>
       <h1 class="news-headline">${esc(headline)}.</h1>
-      <p class="news-lede">${lede}</p>
-      ${extraHTML||""}
+      <div class="news-cols" style="display:flex;gap:18px;align-items:flex-start;margin-top:12px;">
+        <div style="flex:1;min-width:0;">
+          <p class="news-lede" style="margin-top:0;">${lede}</p>
+        </div>
+        ${photoHTML ? `<div style="flex:0 0 auto;">${photoHTML}</div>` : ""}
+      </div>
     </div>
     <footer class="news-foot"><span class="byline">${esc(NEWS_DATE)}</span><div class="spacer"></div>${pagerHTML}</footer>
   </article>`;
@@ -1134,14 +1280,17 @@ function newsCardHTML(t, m, headline, lede, pager, extraHTML){
 function newsOutlets(t){ return outletsFor(t).slice(0,3); }
 function screenNews(){
   const t = team();
-  const outlets = newsOutlets(t);
-  const total = outlets.length || 1;
+  const ranked = newsOutlets(t);                     // hasta 3 medios, por prioridad de cobertura
+  const total = ranked.length || 1;
+  const kind = state.coachMode==="custom" ? "custom" : "real";
+  const key = "first-"+kind+":"+t.id;               // estable POR EQUIPO (otra selección → se re-baraja)
+  const order = pickOutletOrder(key, total);         // orden ALEATORIO estable
+  const outlets = order.map(i=>ranked[i]).filter(Boolean);
   const idx = ((state.outletCycle % total)+total)%total;
   const m = outlets[idx] || outlets[0];
   if(m) state.mediaId = m.id;
-  const kind = state.coachMode==="custom" ? "custom" : "real";
   const poolLen = kind==="custom" ? 12 : 13;
-  const picks = pickNewsVersions("first-"+kind, poolLen, total);
+  const picks = pickNewsVersions(key, poolLen, total);
   const v = picks[((idx%picks.length)+picks.length)%picks.length];
   const nv = firstNewsVersion(t, v);
   return shell("s-news", `
@@ -1154,7 +1303,7 @@ function screenNews(){
       ${stepper("news")}
     </div>
     <div class="news-stage">
-      ${m ? newsCardHTML(t, m, nv.h, nv.b, {idx,total}) : ""}
+      ${m ? newsCardHTML(t, m, nv.h, nv.b, {idx,total}, (typeof newsPhotoTraining==="function") ? newsPhotoTraining(coachNewsPhoto(), (t.logoImg||t.flag||null), 300, coachInfo().gender) : "") : ""}
     </div>
     ${flowFooter({act:"to-coach"}, {act:"to-tactics"})}
   `);
@@ -1499,13 +1648,15 @@ function cvPlayerCells(p){
   const posShown = visibles.slice(0,4).join(", ") + (visibles.length>4 ? " …" : "");
   const posTitle = visibles.join(", ");
   const club = (typeof getClubByName==="function" && p.club) ? getClubByName(p.club) : null;
-  const clubName = (club && club.commonName) ? club.commonName : (p.club || "");
+  // Nombre del club: SIEMPRE el nombre COMÚN. Se recorta con "…" por CSS si no cabe; el tooltip (mismo
+  // nombre común) solo aparece cuando de verdad está recortado (lo activa applyTruncationTitles).
+  const clubCommon = club ? (club.commonName || p.club || "") : (p.club || "");
   const clubCell = p.club
-    ? `<span class="cv-clubin">${(typeof clubLogoIconHTML==="function")?clubLogoIconHTML(club):""}<span class="cv-clubname">${esc(clubName)}</span></span>`
+    ? `<span class="cv-clubin">${(typeof clubLogoIconHTML==="function")?clubLogoIconHTML(club):""}<span class="cv-clubname" data-full="${esc(clubCommon)}">${esc(clubCommon)}</span></span>`
     : `<span class="cv-clubname">—</span>`;
   return `
-    <span class="cv-jug"><span class="cv-photo">${personPhotoHTML(p.photo, p.gender)}</span><span class="cv-name">${pNameHTML(p)}</span></span>
-    <span class="cv-pos">${posChipHTML(p.pos)}${posShown?`<span class="cv-poslist" title="${esc(posTitle)}">${posShown}</span>`:""}</span>
+    <span class="cv-jug"><span class="cv-photo">${personPhotoHTML(p.photo, p.gender)}</span><span class="cv-name" data-full="${esc(pName(p))}">${pNameHTML(p)}</span></span>
+    <span class="cv-pos">${posChipHTML(p.pos)}${posShown?`<span class="cv-poslist" data-full="${esc(posTitle)}">${posShown}</span>`:""}</span>
     <span class="cv-c l cv-club">${clubCell}</span>
     <span class="cv-c">${ageOf(p)}</span>
     <span class="cv-c">${p.caps!=null?p.caps:0}</span>
@@ -1554,9 +1705,9 @@ function squadTableHTML(rmap){
   const groups = ["FW","MF","DF","GK"].map(pos=>{
     const arr = (byPos[pos]||[]).sort((a,b)=>a.n-b.n);
     if(!arr.length) return "";
-    const chips = arr.map(x=>`<div class="dp-chip">
+    const chips = arr.map(x=>`<div class="dp-chip" title="${esc(pName(x.p))}">
       <span class="num-badge">${x.n}</span>
-      <span class="dp-name">${pNameHTML(x.p)}</span>
+      <span class="dp-name">${esc(pInitialLast(x.p))}</span>
     </div>`).join("");
     return `<div class="dp-sec">
       <div class="dp-sec-head">${posChipHTML(pos)}<span>${esc(POS_ES[pos])}</span></div>
@@ -1606,7 +1757,7 @@ function depthChartHTML(rmap){
         return true;
       });
       list.sort((a,b)=> depthBestValue(b.p,col.codes)-depthBestValue(a.p,col.codes) || (b.p.rating||0)-(a.p.rating||0));
-      const chips = list.map(({num,p})=>`<div class="dp-chip"><span class="num-badge">${num}</span><span class="dp-name">${pNameHTML(p)}</span></div>`).join("");
+      const chips = list.map(({num,p})=>`<div class="dp-chip" title="${esc(pName(p))}"><span class="num-badge">${num}</span><span class="dp-name">${esc(pInitialLast(p))}</span></div>`).join("");
       return `<div class="dp-col">
         <div class="dp-col-label">${esc(col.label)}</div>
         <div class="dp-stack">${chips || `<div class="dp-empty">—</div>`}</div>
@@ -1710,10 +1861,36 @@ function squadInfo(t){
   const top = byRating.slice(0,3);
   const topIds = new Set(top.map(p=>p.id));
   const promise = players.slice().sort((a,b)=>(b.ratingPotential||0)-(a.ratingPotential||0)).filter(p=>!topIds.has(p.id))[0] || byRating[0];
-  const bestOf = cat => players.filter(p=>p.pos===cat).sort((a,b)=>(b.rating||0)-(a.rating||0))[0] || byRating[0];
+  // Posición PRINCIPAL de un jugador = el código con mayor valor en p.positions (si trae ese dato).
+  const primaryCode = p => {
+    if(!p.positions) return null;
+    let best=null, bv=-1;
+    for(const c in p.positions){ const v=+p.positions[c]||0; if(v>bv){ bv=v; best=c; } }
+    return best;
+  };
+  // Mejor por LÍNEA: se filtra SIEMPRE por la categoría del jugador (p.pos: FW/MF/DF), que es el dato
+  // fiable y presente en todos; dentro de esa categoría se PREFIERE a quien tenga la posición específica
+  // pedida como principal (ST/CF; CM/CDM/CAM; LB/LWB/RWB/CB/RB) y luego por rating. Así nunca se elige a
+  // un jugador de otra línea (p. ej. un delantero como "mejor defensa"). Un set evita repetidos.
+  const usedLine = new Set();
+  const pickLine = (codes, cat)=>{
+    const set = new Set(codes);
+    let list = players.filter(p=> !usedLine.has(p.id) && p.pos===cat);
+    if(!list.length) list = players.filter(p=> !usedLine.has(p.id));   // respaldo final (raro)
+    list.sort((a,b)=>{
+      const as = set.has(primaryCode(a)) ? 1 : 0, bs = set.has(primaryCode(b)) ? 1 : 0;
+      if(bs!==as) return bs-as;
+      return (b.rating||0)-(a.rating||0);
+    });
+    const ch = list[0] || null; if(ch) usedLine.add(ch.id); return ch;
+  };
+  const bestFW  = pickLine(["ST","CF"], "FW");
+  const bestMF  = pickLine(["CM","CDM","CAM"], "MF");
+  const bestMF2 = pickLine(["CM","CDM","CAM"], "MF");
+  const bestDF  = pickLine(["LB","LWB","RWB","CB","RB"], "DF");
   const groups = { GK:[], DF:[], MF:[], FW:[] };
   items.slice().sort((a,b)=>a.n-b.n).forEach(({p})=>{ if(groups[p.pos]) groups[p.pos].push(p); });
-  return { n:players.length, top, promise, bestFW:bestOf("FW"), bestMF:bestOf("MF"), bestDF:bestOf("DF"), groups };
+  return { n:players.length, top, promise, bestFW, bestMF, bestMF2, bestDF, groups };
 }
 // Lista de convocados por líneas, integrada como parte del MISMO cuerpo de la nota
 // (misma tipografía), no como un apartado aparte.
@@ -1727,7 +1904,8 @@ function squadListInline(t){
     return `<b>${label}:</b> ${names}.`;
   }).filter(Boolean);
   if(!lines.length) return "";
-  return `<br><br>` + lines.join("<br>");
+  // Tipografía más pequeña para que la lista completa quepa sin cortarse.
+  return `<span style="display:block;margin-top:12px;font-size:11px;line-height:1.5;">` + lines.join("<br>") + `</span>`;
 }
 // Genera {h,b} (titular + cuerpo) del anuncio de la convocatoria (12 versiones).
 function squadNewsVersion(t, v){
@@ -1737,14 +1915,14 @@ function squadNewsVersion(t, v){
   const info = squadInfo(t);
   const bp = p => p ? `<b>${esc(pName(p))}</b>` : "sus figuras";
   const pp = p => p ? esc(pName(p)) : "sus figuras";
-  const d1 = bp(info&&info.bestFW), m1 = bp(info&&info.bestMF), def1 = bp(info&&info.bestDF), pot = bp(info&&info.promise);
+  const d1 = bp(info&&info.bestFW), m1 = bp(info&&info.bestMF), m2 = bp(info&&info.bestMF2), def1 = bp(info&&info.bestDF), pot = bp(info&&info.promise);
   const b1 = bp(info&&info.top[0]), b2 = bp(info&&info.top[1]), b3 = bp(info&&info.top[2]);
   const b1p = pp(info&&info.top[0]);
   const V = [
     { h:`${nm} da la lista: estos son los ${N} de ${sel} para el Mundial`,
       b:`La espera terminó en ${SEL}: con el Mundial 2026 a la vuelta de la esquina, ${NM} ya tiene definidos a sus ${N} elegidos.` },
     { h:`${nm} anuncia a los ${N} convocados de ${sel}`,
-      b:`${NM} despejó las dudas en ${SEL}. Los ${N} que viajarán al Mundial 2026 ya tienen nombre y apellido, con ${d1}, ${m1} y ${def1} como columna vertebral del equipo. La mirada también se posa en ${pot}, la joven perla llamada a dar el salto.` },
+      b:`${NM} despejó las dudas en ${SEL}. Los ${N} que viajarán al Mundial 2026 ya tienen nombre y apellido, con ${d1}, ${m1} y ${m2} como columna vertebral del equipo.` },
     { h:`Ya hay ${N}: ${nm} define el grupo de ${sel} para la cita mundialista`,
       b:`Es oficial: ${SEL} cierra su lista de ${N} para el Mundial 2026. ${NM} apuesta por la jerarquía de ${b1}, ${b2} y ${b3} para comandar al grupo.` },
     { h:`Oficial: estos son los ${N} que representarán a ${sel} en el Mundial`,
@@ -1770,12 +1948,15 @@ function squadNewsVersion(t, v){
 }
 function screenNews2(){
   const t = team();
-  const outlets = newsOutlets(t);
-  const total = outlets.length || 1;
+  const ranked = newsOutlets(t);                    // los MISMOS medios que la primera tanda
+  const total = ranked.length || 1;
+  const key = "squad:"+t.id;                        // estable POR EQUIPO
+  const order = pickOutletOrder(key, total);        // pero su propio orden ALEATORIO estable
+  const outlets = order.map(i=>ranked[i]).filter(Boolean);
   const idx = ((state.outletCycle % total)+total)%total;
   const m = outlets[idx] || outlets[0];
   if(m) state.mediaId = m.id;
-  const picks = pickNewsVersions("squad", 12, total);
+  const picks = pickNewsVersions(key, 12, total);
   const v = picks[((idx%picks.length)+picks.length)%picks.length];
   const nv = squadNewsVersion(t, v);
   return shell("s-news2", `
@@ -1788,7 +1969,7 @@ function screenNews2(){
       ${stepper("squad")}
     </div>
     <div class="news-stage">
-      ${m ? newsCardHTML(t, m, nv.h, nv.b + squadListInline(t), {idx,total}) : ""}
+      ${m ? newsCardHTML(t, m, nv.h, nv.b + squadListInline(t), {idx,total}, (typeof newsPhotoPresswall==="function") ? newsPhotoPresswall(coachNewsPhoto(), 300, coachInfo().gender) : "") : ""}
     </div>
     ${flowFooter({act:"to-squad"}, {act:"finish", label:"Comenzar el Mundial"})}
   `);

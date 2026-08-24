@@ -16,6 +16,22 @@
    forman parte de este módulo (paso 28).
    ========================================================= */
 
+// Lee la sección "Redes sociales" (medios/clubes/selecciones) desde el formulario abierto.
+// key = prefijo de ids (msoc/clsoc/tsoc). La imagen (f-<key>-avatar-data) ya trae la versión final:
+// la subida a mano o la generada automáticamente con logo+color (ver initSocialAvatarSection).
+function readSocial(key){
+  const v = id => { const e = document.getElementById("f-"+key+"-"+id); return e ? e.value : ""; };
+  return {
+    socialAvatar: v("avatar-data") || null,
+    socialAvatarManual: v("avatar-manual") === "1",
+    socialProfileName: v("profile").trim(),
+    socialUsername: v("username").replace(/[^A-Za-z0-9_]/g, "").slice(0, 15),
+    socialHashtag: v("hashtag").trim(),
+    socialAvatarLogo: v("avlogo") || null,
+    socialAvatarColor: (()=>{ const n = parseInt(v("avcolor")); return isNaN(n) ? 0 : n; })()
+  };
+}
+
 function handleAction(action, el){
   switch(action){
     case "goto-calendario": navigateTo("calendario", null); break;
@@ -578,7 +594,8 @@ function handleAction(action, el){
           .map(i=>{ const raw=i.value.trim(); if(!raw) return ""; const st=findStadiumByName(raw); return st? stadiumLinkName(st) : raw; })
           .filter(n=>{ if(!n || seen.has(normLoose(n))) return false; seen.add(normLoose(n)); return true; }); })(),
         trainingGround: document.getElementById("f-cl-training").value.trim(),
-        founded: (()=>{ const v=parseInt(document.getElementById("f-cl-founded").value); return (v>=1800&&v<=2100)?v:null; })()
+        founded: (()=>{ const v=parseInt(document.getElementById("f-cl-founded").value); return (v>=1800&&v<=2100)?v:null; })(),
+        ...readSocial("clsoc")
       };
       data.stadium = data.stadiums[0]||""; // el primero es el principal (compatibilidad)
       let prevStadiums = [];
@@ -661,7 +678,8 @@ function handleAction(action, el){
         stadiums: (()=>{ const seen=new Set(); return [...document.querySelectorAll("#club-stadium-rows .club-stadium-name")]
           .map(i=>{ const raw=i.value.trim(); if(!raw) return ""; const st=findStadiumByName(raw); return st? stadiumLinkName(st) : raw; })
           .filter(n=>{ if(!n || seen.has(normLoose(n))) return false; seen.add(normLoose(n)); return true; }); })(),
-        trainingGround: document.getElementById("f-t-training").value.trim()
+        trainingGround: document.getElementById("f-t-training").value.trim(),
+        ...readSocial("tsoc")
       };
       data.stadium = data.stadiums[0]||""; // el primero es el principal
       // Los estadios de la selección existen en el catálogo, pero sin registrarla como
@@ -903,7 +921,7 @@ function handleAction(action, el){
         links,
         global: links.some(l=>l.type==="tournament"),
         teamId: (links.find(l=>l.type==="team")||{}).id || null,
-        ...(()=>{ const vd=document.getElementById("f-slogo-vd-data").value||null, vl=document.getElementById("f-slogo-vl-data").value||null, hd=document.getElementById("f-slogo-hd-data").value||null, hl=document.getElementById("f-slogo-hl-data").value||null; const pr=(document.querySelector('input[name="sponsor-principal"]:checked')||{}).value||"horizontal"; return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoImg:(pr==="vertical"?(vd||hd):(hd||vd))||null }; })(),
+        ...(()=>{ const vd=document.getElementById("f-slogo-vd-data").value||null, vl=document.getElementById("f-slogo-vl-data").value||null, hd=document.getElementById("f-slogo-hd-data").value||null, hl=document.getElementById("f-slogo-hl-data").value||null; const pr=(document.getElementById("f-slogo-principal")||{}).value||"horizontal"; const gr=(document.getElementById("f-slogo-grafico")||{}).value||"hd"; const mainDark = pr==="vertical" ? (vd||hd||vl||hl) : (hd||vd||hl||vl); return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoGrafico:gr, logoImg: mainDark||null }; })(),
         color1: document.getElementById("f-scolor1").value,
         color2: document.getElementById("f-scolor2").value,
         color3: document.getElementById("f-scolor3").value
@@ -923,6 +941,79 @@ function handleAction(action, el){
     case "add-sponsor-cat-row": {
       const container = document.getElementById("sponsor-cat-rows");
       if(container) container.insertAdjacentHTML("beforeend", sponsorCategoryRowHTML(""));
+      break;
+    }
+    case "add-media-coverage-row": {
+      const container = document.getElementById("media-coverage-rows");
+      if(container) container.insertAdjacentHTML("beforeend", mediaCoverageRowHTML(""));
+      break;
+    }
+    case "add-region": {
+      const name = (prompt("Nombre de la nueva región:")||"").trim();
+      if(!name) break;
+      const R = getRegions();
+      if(Object.keys(R).some(k=>normLoose(k)===normLoose(name))){ alert("Ya existe una región con ese nombre."); break; }
+      R[name] = [];
+      if(typeof regionRecent!=="undefined") regionRecent.unshift(name);   // se muestra arriba
+      if(typeof regionOpen!=="undefined") regionOpen[name] = true;
+      persist();
+      // Insertar arriba en el sitio (sin cerrar el catálogo ni las demás regiones).
+      const list = document.getElementById("regions-list");
+      if(list){
+        list.insertAdjacentHTML("afterbegin", regionDetailsHTML(name, R[name], true));
+        const ni = document.querySelector('details.region-item[data-region="'+name+'"] .region-add-country');
+        if(ni) ni.focus();
+      } else { render(); }
+      break;
+    }
+    case "remove-region": {
+      const name = el.dataset.name;
+      const R = getRegions();
+      if(name in R){
+        delete R[name];
+        if(typeof regionOpen!=="undefined") delete regionOpen[name];
+        if(typeof regionRecent!=="undefined") regionRecent = regionRecent.filter(n=>n!==name);
+        persist();
+        const det = el.closest("details.region-item");
+        if(det) det.remove(); else render();
+      }
+      break;
+    }
+    case "add-region-country": {
+      const name = el.dataset.name;
+      const det = el.closest("details.region-item");
+      const input = det ? det.querySelector(".region-add-country") : null;
+      const val = input ? input.value.trim() : "";
+      if(!val) break;
+      const R = getRegions(); const arr = R[name] || (R[name]=[]);
+      if(!arr.some(c=>normLoose(c)===normLoose(val))) arr.push(val);
+      if(typeof regionOpen!=="undefined") regionOpen[name] = true;
+      persist();
+      // Reemplazar SOLO este bloque, dejándolo abierto (no cierra la región para poder seguir agregando).
+      if(det){
+        det.outerHTML = regionDetailsHTML(name, R[name], true);
+        const ni = document.querySelector('details.region-item[data-region="'+name+'"] .region-add-country');
+        if(ni) ni.focus();
+      } else { render(); }
+      break;
+    }
+    case "remove-region-country": {
+      const name = el.dataset.name, country = el.dataset.country;
+      const R = getRegions(); const arr = R[name];
+      if(Array.isArray(arr)){
+        const i = arr.findIndex(c=>normLoose(c)===normLoose(country));
+        if(i>=0) arr.splice(i,1);
+        if(typeof regionOpen!=="undefined") regionOpen[name] = true;
+        persist();
+        const det = el.closest("details.region-item");
+        if(det){ det.outerHTML = regionDetailsHTML(name, R[name], true); }
+        else render();
+      }
+      break;
+    }
+    case "remove-media-coverage-row": {
+      const row = el.closest(".media-coverage-row");
+      if(row) row.remove();
       break;
     }
     case "remove-sponsor-cat-row": {
@@ -965,15 +1056,45 @@ function handleAction(action, el){
       const id = el.dataset.id;
       const name = document.getElementById("f-mname").value.trim();
       if(!name){ alert("El nombre es obligatorio"); return; }
+      const mCats = [...document.querySelectorAll('input[name="media-cat"]:checked')].map(c=>c.value);
+      // Cada fila de cobertura aporta su nombre y su alcance (millones). Se quitan duplicados por
+      // nombre (se conserva el alcance de la primera aparición). coverageReach = { nombre: millones }.
+      const mCovReach = {};
+      const mCov = (()=>{ const seen=new Set(); const out=[];
+        [...document.querySelectorAll("#media-coverage-rows .media-coverage-row")].forEach(row=>{
+          const nm = ((row.querySelector(".media-coverage-name")||{}).value||"").trim();
+          if(!nm) return; const k=normLoose(nm); if(seen.has(k)) return; seen.add(k);
+          const rv = (row.querySelector(".media-coverage-reach")||{}).value;
+          out.push(nm); mCovReach[nm] = Math.max(0, parseInt(rv)||0);
+        });
+        return out; })();
+      const mReachTotal = Object.keys(mCovReach).reduce((s,k)=>s+(mCovReach[k]||0), 0);
       const data = {
         name,
-        type: document.getElementById("f-mtype").value,
-        country: document.getElementById("f-mcountry").value.trim(),
-        reach: Math.max(0, parseInt(document.getElementById("f-mreach").value)||0),
-        ...(()=>{ const vd=document.getElementById("f-mlogo-vd-data").value||null, vl=document.getElementById("f-mlogo-vl-data").value||null, hd=document.getElementById("f-mlogo-hd-data").value||null, hl=document.getElementById("f-mlogo-hl-data").value||null; const pr=(document.querySelector('input[name="media-principal"]:checked')||{}).value||"horizontal"; return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoImg:(pr==="vertical"?(vd||hd):(hd||vd))||null }; })(),
+        categories: mCats,
+        type: mCats[0] || null,   // compatibilidad con código que aún lee `type`
+        newsSource: document.getElementById("f-mnews").checked,
+        coverage: mCov,
+        coverageReach: mCovReach,
+        country: mCov[0] || "",   // compatibilidad con código que aún lee `country`
+        reach: mReachTotal,       // alcance total = suma de los alcances por cobertura
+        ...(()=>{ const vd=document.getElementById("f-mlogo-vd-data").value||null, vl=document.getElementById("f-mlogo-vl-data").value||null, hd=document.getElementById("f-mlogo-hd-data").value||null, hl=document.getElementById("f-mlogo-hl-data").value||null; const pr=(document.getElementById("f-mlogo-principal")||{}).value||"horizontal"; const gr=(document.getElementById("f-mlogo-grafico")||{}).value||"hd"; const mainDark = pr==="vertical" ? (vd||hd||vl||hl) : (hd||vd||hl||vl); return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoGrafico:gr, logoImg: mainDark||null }; })(),
         color1: document.getElementById("f-mcolor1").value,
         color2: document.getElementById("f-mcolor2").value,
-        color3: document.getElementById("f-mcolor3").value
+        color3: document.getElementById("f-mcolor3").value,
+        ...readSocial("msoc"),
+        // Perfiles de redes sociales por valor de cobertura (país/región/…). Solo se guardan los que
+        // el usuario personalizó (con nombre de perfil, usuario, hashtag o imagen manual); el resto
+        // usará el perfil por defecto al consultarse (ver mediaSocialProfile).
+        socialByCoverage: (()=>{
+          const out = {};
+          document.querySelectorAll("#media-social [data-social-cov], .form-grid [data-social-cov]").forEach(el=>{
+            const cov = el.getAttribute("data-social-cov"); if(!cov) return;
+            const p = readSocial(el.getAttribute("data-social-key"));
+            if(p.socialProfileName || p.socialUsername || p.socialHashtag || p.socialAvatarManual) out[cov] = p;
+          });
+          return out;
+        })()
       };
       if(id){ Object.assign(DB.media.find(m=>m.id===id), data); }
       else { DB.media.push({id:newId("md"), ...data}); }
@@ -1566,7 +1687,10 @@ function handleAction(action, el){
         owner: owner || "",
         teams,
         worldCup: document.getElementById("f-st-wc").checked,
-        isTraining: document.getElementById("f-st-training").checked
+        isTraining: document.getElementById("f-st-training").checked,
+        imgExterior: document.getElementById("f-st-ext-data").value || null,
+        imgInterior: document.getElementById("f-st-int-data").value || null,
+        standColor: (document.getElementById("f-st-stand")||{}).value || "#B00010"
       };
       // Si el estadio/instalación pertenece a un club (dueño) y no se escribió país o ciudad,
       // hereda el país y la ciudad del club dueño.
