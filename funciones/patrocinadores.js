@@ -48,7 +48,7 @@ function ensureApparelBrandSponsor(name, opts){
     return sp;
   }
   sp = { id:newId("sp"), name:nm, categories:[APPAREL_CATEGORY], value: opts.value!=null?opts.value:40,
-         teamId:null, global: !!opts.global, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF" };
+         teamId:null, global: !!opts.global, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", logoGrafico:"hd", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF" };
   if(!DB.sponsors) DB.sponsors = [];
   DB.sponsors.push(sp);
   return sp;
@@ -218,19 +218,39 @@ function renderPatrocinadores(){
 }
 
 // Logo pequeño para patrocinadores y medios — mismo estilo/tamaño que los logos de equipos.
-// Logo para fondo OSCURO (el que usa casi toda la interfaz) en la orientación marcada como principal,
-// con respaldos: otra orientación oscura → logoImg heredado.
-function brandLogoDark(entity){
-  if(!entity) return null;
-  const pr = entity.logoPrincipal || "horizontal";
-  const vd = entity.logoVDark || null, hd = entity.logoHDark || null;
-  const primary = pr==="vertical" ? (vd || hd) : (hd || vd);
-  return primary || entity.logoImg || null;
+// Devuelve el archivo de logo por orientación ('h'|'v') y fondo ('d'|'l'), o null.
+function logoSlot(e, orient, bg){
+  const key = (orient==="v" ? "logoV" : "logoH") + (bg==="l" ? "Light" : "Dark");
+  return e[key] || null;
+}
+// LOGO PRINCIPAL (uso general de la interfaz). Elige la orientación marcada como principal e intenta el
+// fondo pedido (por defecto oscuro); si esa versión no existe, cae al otro fondo, y luego a la otra
+// orientación. Así, si solo hay un logo cargado se usa ese, y si en un lugar de fondo claro solo hay
+// versión de fondo oscuro (o viceversa), se usa la que exista.
+function brandLogoMain(e, bg){
+  if(!e) return null;
+  bg = (bg==="l") ? "l" : "d";
+  const pr = (e.logoPrincipal==="vertical") ? "v" : "h";
+  const alt = pr==="v" ? "h" : "v";
+  const altBg = bg==="d" ? "l" : "d";
+  return logoSlot(e,pr,bg) || logoSlot(e,pr,altBg) || logoSlot(e,alt,bg) || logoSlot(e,alt,altBg) || e.logoImg || null;
+}
+// LOGO EN GRÁFICOS (noticias / cuando el patrocinador se usa en gráficos). Usa exactamente la variante
+// elegida (hd|hl|vd|vl); si esa no está cargada, cae a la misma orientación en el otro fondo, luego a
+// la otra orientación. Por defecto "hd" (Horizontal — fondo oscuro).
+function brandLogoGraphic(e){
+  if(!e) return null;
+  const g = e.logoGrafico || "hd";
+  const orient = g.charAt(0)==="v" ? "v" : "h";
+  const bg = g.charAt(1)==="l" ? "l" : "d";
+  const alt = orient==="v" ? "h" : "v";
+  const altBg = bg==="d" ? "l" : "d";
+  return logoSlot(e,orient,bg) || logoSlot(e,orient,altBg) || logoSlot(e,alt,bg) || logoSlot(e,alt,altBg) || e.logoImg || null;
 }
 function brandLogoHTML(entity, sizePx){
   const s = sizePx || 40;
   const style = `width:${s}px;height:${s}px;`;
-  const src = brandLogoDark(entity);
+  const src = brandLogoMain(entity);
   if(src){
     return `<div class="crest-mini has-img" style="${style}"><img src="${src}" alt="${escapeHtml(entity.name||'')}"></div>`;
   }
@@ -247,7 +267,7 @@ function sponsorCategoryRowHTML(value){
 }
 function modalAddEditSponsor(sponsor){
   const isEdit = !!sponsor;
-  sponsor = sponsor || {id:null, name:"", categories:[], value:50, teamId:null, global:false, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF"};
+  sponsor = sponsor || {id:null, name:"", categories:[], value:50, teamId:null, global:false, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", logoGrafico:"hd", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF"};
   // Compatibilidad: si solo existe el logo heredado, se muestra como "Horizontal — fondo oscuro".
   if(sponsor.logoImg && !sponsor.logoVDark && !sponsor.logoHDark && !sponsor.logoVLight && !sponsor.logoHLight){ sponsor = Object.assign({}, sponsor, {logoHDark: sponsor.logoImg}); }
   const cats = sponsorCategoriesOf(sponsor);
@@ -276,10 +296,18 @@ function modalAddEditSponsor(sponsor){
               ${imageUploadFieldCol("Horizontal — fondo oscuro", "slogo-hd", sponsor.logoHDark, "")}
               ${imageUploadFieldCol("Horizontal — fondo claro", "slogo-hl", sponsor.logoHLight, "")}
             </div>
-            <div style="display:flex;align-items:center;gap:18px;font-size:12px;color:var(--muted);font-weight:600;">
-              <span>Logo principal:</span>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;"><input type="radio" name="sponsor-principal" value="horizontal" style="width:auto;" ${((sponsor.logoPrincipal||'horizontal')==='horizontal')?'checked':''}> Horizontal</label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;"><input type="radio" name="sponsor-principal" value="vertical" style="width:auto;" ${(sponsor.logoPrincipal==='vertical')?'checked':''}> Vertical</label>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+              <label class="field" style="flex:1 1 200px;">Logo principal
+                <select id="f-slogo-principal">
+                  <option value="horizontal" ${((sponsor.logoPrincipal||'horizontal')==='horizontal')?'selected':''}>Horizontal</option>
+                  <option value="vertical" ${(sponsor.logoPrincipal==='vertical')?'selected':''}>Vertical</option>
+                </select>
+              </label>
+              <label class="field" style="flex:1 1 200px;">Logo en gráficos
+                <select id="f-slogo-grafico">
+                  ${[["hd","Horizontal — fondo oscuro"],["hl","Horizontal — fondo claro"],["vd","Vertical — fondo oscuro"],["vl","Vertical — fondo claro"]].map(([v,l])=>`<option value="${v}" ${((sponsor.logoGrafico||'hd')===v)?'selected':''}>${l}</option>`).join("")}
+                </select>
+              </label>
             </div>
           </div>
 

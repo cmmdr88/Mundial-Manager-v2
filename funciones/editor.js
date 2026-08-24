@@ -142,6 +142,17 @@ function renderEditor(){
     </div>
   </div>
 
+  <details class="region-catalog">
+    <summary class="section-title" style="cursor:pointer;list-style:none;"><h2>Catálogo de regiones <span style="font-size:13px;color:var(--muted);font-weight:400;">▾</span></h2><span class="hint">Grupos de países para definir la cobertura de medios — se pueden agregar o quitar</span></summary>
+    <div class="card">
+      <div style="margin-bottom:10px;"><button class="btn gold sm" data-action="add-region">+ Agregar región</button></div>
+      <div id="regions-list">
+        ${(()=>{ const R=getRegions(); const all=Object.keys(R); const recent=(typeof regionRecent!=="undefined"?regionRecent:[]).filter(n=>n in R); const rest=all.filter(n=>!recent.includes(n)).sort((a,b)=>a.localeCompare(b,'es')); const ordered=[...recent,...rest]; const open=(typeof regionOpen!=="undefined"?regionOpen:{}); return ordered.length ? ordered.map(n=>regionDetailsHTML(n, R[n], !!open[n])).join("") : `<p style="font-size:12.5px;color:var(--muted);margin:0;">Sin regiones. Usa «Agregar región».</p>`; })()}
+      </div>
+      <datalist id="region-country-list">${(DB.countries||[]).map(c=>`<option value="${escapeHtml(c.commonName||'')}">`).join("")}</datalist>
+    </div>
+  </details>
+
   <div class="section-title"><h2>Historial de cambios</h2><span class="hint">Últimos ${HISTORY_MAX} guardados en la base — eliminar uno la revierte a como estaba antes de ese cambio</span></div>
   <div class="card">
     ${HISTORY.length ? `
@@ -183,4 +194,35 @@ function renderEditor(){
     </div>
   </div>
   `;
+}
+
+// Estado efímero del editor de regiones: `regionRecent` = nombres recién agregados (se muestran
+// arriba) y `regionOpen` = regiones que deben renderizarse abiertas. Se limpian al cambiar de pestaña
+// (regionEditorReset, llamado desde navigateTo), así el orden vuelve a ser alfabético.
+var regionRecent = [];
+var regionOpen = {};
+function regionEditorReset(){ regionRecent = []; regionOpen = {}; }
+
+// Un renglón colapsable por región (nombre + lista de países editable).
+function regionDetailsHTML(name, countries, open){
+  countries = Array.isArray(countries) ? countries : [];
+  const chips = countries.length
+    ? countries.map(c=>`<span class="badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);color:var(--ink);margin:0 6px 6px 0;padding:4px 8px;border-radius:20px;font-size:12px;">${escapeHtml(c)}<button class="btn danger sm" data-action="remove-region-country" data-name="${escapeHtml(name)}" data-country="${escapeHtml(c)}" style="padding:0 6px;line-height:1.4;">✕</button></span>`).join("")
+    : `<span class="hint" style="font-size:12px;">Sin países todavía.</span>`;
+  return `
+  <details class="region-item" data-region="${escapeHtml(name)}" ${open?'open':''} style="border:1px solid var(--line);border-radius:8px;margin-bottom:8px;padding:8px 12px;">
+    <summary style="cursor:pointer;display:flex;align-items:center;gap:10px;list-style:none;">
+      <b style="font-family:'Space Grotesk',sans-serif;">${escapeHtml(name)}</b>
+      <span class="hint" style="font-size:11px;">${countries.length} ${countries.length===1?'país':'países'}</span>
+      <span style="flex:1;"></span>
+      <button class="btn danger sm" data-action="remove-region" data-name="${escapeHtml(name)}" onclick="event.preventDefault();" style="flex-shrink:0;">Quitar región</button>
+    </summary>
+    <div style="padding:10px 2px 2px;">
+      <div style="display:flex;flex-wrap:wrap;">${chips}</div>
+      <div style="margin-top:10px;display:flex;gap:6px;align-items:center;">
+        <input class="region-add-country" list="region-country-list" data-name="${escapeHtml(name)}" placeholder="Agregar país…" style="flex:1;max-width:280px;">
+        <button class="btn ghost sm" data-action="add-region-country" data-name="${escapeHtml(name)}">Agregar país</button>
+      </div>
+    </div>
+  </details>`;
 }

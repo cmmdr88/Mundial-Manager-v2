@@ -387,7 +387,7 @@ function modalAddEditClub(club){
   const isEdit = !!club;
   club = club || {id:null, fullName:"", officialName:"", commonName:"", shortName:"", code:"", codeAlt:"",
     nicknames:[], city:"", country:"", league:"", logoImg:"", logoImgLight:"", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF",
-    stadium:"", stadiums:[], trainingGround:"", kitSponsor:""};
+    stadium:"", stadiums:[], trainingGround:"", kitSponsor:"", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialHashtag:"", socialAvatarLogo:"dark", socialAvatarColor:0};
   openModal(`
     <div class="modal-box">
       <div class="modal-head"><h2>${isEdit?"Editar club":"Agregar club"}</h2><button class="modal-close" data-action="close-modal">×</button></div>
@@ -483,6 +483,12 @@ function modalAddEditClub(club){
           <label class="field">Año de fundación
             <input id="f-cl-founded" type="number" min="1800" max="2100" value="${club.founded!=null?club.founded:''}" placeholder="Ej. 1886">
           </label>
+
+          ${socialSectionHTML("clsoc", club, {
+            logoOptions: [["dark","Logo oscuro"],["light","Logo claro"]],
+            logos: { dark: club.logoImg||"", light: club.logoImgLight||club.logoImg||"" },
+            colors: [club.color1||"#4F46E5", club.color2||"#15161D", club.color3||"#FFFFFF"]
+          })}
         </div>
       </div>
       <div class="modal-foot">

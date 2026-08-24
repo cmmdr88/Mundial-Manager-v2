@@ -441,6 +441,19 @@ function renderEventoDetail(){
   <div class="section-title"><h2>Uniformes de árbitros del torneo</h2><button class="btn ghost sm" data-action="manage-kits" data-team="${REFEREE_KIT_TEAM_ID}">Editar uniformes</button></div>
   ${refereeKitsCardHTML()}
 
+  ${(typeof getPressWall==="function") ? `
+  <div class="section-title"><h2>Press Wall</h2><span class="hint">Muro de patrocinadores para las fotos de prensa — asigna una marca a cada uno de los 16 espacios (se usa el «Logo en gráficos» de cada patrocinador). Los cambios se ven al instante.</span></div>
+  <div class="card">
+    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;">
+      <div>${pressWallComposeHTML(440)}</div>
+      <div style="flex:1;min-width:300px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 14px;">
+          ${getPressWall().map((name,i)=>`<label class="field" style="flex-direction:row;align-items:center;gap:8px;font-size:12px;margin:0;"><b style="width:20px;color:var(--muted);text-align:right;flex-shrink:0;">${i+1}</b><select data-action="set-presswall-slot" data-slot="${i}" style="flex:1;min-width:0;">${pressWallSponsorOptions(name)}</select></label>`).join("")}
+        </div>
+      </div>
+    </div>
+  </div>` : ""}
+
   <div class="section-title"><h2>Historial</h2><button class="btn ghost sm" data-action="edit-event-general">Editar historial</button></div>
   ${(ev.history&&ev.history.length)?`
   <div class="card" style="padding:0;overflow:hidden;">

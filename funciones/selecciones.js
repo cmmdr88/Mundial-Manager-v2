@@ -297,7 +297,7 @@ function squadSortChip(label, key){
 
 function modalAddEditTeam(team){
   const isEdit = !!team;
-  team = team || {id:null, officialName:"", commonName:"", shortName:"", fifaCode:"", iocCode:"", conf:"UEFA", group:"", host:false, color1:"#4F46E5", color2:"#15161D", awayColor1:"#FFFFFF", awayColor2:"#15161D", kitSponsor:"", logoImg:"", logoImgLight:"", kitHomeImg:"", kitAwayImg:"", stadium:"", stadiums:[], trainingGround:""};
+  team = team || {id:null, officialName:"", commonName:"", shortName:"", fifaCode:"", iocCode:"", conf:"UEFA", group:"", host:false, color1:"#4F46E5", color2:"#15161D", awayColor1:"#FFFFFF", awayColor2:"#15161D", kitSponsor:"", logoImg:"", logoImgLight:"", kitHomeImg:"", kitAwayImg:"", stadium:"", stadiums:[], trainingGround:"", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialHashtag:"", socialAvatarLogo:"dark", socialAvatarColor:0};
   openModal(`
     <div class="modal-box">
       <div class="modal-head"><h2>${isEdit?"Editar selección":"Agregar selección"}</h2><button class="modal-close" data-action="close-modal">×</button></div>
@@ -383,6 +383,12 @@ function modalAddEditTeam(team){
           <div class="subhead">${T('team.section.rankings')}</div>
           <label class="field">${T('team.fifaPoints.label')}<input id="f-fifapoints" type="number" step="0.01" value="${team.fifaPoints!=null?team.fifaPoints:''}" placeholder="${T('team.fifaPoints.placeholder')}"></label>
           <label class="field">${T('team.eloRating.label')}<input id="f-elorating" type="number" step="1" value="${team.eloRating!=null?team.eloRating:''}" placeholder="${T('team.eloRating.placeholder')}"></label>
+
+          ${socialSectionHTML("tsoc", team, {
+            logoOptions: [["dark","Logo oscuro"],["light","Logo claro"]],
+            logos: { dark: team.logoImg||"", light: team.logoImgLight||team.logoImg||"" },
+            colors: [team.color1||"#4F46E5", team.color2||"#15161D", team.awayColor1||"#FFFFFF"]
+          })}
         </div>
       </div>
       <div class="modal-foot">
