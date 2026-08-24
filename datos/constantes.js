@@ -204,7 +204,7 @@ const CUSTOM_COLORS = {
   "Corea del Sur":["#a32f1c","#0b4ea2"], "Australia":["#0b4ea2","#ffcc29"], "Catar":["#7c1c3b","#ffffff"],
   "Arabia Saudita":["#1a6b3c","#ffffff"], "Uzbekistán":["#0b4ea2","#1a6b3c"], "Jordania":["#1a1a1a","#a32f1c"],
   "Nueva Zelanda":["#1a1a1a","#ffffff"], "Panamá":["#0b4ea2","#a32f1c"], "Curazao":["#0b4ea2","#ffcc29"],
-  "Haití":["#0b4ea2","#a32f1c"], "Bolivia":["#a32f1c","#ffcc29"], "República Democrática del Congo":["#0b4ea2","#ffcc29"]
+  "Haití":["#0b4ea2","#a32f1c"], "Bolivia":["#a32f1c","#ffcc29"], "RD Congo":["#0b4ea2","#ffcc29"]
 };
 
 const OFFICIAL_NAMES = {
@@ -223,7 +223,7 @@ const OFFICIAL_NAMES = {
   "Corea del Sur":"República de Corea", "Australia":"Mancomunidad de Australia", "Catar":"Estado de Catar",
   "Arabia Saudita":"Reino de Arabia Saudita", "Uzbekistán":"República de Uzbekistán", "Jordania":"Reino Hachemita de Jordania",
   "Nueva Zelanda":"Nueva Zelanda", "Panamá":"República de Panamá", "Curazao":"Curazao",
-  "Haití":"República de Haití", "Bolivia":"Estado Plurinacional de Bolivia", "República Democrática del Congo":"República Democrática del Congo"
+  "Haití":"República de Haití", "Bolivia":"Estado Plurinacional de Bolivia", "RD Congo":"RD Congo"
 };
 
 const FEDERATION_NAMES = {
@@ -242,7 +242,7 @@ const FEDERATION_NAMES = {
   "Corea del Sur":"Korea Football Association", "Australia":"Football Australia", "Catar":"Qatar Football Association",
   "Arabia Saudita":"Saudi Arabian Football Federation", "Uzbekistán":"Uzbekistan Football Association", "Jordania":"Jordan Football Association",
   "Nueva Zelanda":"New Zealand Football", "Panamá":"Federación Panameña de Fútbol", "Curazao":"Curaçao Football Federation",
-  "Haití":"Fédération Haïtienne de Football", "Bolivia":"Federación Boliviana de Fútbol", "República Democrática del Congo":"Fédération Congolaise de Football-Association"
+  "Haití":"Fédération Haïtienne de Football", "Bolivia":"Federación Boliviana de Fútbol", "RD Congo":"Fédération Congolaise de Football-Association"
 };
 
 const FEDERATION_ABBR = {
@@ -261,7 +261,7 @@ const FEDERATION_ABBR = {
   "Corea del Sur":"KFA", "Australia":"FA", "Catar":"QFA",
   "Arabia Saudita":"SAFF", "Uzbekistán":"UFF", "Jordania":"JFA",
   "Nueva Zelanda":"NZF", "Panamá":"FEPAFUT", "Curazao":"CFF",
-  "Haití":"FHF", "Bolivia":"FBF", "República Democrática del Congo":"FECOFA"
+  "Haití":"FHF", "Bolivia":"FBF", "RD Congo":"FECOFA"
 };
 
 const NICKNAMES = {
@@ -642,7 +642,7 @@ const COUNTRIES_SEED = [
 ["República Centroafricana","CAF","CTA",null,"CAF",1,1],
 ["República Checa",null,"CZE",null,"UEFA",1,1],
 ["República del Congo",null,"CGO",null,"CAF",1,1],
-["República Democrática del Congo",null,"COD",null,"CAF",1,1],
+["RD Congo",null,"COD",null,"CAF",1,1],
 ["República Dominicana",null,"DOM",null,"CONCACAF",1,1],
 ["República Jemer","KHM","CAM","EXTINTO",null,0,0],
 ["Reunión",null,"REU","Francia","CAF",0,0],
@@ -728,7 +728,7 @@ const FIFA_CODES = {
   "Eslovaquia":"SVK","Marruecos":"MAR","Senegal":"SEN","Egipto":"EGY","Túnez":"TUN","Argelia":"ALG",
   "Costa de Marfil":"CIV","Sudáfrica":"RSA","Cabo Verde":"CPV","Ghana":"GHA","Japón":"JPN","Irán":"IRN",
   "Corea del Sur":"KOR","Australia":"AUS","Catar":"QAT","Arabia Saudita":"KSA","Uzbekistán":"UZB","Jordania":"JOR",
-  "Nueva Zelanda":"NZL","Panamá":"PAN","Curazao":"CUW","Haití":"HAI","Bolivia":"BOL","República Democrática del Congo":"COD"
+  "Nueva Zelanda":"NZL","Panamá":"PAN","Curazao":"CUW","Haití":"HAI","Bolivia":"BOL","RD Congo":"COD"
 };
 
 const FIFA_RANKING_BY_CODE = {
@@ -948,15 +948,15 @@ const FIFA_RANKING_BY_CODE = {
 const ELO_NAME_ALIASES = {
   "Chequia":"República Checa",
   "Emiratos Árabes Unidos":"EAU",
-  "RD Congo":"República Democrática del Congo",
-  "RD del Congo":"República Democrática del Congo",
+  "RD Congo":"RD Congo",
+  "RD del Congo":"RD Congo",
   "República de Irlanda":"Irlanda",
   "Rumanía":"Rumania",
   "Curaçao":"Curazao",
   "São Tomé e Príncipe":"Santo Tomé y Príncipe",
 };
 
-const ELO_RATING = { "España":2157, "Argentina":2115, "Francia":2063, "Inglaterra":2024, "Brasil":1991, "Portugal":1989, "Colombia":1982, "Países Bajos":1948, "Ecuador":1938, "Alemania":1932, "Noruega":1914, "Croacia":1912, "Turquía":1911, "Japón":1906, "Bélgica":1894, "Uruguay":1892, "Suiza":1891, "México":1875, "Dinamarca":1869, "Italia":1869, "Senegal":1860, "Paraguay":1834, "Austria":1830, "Marruecos":1827, "Canadá":1788, "Escocia":1782, "Ucrania":1780, "Australia":1777, "Argelia":1772, "Rusia":1772, "Irán":1772, "Nigeria":1767, "Corea del Sur":1758, "Grecia":1744, "República Checa":1740, "Serbia":1734, "Venezuela":1733, "Panamá":1730, "Estados Unidos":1726, "Chile":1717, "Uzbekistán":1714, "Kosovo":1714, "Suecia":1712, "Hungría":1710, "Polonia":1710, "Irlanda":1699, "Perú":1699, "Egipto":1696, "Costa de Marfil":1695, "Eslovenia":1682, "Gales":1682, "Jordania":1680, "Eslovaquia":1667, "Georgia":1654, "República Democrática del Congo":1652, "Israel":1647, "Rumania":1639, "Túnez":1628, "Bolivia":1621, "Albania":1616, "Camerún":1614, "Costa Rica":1608, "Irak":1607, "Irlanda del Norte":1605, "Bosnia y Herzegovina":1595, "Macedonia del Norte":1589, "Mali":1588, "Cabo Verde":1578, "Arabia Saudita":1576, "Honduras":1570, "Islandia":1568, "Nueva Zelanda":1562, "Haití":1548, "Angola":1542, "EAU":1540, "Finlandia":1536, "Burkina Faso":1529, "Jamaica":1527, "Bielorrusia":1522, "Sudáfrica":1517, "Ghana":1510, "Guatemala":1505, "Omán":1479, "Siria":1479, "Palestina":1465, "Guinea":1463, "Montenegro":1461, "Bulgaria":1458, "Luxemburgo":1450, "Curazao":1434, "Surinam":1431, "Kazajistán":1428, "China":1424, "Catar":1421, "Libia":1420, "Gambia":1419, "Baréin":1414, "Benín":1405, "Gabón":1401, "Uganda":1394, "Trinidad y Tobago":1386, "Islas Feroe":1386, "Níger":1382, "Guinea Ecuatorial":1380, "Madagascar":1380, "Togo":1379, "Tailandia":1376, "Comoras":1374, "Armenia":1373, "Corea del Norte":1373, "Indonesia":1372, "Zimbabue":1372, "Zambia":1371, "Kenia":1363, "Estonia":1360, "Vietnam":1351, "Sudán":1350, "Reunión":1346, "Mozambique":1342, "El Salvador":1342, "Sierra Leona":1341, "Guadalupe":1338, "Ruanda":1336, "Nicaragua":1333, "Kuwait":1332, "Mauritania":1329, "Zanzíbar":1326, "Azerbaiyán":1322, "Chipre":1314, "Tanzania":1313, "Martinica":1312, "Liberia":1304, "Namibia":1303, "Kirguistán":1295, "Malasia":1293, "Guyana":1292, "Líbano":1288, "Letonia":1288, "Etiopía":1287, "Nueva Caledonia":1286, "Burundi":1285, "Tayikistán":1285, "República Dominicana":1283, "Lituania":1279, "Moldavia":1270, "Botsuana":1267, "Malta":1255, "Guinea-Bisáu":1248, "Malaui":1239, "Cuba":1239, "República Centroafricana":1236, "Guayana Francesa":1221, "Turkmenistán":1209, "República del Congo":1206, "Eritrea":1201, "Lesoto":1198, "Yemen":1195, "Filipinas":1179, "Tahití":1179, "Suazilandia":1148, "San Vicente y las Granadinas":1141, "Papúa Nueva Guinea":1136, "Puerto Rico":1135, "Singapur":1134, "India":1128, "Vanuatu":1117, "Bermudas":1117, "Sudán del Sur":1109, "Fiyi":1104, "Hong Kong":1101, "Granada":1098, "Andorra":1080, "Chad":1073, "Belice":1073, "Mauricio":1073, "Islas Salomón":1054, "San Martín":1042, "Santo Tomé y Príncipe":1035, "San Cristóbal y Nieves":1030, "Gibraltar":1011, "Santa Lucía":1003, "Birmania":984, "Aruba":979, "Somalia":979, "Sint Maarten":975, "Montserrat":972, "Afganistán":961, "Bangladés":942, "Yibuti":940, "Dominica":934, "Pakistán":909, "Barbados":898, "Liechtenstein":895, "Antigua y Barbuda":894, "Nepal":893, "Camboya":871, "Seychelles":853, "Sri Lanka":836, "San Marino":825, "Taiwán":822, "Bonaire":817, "Maldivas":801, "Islas Caimán":800, "Tuvalu":756, "Islas Vírgenes Británicas":743, "Laos":734, "Timor-Leste":734, "Samoa":730, "Mongolia":726, "Guam":706, "Bahamas":685, "Islas Turcas y Caicos":658, "Anguila":646, "Islas Vírgenes de los Estados Unidos":628, "Bután":623, "Islas Cook":623, "Macao":589, "Brunéi":572, "Kiribati":545, "Tonga":521, "Islas Marianas del Norte":432, "Samoa Americana":369 , "Chequia":1740, "Emiratos Árabes Unidos":1540, "RD Congo":1652, "RD del Congo":1652, "República de Irlanda":1699, "Irlanda de la República":1699, "Rumanía":1639, "Chequia (República Checa)":1740};
+const ELO_RATING = { "España":2157, "Argentina":2115, "Francia":2063, "Inglaterra":2024, "Brasil":1991, "Portugal":1989, "Colombia":1982, "Países Bajos":1948, "Ecuador":1938, "Alemania":1932, "Noruega":1914, "Croacia":1912, "Turquía":1911, "Japón":1906, "Bélgica":1894, "Uruguay":1892, "Suiza":1891, "México":1875, "Dinamarca":1869, "Italia":1869, "Senegal":1860, "Paraguay":1834, "Austria":1830, "Marruecos":1827, "Canadá":1788, "Escocia":1782, "Ucrania":1780, "Australia":1777, "Argelia":1772, "Rusia":1772, "Irán":1772, "Nigeria":1767, "Corea del Sur":1758, "Grecia":1744, "República Checa":1740, "Serbia":1734, "Venezuela":1733, "Panamá":1730, "Estados Unidos":1726, "Chile":1717, "Uzbekistán":1714, "Kosovo":1714, "Suecia":1712, "Hungría":1710, "Polonia":1710, "Irlanda":1699, "Perú":1699, "Egipto":1696, "Costa de Marfil":1695, "Eslovenia":1682, "Gales":1682, "Jordania":1680, "Eslovaquia":1667, "Georgia":1654, "RD Congo":1652, "Israel":1647, "Rumania":1639, "Túnez":1628, "Bolivia":1621, "Albania":1616, "Camerún":1614, "Costa Rica":1608, "Irak":1607, "Irlanda del Norte":1605, "Bosnia y Herzegovina":1595, "Macedonia del Norte":1589, "Mali":1588, "Cabo Verde":1578, "Arabia Saudita":1576, "Honduras":1570, "Islandia":1568, "Nueva Zelanda":1562, "Haití":1548, "Angola":1542, "EAU":1540, "Finlandia":1536, "Burkina Faso":1529, "Jamaica":1527, "Bielorrusia":1522, "Sudáfrica":1517, "Ghana":1510, "Guatemala":1505, "Omán":1479, "Siria":1479, "Palestina":1465, "Guinea":1463, "Montenegro":1461, "Bulgaria":1458, "Luxemburgo":1450, "Curazao":1434, "Surinam":1431, "Kazajistán":1428, "China":1424, "Catar":1421, "Libia":1420, "Gambia":1419, "Baréin":1414, "Benín":1405, "Gabón":1401, "Uganda":1394, "Trinidad y Tobago":1386, "Islas Feroe":1386, "Níger":1382, "Guinea Ecuatorial":1380, "Madagascar":1380, "Togo":1379, "Tailandia":1376, "Comoras":1374, "Armenia":1373, "Corea del Norte":1373, "Indonesia":1372, "Zimbabue":1372, "Zambia":1371, "Kenia":1363, "Estonia":1360, "Vietnam":1351, "Sudán":1350, "Reunión":1346, "Mozambique":1342, "El Salvador":1342, "Sierra Leona":1341, "Guadalupe":1338, "Ruanda":1336, "Nicaragua":1333, "Kuwait":1332, "Mauritania":1329, "Zanzíbar":1326, "Azerbaiyán":1322, "Chipre":1314, "Tanzania":1313, "Martinica":1312, "Liberia":1304, "Namibia":1303, "Kirguistán":1295, "Malasia":1293, "Guyana":1292, "Líbano":1288, "Letonia":1288, "Etiopía":1287, "Nueva Caledonia":1286, "Burundi":1285, "Tayikistán":1285, "República Dominicana":1283, "Lituania":1279, "Moldavia":1270, "Botsuana":1267, "Malta":1255, "Guinea-Bisáu":1248, "Malaui":1239, "Cuba":1239, "República Centroafricana":1236, "Guayana Francesa":1221, "Turkmenistán":1209, "República del Congo":1206, "Eritrea":1201, "Lesoto":1198, "Yemen":1195, "Filipinas":1179, "Tahití":1179, "Suazilandia":1148, "San Vicente y las Granadinas":1141, "Papúa Nueva Guinea":1136, "Puerto Rico":1135, "Singapur":1134, "India":1128, "Vanuatu":1117, "Bermudas":1117, "Sudán del Sur":1109, "Fiyi":1104, "Hong Kong":1101, "Granada":1098, "Andorra":1080, "Chad":1073, "Belice":1073, "Mauricio":1073, "Islas Salomón":1054, "San Martín":1042, "Santo Tomé y Príncipe":1035, "San Cristóbal y Nieves":1030, "Gibraltar":1011, "Santa Lucía":1003, "Birmania":984, "Aruba":979, "Somalia":979, "Sint Maarten":975, "Montserrat":972, "Afganistán":961, "Bangladés":942, "Yibuti":940, "Dominica":934, "Pakistán":909, "Barbados":898, "Liechtenstein":895, "Antigua y Barbuda":894, "Nepal":893, "Camboya":871, "Seychelles":853, "Sri Lanka":836, "San Marino":825, "Taiwán":822, "Bonaire":817, "Maldivas":801, "Islas Caimán":800, "Tuvalu":756, "Islas Vírgenes Británicas":743, "Laos":734, "Timor-Leste":734, "Samoa":730, "Mongolia":726, "Guam":706, "Bahamas":685, "Islas Turcas y Caicos":658, "Anguila":646, "Islas Vírgenes de los Estados Unidos":628, "Bután":623, "Islas Cook":623, "Macao":589, "Brunéi":572, "Kiribati":545, "Tonga":521, "Islas Marianas del Norte":432, "Samoa Americana":369 , "Chequia":1740, "Emiratos Árabes Unidos":1540, "RD Congo":1652, "RD del Congo":1652, "República de Irlanda":1699, "Irlanda de la República":1699, "Rumanía":1639, "Chequia (República Checa)":1740};
 
 const CONF_COLORS = {
   CONCACAF:{bg:"rgba(45,212,191,0.18)", fg:"#2DD4BF"},
@@ -1147,7 +1147,7 @@ const WC26_GROUPS = {
   H:["España","Cabo Verde","Arabia Saudita","Uruguay"],
   I:["Francia","Senegal","Irak","Noruega"],
   J:["Argentina","Argelia","Austria","Jordania"],
-  K:["Portugal","República Democrática del Congo","Uzbekistán","Colombia"],
+  K:["Portugal","RD Congo","Uzbekistán","Colombia"],
   L:["Inglaterra","Croacia","Ghana","Panamá"]
 };
 
@@ -1172,7 +1172,7 @@ const WC26_SCHEDULE_GROUPSTAGE = [
   ["2026-06-16","18:00","I",1,"Irak","Noruega","Estadio Boston","Foxborough, MA"],
   ["2026-06-16","21:00","J",1,"Argentina","Argelia","Estadio Kansas City","Kansas City, MO"],
   ["2026-06-17","00:00","J",1,"Austria","Jordania","Estadio San Francisco Bay Area","Santa Clara, CA"],
-  ["2026-06-17","13:00","K",1,"Portugal","República Democrática del Congo","Estadio Houston","Houston, TX"],
+  ["2026-06-17","13:00","K",1,"Portugal","RD Congo","Estadio Houston","Houston, TX"],
   ["2026-06-17","16:00","L",1,"Inglaterra","Croacia","Estadio Dallas","Arlington, TX"],
   ["2026-06-17","19:00","L",1,"Ghana","Panamá","Estadio Toronto","Toronto, CAN"],
   ["2026-06-17","22:00","K",1,"Uzbekistán","Colombia","Estadio Ciudad de México","Ciudad de México, MEX"],
@@ -1199,7 +1199,7 @@ const WC26_SCHEDULE_GROUPSTAGE = [
   ["2026-06-23","13:00","K",2,"Portugal","Uzbekistán","Estadio Houston","Houston, TX"],
   ["2026-06-23","16:00","L",2,"Inglaterra","Ghana","Estadio Boston","Foxborough, MA"],
   ["2026-06-23","19:00","L",2,"Panamá","Croacia","Estadio Toronto","Toronto, CAN"],
-  ["2026-06-23","22:00","K",2,"Colombia","República Democrática del Congo","Estadio Guadalajara","Guadalajara, MEX"],
+  ["2026-06-23","22:00","K",2,"Colombia","RD Congo","Estadio Guadalajara","Guadalajara, MEX"],
   ["2026-06-24","15:00","B",3,"Suiza","Canadá","Estadio Vancouver","Vancouver, CAN"],
   ["2026-06-24","15:00","B",3,"Bosnia y Herzegovina","Catar","Estadio Seattle","Seattle, WA"],
   ["2026-06-24","18:00","C",3,"Escocia","Brasil","Estadio Miami","Miami, FL"],
@@ -1221,7 +1221,7 @@ const WC26_SCHEDULE_GROUPSTAGE = [
   ["2026-06-27","17:00","L",3,"Panamá","Inglaterra","Estadio Nueva York Nueva Jersey","East Rutherford, NJ"],
   ["2026-06-27","17:00","L",3,"Croacia","Ghana","Estadio Filadelfia","Philadelphia, PA"],
   ["2026-06-27","19:30","K",3,"Colombia","Portugal","Estadio Miami","Miami, FL"],
-  ["2026-06-27","19:30","K",3,"República Democrática del Congo","Uzbekistán","Estadio Atlanta","Atlanta, GA"],
+  ["2026-06-27","19:30","K",3,"RD Congo","Uzbekistán","Estadio Atlanta","Atlanta, GA"],
   ["2026-06-27","23:00","J",3,"Jordania","Argentina","Estadio Dallas","Arlington, TX"],
   ["2026-06-27","23:00","J",3,"Argelia","Austria","Estadio Kansas City","Kansas City, MO"]
 ];
@@ -1272,3 +1272,54 @@ const RECOLORABLE_BASE_MAX_DIM = 1200;
 const GARMENT_CANVAS_SIZE = { shirt:[450,450], shorts:[450,225], socks:[450,225] };
 
 const KIT_ORDINAL_LABELS = ["Local","Visita","Tercero","Cuarto","Quinto","Sexto","Séptimo","Octavo","Noveno","Décimo"];
+
+// Regiones geográficas para definir COBERTURA (además de país/ciudad/confederación). Cada región es un
+// nombre → lista de países miembros (con el mismo nombre común que en el catálogo de países). "Reino
+// Unido" se expande a sus subselecciones (Inglaterra, Escocia, Gales, Irlanda del Norte).
+const MEDIA_REGIONS = {
+  "Norteamérica": ["Canadá","Estados Unidos","México"],
+  "Centroamérica": ["Belice","Costa Rica","El Salvador","Guatemala","Honduras","Nicaragua","Panamá"],
+  "Caribe": ["Antigua y Barbuda","Bahamas","Barbados","Cuba","Dominica","República Dominicana","Granada","Haití","Jamaica","San Cristóbal y Nieves","Santa Lucía","San Vicente y las Granadinas","Trinidad y Tobago"],
+  "Sudamérica": ["Argentina","Bolivia","Brasil","Chile","Colombia","Ecuador","Paraguay","Perú","Uruguay","Venezuela","Guyana","Surinam"],
+  "Latinoamérica": ["México","Costa Rica","El Salvador","Guatemala","Honduras","Nicaragua","Panamá","Argentina","Bolivia","Brasil","Chile","Colombia","Ecuador","Paraguay","Perú","Uruguay","Venezuela","Cuba","República Dominicana","Haití"],
+  "Reino Unido e Irlanda": ["Inglaterra","Escocia","Gales","Irlanda del Norte","Irlanda"],
+  "Europa Occidental": ["Austria","Bélgica","Francia","Alemania","Irlanda","Liechtenstein","Luxemburgo","Mónaco","Países Bajos","Suiza","Inglaterra","Escocia","Gales","Irlanda del Norte"],
+  "Europa Central": ["Austria","Chequia","Alemania","Hungría","Liechtenstein","Polonia","Eslovaquia","Eslovenia","Suiza"],
+  "Europa del Sur": ["Albania","Andorra","Bosnia y Herzegovina","Croacia","Chipre","Grecia","Italia","Malta","Montenegro","Macedonia del Norte","Portugal","San Marino","Serbia","Eslovenia","España"],
+  "Europa del Este": ["Bielorrusia","Bulgaria","Chequia","Hungría","Moldavia","Polonia","Rumania","Rusia","Eslovaquia","Ucrania"],
+  "Balcanes": ["Albania","Bosnia y Herzegovina","Bulgaria","Croacia","Grecia","Kosovo","Montenegro","Macedonia del Norte","Serbia","Eslovenia"],
+  "Nórdicos": ["Dinamarca","Finlandia","Islandia","Noruega","Suecia"],
+  "Bálticos": ["Estonia","Letonia","Lituania"],
+  "África del Norte": ["Argelia","Egipto","Libia","Marruecos","Sudán","Túnez"],
+  "África Occidental": ["Benín","Burkina Faso","Cabo Verde","Costa de Marfil","Gambia","Ghana","Guinea","Guinea-Bisáu","Liberia","Mali","Mauritania","Níger","Nigeria","Senegal","Sierra Leona","Togo"],
+  "África Central": ["Angola","Camerún","República Centroafricana","Chad","República del Congo","RD Congo","Guinea Ecuatorial","Gabón","Santo Tomé y Príncipe"],
+  "África Oriental": ["Burundi","Comoras","Yibuti","Eritrea","Etiopía","Kenia","Madagascar","Malaui","Mauricio","Mozambique","Ruanda","Seychelles","Somalia","Sudán del Sur","Tanzania","Uganda","Zambia","Zimbabue"],
+  "África Austral": ["Botsuana","Suazilandia","Lesoto","Namibia","Sudáfrica","Zambia","Zimbabue","Angola","Mozambique","Malaui"],
+  "Medio Oriente": ["Baréin","Irán","Irak","Israel","Jordania","Kuwait","Líbano","Omán","Palestina","Catar","Arabia Saudita","Siria","Turquía","Emiratos Árabes Unidos","Yemen"],
+  "Golfo": ["Baréin","Kuwait","Omán","Catar","Arabia Saudita","Emiratos Árabes Unidos"],
+  "Asia Central": ["Kazajistán","Kirguistán","Tayikistán","Turkmenistán","Uzbekistán"],
+  "Asia Oriental": ["China","Japón","Corea del Norte","Corea del Sur","Mongolia"],
+  "Asia Meridional": ["Afganistán","Bangladés","Bután","India","Maldivas","Nepal","Pakistán","Sri Lanka"],
+  "Pacífico": ["Fiyi","Kiribati","Islas Marshall","Estados Federados de Micronesia","Nauru","Palaos","Papúa Nueva Guinea","Samoa","Islas Salomón","Tonga","Tuvalu","Vanuatu"]
+};
+
+// Nombre "de continente" que se muestra en lugar de la sigla de la confederación (los países son los
+// mismos). Se usa en el selector de cobertura de medios y para emparejar en las noticias.
+const CONFEDERATION_LABELS = {
+  UEFA:"Europa", CONMEBOL:"Sudamérica", CONCACAF:"Norteamérica, Centroamérica y Caribe",
+  CAF:"África", AFC:"Asia", OFC:"Oceanía"
+};
+
+// Catálogo EDITABLE de regiones: vive en DB.regions (para poder agregar/quitar y que persista). Se
+// siembra desde MEDIA_REGIONS la primera vez. Devuelve el objeto { nombre: [países...] }.
+function getRegions(){
+  try{
+    if(typeof DB!=="undefined" && DB){
+      if(!DB.regions || typeof DB.regions!=="object" || Array.isArray(DB.regions)){
+        DB.regions = JSON.parse(JSON.stringify(MEDIA_REGIONS));
+      }
+      return DB.regions;
+    }
+  }catch(e){}
+  return MEDIA_REGIONS;
+}
