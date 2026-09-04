@@ -248,13 +248,26 @@ function arcRadiusFor(level, boxW){
 // condense=true: mantiene el tamaño por altura y comprime solo horizontalmente si el nombre es largo.
 function drawTextWithStyle(ctx, box, text, family, color, outline, outlineColor, outlineWidthInput, sizePct, letterSpacingInput, offsetXInput, offsetYInput, arcLevel, size, outlineScale, containBounds, condense, flatRef){
   const boxW = (box.right-box.left)*size, boxH = (box.bottom-box.top)*size;
-  const baseFit = fitTextMetrics(ctx, text, family, boxW, boxH, undefined, condense, flatRef);
   const scale = (sizePct!=null ? sizePct : 100)/100;
-  const fontSize = baseFit.fontSize * scale;
-  const ascent = baseFit.ascent * scale, descent = baseFit.descent * scale;
-  const scaleX = baseFit.scaleX ?? 1;
   const letterSpacingPx = (letterSpacingInput||0) * outlineScale;
   const outlineWidthPx = Math.max(0, (outlineWidthInput!=null?outlineWidthInput:4) * outlineScale * 2);
+  // Reserva horizontal: el interletrado (entre glifos) y el contorno (que asoma media pincelada a
+  // cada lado) se dibujan ADEMÁS del avance de las letras. El ajuste de ancho debe descontarlos, o
+  // un nombre con separación o borde grueso se pasa del límite horizontal y se sale de la playera
+  // hacia los lados. Se reserva ese espacio para que el ancho TOTAL (letras + interletrado + borde)
+  // quepa siempre dentro de la caja. Solo afecta al ancho; el centrado y el arco usan la caja completa.
+  const nGaps = Math.max(0, (text ? String(text).length : 0) - 1);
+  const hReserve = letterSpacingPx*nGaps + (outline ? outlineWidthPx : 0);
+  const effBoxW = Math.max(1, boxW - hReserve);
+  // El % de tamaño escala la ALTURA base ANTES de ajustar el texto (no después). A menor tamaño el
+  // nombre ocupa menos a lo ancho y caben más caracteres a su proporción natural antes de tener que
+  // achicarse o condensarse; a mayor tamaño puede crecer y SOBRESALIR verticalmente de la caja —
+  // eso está permitido. El ANCHO, en cambio, SIEMPRE queda contenido: el ajuste (condensar o achicar)
+  // garantiza que el texto nunca pase el límite horizontal. Al 100% el resultado es idéntico al de antes.
+  const baseFit = fitTextMetrics(ctx, text, family, effBoxW, boxH*scale, undefined, condense, flatRef);
+  const fontSize = baseFit.fontSize;
+  const ascent = baseFit.ascent, descent = baseFit.descent;
+  const scaleX = baseFit.scaleX ?? 1;
   const cx = (box.left+box.right)/2*size + (offsetXInput||0)*outlineScale;
   const cyBase = (box.top+box.bottom)/2*size + (offsetYInput||0)*outlineScale;
   const radius = arcRadiusFor(arcLevel, boxW);
@@ -281,10 +294,18 @@ function drawTextWithStyle(ctx, box, text, family, color, outline, outlineColor,
 // nombres conservan exactamente el mismo tamaño entre sí.
 function badgeTextVerticalInk(ctx, box, text, family, sizePct, offsetYInput, arcLevel, size, outlineScale, outlineOn, outlineWidthInput, condense, flatRef, letterSpacingInput){
   const boxW = (box.right-box.left)*size, boxH = (box.bottom-box.top)*size;
-  const baseFit = fitTextMetrics(ctx, text, family, boxW, boxH, undefined, condense, flatRef);
   const scale = (sizePct!=null ? sizePct : 100)/100;
-  const fontSize = baseFit.fontSize * scale;
-  const ascentF = baseFit.ascent * scale, descentF = baseFit.descent * scale;
+  // Mismo criterio que drawTextWithStyle: el % de tamaño escala la altura base ANTES de ajustar (el
+  // alto puede sobresalir de la caja; el ancho siempre queda contenido reservando interletrado y
+  // contorno), para que la medición del reencuadre coincida con el dibujo real.
+  const letterSpacingPx = (letterSpacingInput||0) * outlineScale;
+  const outlineWidthPx = Math.max(0, (outlineWidthInput!=null?outlineWidthInput:4) * outlineScale * 2);
+  const nGaps = Math.max(0, (text ? String(text).length : 0) - 1);
+  const hReserve = letterSpacingPx*nGaps + (outlineOn ? outlineWidthPx : 0);
+  const effBoxW = Math.max(1, boxW - hReserve);
+  const baseFit = fitTextMetrics(ctx, text, family, effBoxW, boxH*scale, undefined, condense, flatRef);
+  const fontSize = baseFit.fontSize;
+  const ascentF = baseFit.ascent, descentF = baseFit.descent;
   const cyBase = (box.top+box.bottom)/2*size + (offsetYInput||0)*outlineScale;
   const radius = arcRadiusFor(arcLevel, boxW);
   const cy = isFinite(radius) ? cyBase + (ascentF-descentF)/2 : cyBase;
@@ -318,7 +339,7 @@ function badgeTextVerticalInk(ctx, box, text, family, sizePct, offsetYInput, arc
   // basta con reproducir esos mismos valores para obtener las alturas correctas.
   const eff = (condense && scaleX < 1) ? scaleX : 1;
   const radiusUsed = radius/eff;
-  const letterSpacingPx = ((letterSpacingInput||0) * outlineScale)/eff;
+  const letterSpacingPxArc = ((letterSpacingInput||0) * outlineScale)/eff;
   const chars = String(text).split("");
   const advances = [];
   let prevW = 0;
@@ -329,8 +350,8 @@ function badgeTextVerticalInk(ctx, box, text, family, sizePct, offsetYInput, arc
   }
   ctx.restore();
   if(!chars.length) return {top: cy, bottom: cy};
-  const spaced = advances.map(w=>w+letterSpacingPx);
-  const totalWidth = spaced.reduce((a,b)=>a+b,0) - letterSpacingPx;
+  const spaced = advances.map(w=>w+letterSpacingPxArc);
+  const totalWidth = spaced.reduce((a,b)=>a+b,0) - letterSpacingPxArc;
   const totalAngle = totalWidth/radiusUsed;
   let angle = -totalAngle/2;
   let top = Infinity, bottom = -Infinity;
@@ -382,7 +403,11 @@ function readFileAsDataURL(file){
     reader.readAsDataURL(file);
   });
 }
-function resizeImageToDataURL(file, maxDim){
+// Redimensiona una imagen a maxDim (lado mayor) y la devuelve como data URL.
+// mime: "image/png" (por defecto, conserva transparencia — logos/escudos/camisetas) o
+// "image/jpeg" (para FOTOS: pesa mucho menos, ideal para estadios). quality solo aplica a JPEG.
+function resizeImageToDataURL(file, maxDim, mime, quality){
+  mime = mime || "image/png";
   return new Promise((resolve, reject)=>{
     if(!file.type || !file.type.startsWith("image/")){ reject(new Error("No es una imagen")); return; }
     const reader = new FileReader();
@@ -396,9 +421,15 @@ function resizeImageToDataURL(file, maxDim){
         const canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext("2d");
-        ctx.clearRect(0, 0, w, h);
+        if(mime === "image/jpeg"){
+          // JPEG no tiene canal alfa: se pinta un fondo blanco para evitar bordes negros.
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, w, h);
+        } else {
+          ctx.clearRect(0, 0, w, h);
+        }
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/png"));
+        resolve(mime === "image/jpeg" ? canvas.toDataURL("image/jpeg", (quality!=null?quality:0.82)) : canvas.toDataURL("image/png"));
       };
       img.onerror = ()=>reject(new Error("No se pudo leer la imagen"));
       img.src = reader.result;
