@@ -309,7 +309,7 @@ tr:hover td{background:var(--surface-2);}
 .list-subhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line,#2a2f3a);}
 .list-subhead h3{margin:0;font-size:15px;}
 .list-subhead .hint{font-size:12px;color:var(--muted);font-weight:500;}
-.logo-ic{height:1em;width:auto;max-width:1.5em;object-fit:contain;vertical-align:-0.18em;margin-right:5px;flex-shrink:0;}
+.logo-ic{width:1em;height:1em;object-fit:contain;vertical-align:-0.18em;margin-right:5px;flex-shrink:0;}
 .badge .logo-ic{margin-right:1px;}
 /* Tipografía del año en el badge de árbitro (Frutiger LT Com Bold, subconjunto de dígitos ~2 KB).
    Va incrustada porque los navegadores bloquean cargar fuentes desde archivos locales (file://). */
@@ -361,7 +361,7 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
           <div class="global-search-results" id="global-search-results"></div>
         </div>
       </div>
-      <div class="season-badge" id="season-badge">WIP &middot; JULIO 2026 &middot; VER 62</div>
+      <div class="season-badge" id="season-badge">WIP &middot; SEPTIEMBRE 2026</div>
     </div>
     <div class="tabs-wrap">
       <button type="button" class="tabs-arrow left" id="tabs-arrow-left" aria-label="Ver pestañas anteriores">‹</button>
@@ -700,6 +700,8 @@ let clubsSort = {key:"name", dir:"asc"};
 let clubFilter = {q:"", country:"", league:""};
 let stadiumsView = "separados"; // "separados" (Copa del Mundo y Otros) u "alfabetico" (todos juntos, A-Z)
 let sponsorsView = "separados"; // "separados" (Copa Mundial + Todos) u "alfabetico"
+let mediaSort = {key:"name", dir:"asc"};   // ordenamiento de la tabla de Medios (menos Categorías)
+let sponsorSort = {key:"name", dir:"asc"}; // ordenamiento de la tabla de Patrocinadores (menos Categoría)
 
 // Mientras el campo de destino esté "vinculado" (linked=1), se recalcula en vivo cada vez que
 // cambia alguna de sus fuentes — en cuanto el usuario edita el campo de destino directamente, se
@@ -962,11 +964,16 @@ document.addEventListener("change", (e)=>{
   if(!(input.matches && input.matches('input[type=file][data-imgfield]'))) return;
   const file = input.files && input.files[0];
   if(!file) return;
-  resizeImageToDataURL(file, parseInt(input.dataset.maxdim)||300).then(dataUrl=>{
+  // Las FOTOS (data-imgformat="jpeg", p. ej. estadios) se guardan como JPEG: pesan mucho
+  // menos que un PNG y evitan que la pestaña se vuelva lenta. Los logos siguen en PNG.
+  const _fmt = input.dataset.imgformat === "jpeg" ? "image/jpeg" : "image/png";
+  resizeImageToDataURL(file, parseInt(input.dataset.maxdim)||300, _fmt).then(dataUrl=>{
     const hidden = document.getElementById(input.dataset.target);
     if(hidden) hidden.value = dataUrl;
     const preview = document.getElementById(input.dataset.preview);
     if(preview){ preview.src = dataUrl; preview.style.display = "block"; }
+    // Si es la imagen del PERFIL POR DEFECTO de un medio, propágala en vivo a los perfiles por cobertura.
+    if(input.dataset.target === "f-msoc-avatar-data" && typeof mediaPropagateDefaultAvatar === "function") mediaPropagateDefaultAvatar();
   }).catch(()=>{ showToast("No se pudo procesar esa imagen"); });
 });
 document.addEventListener("input", (e)=>{
