@@ -607,7 +607,7 @@ function renderPlayerDetail(playerId){
         })()}
         <span style="font-size:13px;color:var(--muted);">Partidos: ${p.caps!=null?p.caps:"-"} / Goles: ${p.goalsNational!=null?p.goalsNational:"-"}</span>
       </div>
-      <div style="margin-top:4px;"><span class="badge ${p.brand?'brand':'no-contract'}">${p.brand||'Sin sponsor'}</span></div>
+      <div style="margin-top:4px;">${p.brand ? `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">${kitSponsorLogoIcon(p.brand)}${escapeHtml(p.brand)}</span>` : `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">Sin sponsor</span>`}</div>
     </div>
     <div class="player-badge-render" data-pending data-player-id="${p.id}" style="width:150px;height:150px;border-radius:12px;overflow:hidden;background:var(--surface-2);flex-shrink:0;align-self:center;"></div>
     <div style="align-self:center;text-align:center;min-width:96px;">

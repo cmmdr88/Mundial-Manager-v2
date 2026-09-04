@@ -48,7 +48,7 @@ function ensureApparelBrandSponsor(name, opts){
     return sp;
   }
   sp = { id:newId("sp"), name:nm, categories:[APPAREL_CATEGORY], value: opts.value!=null?opts.value:40,
-         teamId:null, global: !!opts.global, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", logoGrafico:"hd", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF" };
+         teamId:null, global: !!opts.global, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", logoGrafico:"hd", logoIcono:"vd", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF" };
   if(!DB.sponsors) DB.sponsors = [];
   DB.sponsors.push(sp);
   return sp;
@@ -165,16 +165,33 @@ function sponsorLinkRowHTML(link){
     <button type="button" class="btn danger sm" data-action="remove-sponsor-link-row" style="flex-shrink:0;">✕</button>
   </div>`;
 }
+// Valor de ordenación de un patrocinador según la columna (Categoría no se ordena).
+function sponsorSortValue(s, key){
+  if(key==="value") return s.value!=null ? Number(s.value) : 0;
+  if(key==="linked") return sponsorEffectiveLinks(s).filter(l=>l.type!=="team" || getTeam(l.id)).length;
+  return (s.name||"").toLowerCase();
+}
 // Tabla de patrocinadores. mode: "wc" (con Valor, SIN "Ligado a") o "all" (con "Ligado a" como conteo, sin Valor).
+// Todas las columnas se pueden ordenar (encabezado clicable) EXCEPTO Categoría.
 function sponsorTableHTML(list, mode){
   const isWC = mode==="wc";
   const cols = 5;
+  const type = (sponsorSort.key==="value" || sponsorSort.key==="linked") ? "number" : "string";
+  const sorted = list.slice().sort((a,b)=>
+    compareGeneric(sponsorSortValue(a, sponsorSort.key), sponsorSortValue(b, sponsorSort.key), type, sponsorSort.dir)
+    || (a.name||"").localeCompare(b.name||"", 'es'));
   return `
   <div class="tbl-wrap">
     <table>
-      <thead><tr><th style="width:52px;"></th><th>Marca</th><th>Categoría</th>${isWC?'<th>Valor (M$)</th>':'<th>Ligado a</th>'}<th></th></tr></thead>
+      <thead><tr>
+        <th style="width:52px;"></th>
+        ${sortTh("Marca","name",sponsorSort,"sort-sponsor")}
+        <th>Categoría</th>
+        ${isWC?sortTh("Valor (M$)","value",sponsorSort,"sort-sponsor"):sortTh("Ligado a","linked",sponsorSort,"sort-sponsor")}
+        <th></th>
+      </tr></thead>
       <tbody>
-      ${list.map(s=>{
+      ${sorted.map(s=>{
         const cats=sponsorCategoriesOf(s);
         return `<tr>
           <td>${brandLogoHTML(s,34)}</td>
@@ -192,13 +209,34 @@ function sponsorTableHTML(list, mode){
   </div>`;
 }
 function renderPatrocinadores(){
+  // Las pestañas de orden/agrupación (Competencia / Alfabético) van a la DERECHA de la barra de filtros.
   const sortTabs = `
-  <div class="subtabs">
+  <div class="subtabs" style="margin:0;">
     <button class="subtab-btn ${sponsorsView==='separados'?'active':''}" data-action="set-sponsors-view" data-view="separados">Competencia</button>
     <button class="subtab-btn ${sponsorsView==='alfabetico'?'active':''}" data-action="set-sponsors-view" data-view="alfabetico">Alfabético</button>
   </div>`;
-  const wc = DB.sponsors.filter(s=>sponsorHasTournamentLink(s)).slice().sort((a,b)=>a.name.localeCompare(b.name,'es'));
-  const all = DB.sponsors.slice().sort((a,b)=>a.name.localeCompare(b.name,'es'));
+  // Catálogo de categorías (del catálogo guardado + las presentes en los patrocinadores).
+  const catSet = new Set();
+  (DB.sponsorCategories||[]).forEach(c=>{ if(c) catSet.add(c); });
+  (DB.sponsors||[]).forEach(s=> sponsorCategoriesOf(s).forEach(c=>{ if(c) catSet.add(c); }));
+  const cats = [...catSet].sort((a,b)=>a.localeCompare(b,'es'));
+  // Filtros por nombre y por categoría.
+  const nameQ = sponsorFilterName ? normLoose(sponsorFilterName) : "";
+  const catQ  = sponsorFilterCategory ? normLoose(sponsorFilterCategory) : "";
+  const matches = s => (!nameQ || normLoose(s.name||"").includes(nameQ))
+                    && (!catQ  || sponsorCategoriesOf(s).some(c=>normLoose(c)===catQ));
+  const wc = DB.sponsors.filter(s=>sponsorHasTournamentLink(s) && matches(s)).slice().sort((a,b)=>a.name.localeCompare(b.name,'es'));
+  const all = DB.sponsors.filter(matches).slice().sort((a,b)=>a.name.localeCompare(b.name,'es'));
+  const filterBar = `
+  <div class="searchbar" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <input type="text" id="sponsor-name-filter" placeholder="Buscar marca por nombre..." value="${escapeHtml(sponsorFilterName)}" style="flex:1;min-width:180px;max-width:320px;">
+    <select id="sponsor-category-filter" style="max-width:240px;">
+      <option value="">Todas las categorías</option>
+      ${cats.map(c=>`<option value="${escapeHtml(c)}" ${sponsorFilterCategory===c?'selected':''}>${escapeHtml(c)}</option>`).join("")}
+    </select>
+    <span style="flex:1;"></span>
+    ${sortTabs}
+  </div>`;
   let body;
   if(sponsorsView==='alfabetico'){
     body = `<div class="group-block"><h3><span class="tag">A–Z</span> ${all.length} patrocinador${all.length===1?'':'es'}</h3>${sponsorTableHTML(all,"all")}</div>`;
@@ -212,10 +250,26 @@ function renderPatrocinadores(){
   return `
   <div class="section-title"><h2>${tabLabel('patrocinadores','Patrocinadores')}</h2><button class="btn gold sm" data-action="add-sponsor">+ Agregar patrocinador</button></div>
   ${tabDescHTML('patrocinadores')}
-  ${sortTabs}
+  ${filterBar}
   ${body}
   `;
 }
+// Estado de los filtros de la pestaña de patrocinadores.
+var sponsorFilterName = "";
+var sponsorFilterCategory = "";
+// Buscar por nombre (con re-enfoque tras el render) y filtrar por categoría.
+document.addEventListener("input", (e)=>{
+  const t = e.target;
+  if(t && t.id==="sponsor-name-filter"){
+    sponsorFilterName = t.value;
+    if(typeof render==="function") render();
+    setTimeout(()=>{ const el=document.getElementById("sponsor-name-filter"); if(el){ el.focus(); try{ el.selectionStart=el.selectionEnd=el.value.length; }catch(err){} } }, 0);
+  }
+});
+document.addEventListener("change", (e)=>{
+  const t = e.target;
+  if(t && t.id==="sponsor-category-filter"){ sponsorFilterCategory = t.value; if(typeof render==="function") render(); }
+});
 
 // Logo pequeño para patrocinadores y medios — mismo estilo/tamaño que los logos de equipos.
 // Devuelve el archivo de logo por orientación ('h'|'v') y fondo ('d'|'l'), o null.
@@ -257,6 +311,33 @@ function brandLogoHTML(entity, sizePx){
   const c1 = entity.color1||"#4F46E5", c2 = entity.color2||"#15161D";
   return `<div class="crest-mini" style="background:linear-gradient(160deg, ${c1}, ${c2});${style}font-size:${Math.round(s*0.34)}px;">${escapeHtml(initials(entity.name||"?"))}</div>`;
 }
+// Logo elegido para el ICONO DE INDUMENTARIA (el que sale en las etiquetas de patrocinador de ropa).
+// Usa la variante que el usuario eligió en el patrocinador (logoIcono: hd|hl|vd|vl; por defecto "vd"
+// = Vertical — fondo oscuro); si esa no está cargada, cae a las demás para no quedarse sin logo.
+function brandLogoIcon(e){
+  if(!e) return null;
+  const g = e.logoIcono || "vd";
+  const orient = g.charAt(0)==="h" ? "h" : "v";
+  const bg = g.charAt(1)==="l" ? "l" : "d";
+  const altO = orient==="v" ? "h" : "v";
+  const altB = bg==="d" ? "l" : "d";
+  return logoSlot(e,orient,bg) || logoSlot(e,orient,altB) || logoSlot(e,altO,bg) || logoSlot(e,altO,altB) || e.logoImg || null;
+}
+// Ícono del logo de una marca (patrocinador) para poner JUNTO a un texto. Toma la variante elegida en
+// "Logo en icono de indumentaria" (por defecto Vertical — fondo oscuro). Se dibuja con la MISMA clase
+// .logo-ic que el logo del equipo/club en la ficha de jugador, de modo que tenga exactamente el mismo
+// tamaño (alto = alto del texto) y la misma separación con el nombre. Se busca la marca por nombre; si
+// no existe o no tiene ningún logo, devuelve "" (cadena vacía) para que quede igual, sin dejar hueco.
+function kitSponsorLogoIcon(name){
+  if(!name) return "";
+  const sp = findSponsorByName(name);
+  if(!sp) return "";
+  const src = brandLogoIcon(sp);
+  return src ? `<img class="logo-ic" src="${src}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : "";
+}
+// Estilo de la etiqueta de patrocinador de ropa (gris, como la de estadio). Como el logo mide lo mismo
+// que el texto, la etiqueta queda del mismo alto con logo o sin logo sin necesidad de reservar alto.
+const KIT_SPONSOR_BADGE_STYLE = "background:var(--surface-2);color:var(--muted);";
 // Fila editable de categoría en el modal de patrocinador — se pueden agregar varias.
 function sponsorCategoryRowHTML(value){
   return `
@@ -267,7 +348,7 @@ function sponsorCategoryRowHTML(value){
 }
 function modalAddEditSponsor(sponsor){
   const isEdit = !!sponsor;
-  sponsor = sponsor || {id:null, name:"", categories:[], value:50, teamId:null, global:false, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", logoGrafico:"hd", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF"};
+  sponsor = sponsor || {id:null, name:"", categories:[], value:50, teamId:null, global:false, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", logoGrafico:"hd", logoIcono:"vd", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF"};
   // Compatibilidad: si solo existe el logo heredado, se muestra como "Horizontal — fondo oscuro".
   if(sponsor.logoImg && !sponsor.logoVDark && !sponsor.logoHDark && !sponsor.logoVLight && !sponsor.logoHLight){ sponsor = Object.assign({}, sponsor, {logoHDark: sponsor.logoImg}); }
   const cats = sponsorCategoriesOf(sponsor);
@@ -306,6 +387,11 @@ function modalAddEditSponsor(sponsor){
               <label class="field" style="flex:1 1 200px;">Logo en gráficos
                 <select id="f-slogo-grafico">
                   ${[["hd","Horizontal — fondo oscuro"],["hl","Horizontal — fondo claro"],["vd","Vertical — fondo oscuro"],["vl","Vertical — fondo claro"]].map(([v,l])=>`<option value="${v}" ${((sponsor.logoGrafico||'hd')===v)?'selected':''}>${l}</option>`).join("")}
+                </select>
+              </label>
+              <label class="field" style="flex:1 1 200px;">Logo en icono de indumentaria
+                <select id="f-slogo-icono">
+                  ${[["hd","Horizontal — fondo oscuro"],["hl","Horizontal — fondo claro"],["vd","Vertical — fondo oscuro"],["vl","Vertical — fondo claro"]].map(([v,l])=>`<option value="${v}" ${((sponsor.logoIcono||'vd')===v)?'selected':''}>${l}</option>`).join("")}
                 </select>
               </label>
             </div>

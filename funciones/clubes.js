@@ -330,12 +330,14 @@ function renderClubDetail(clubId){
     </div>
     <div style="flex:1;min-width:160px;border-left:1px solid var(--line);padding-left:18px;">
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Patrocinador de ropa</div>
-      ${c.kitSponsor ? `<span class="badge brand">${escapeHtml(c.kitSponsor)}</span>` : `<span style="font-size:13px;color:var(--muted);">Sin definir</span>`}
+      ${c.kitSponsor ? `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">${kitSponsorLogoIcon(c.kitSponsor)}${escapeHtml(c.kitSponsor)}</span>` : `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">Sin marca</span>`}
       <div style="margin-top:10px;">
         <button class="btn ghost sm" data-action="manage-kits" data-team="${c.id}">Editar uniformes</button>
       </div>
     </div>
   </div>
+
+  ${(typeof facilitiesSectionHTML==="function") ? facilitiesSectionHTML(c) : ""}
 
   <div class="section-title"><h2>Plantilla</h2></div>
   ${players.length===0 ? `<div class="empty"><h3>Sin jugadores</h3><p>Los jugadores aparecen aquí cuando su club coincide con este.</p></div>` : `
@@ -387,7 +389,7 @@ function modalAddEditClub(club){
   const isEdit = !!club;
   club = club || {id:null, fullName:"", officialName:"", commonName:"", shortName:"", code:"", codeAlt:"",
     nicknames:[], city:"", country:"", league:"", logoImg:"", logoImgLight:"", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF",
-    stadium:"", stadiums:[], trainingGround:"", kitSponsor:"", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialHashtag:"", socialAvatarLogo:"dark", socialAvatarColor:0};
+    stadium:"", stadiums:[], trainingGround:"", kitSponsor:"", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialVerified:"", socialAvatarLogo:"dark", socialAvatarColor:0};
   openModal(`
     <div class="modal-box">
       <div class="modal-head"><h2>${isEdit?"Editar club":"Agregar club"}</h2><button class="modal-close" data-action="close-modal">×</button></div>
@@ -487,7 +489,8 @@ function modalAddEditClub(club){
           ${socialSectionHTML("clsoc", club, {
             logoOptions: [["dark","Logo oscuro"],["light","Logo claro"]],
             logos: { dark: club.logoImg||"", light: club.logoImgLight||club.logoImg||"" },
-            colors: [club.color1||"#4F46E5", club.color2||"#15161D", club.color3||"#FFFFFF"]
+            colors: [club.color1||"#4F46E5", club.color2||"#15161D", club.color3||"#FFFFFF"],
+            colorInputs: ["f-cl-color1","f-cl-color2","f-cl-color3"]
           })}
         </div>
       </div>

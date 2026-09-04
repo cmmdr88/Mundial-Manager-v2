@@ -176,25 +176,67 @@ function renderEditor(){
     : `<p style="font-size:12.5px;color:var(--muted);margin:0;">Aún no hay cambios registrados. Desde ahora, cada guardado deja aquí una entrada con lo que cambió.</p>`}
   </div>
 
-  <div class="section-title"><h2>Exportar / Importar</h2><span class="hint">Copia tu base de datos como JSON o pega una para reemplazarla</span></div>
+  <div class="section-title"><h2>Exportar / Importar</h2><span class="hint">Descarga tu base como archivo .json o carga uno para reemplazarla</span></div>
   <div class="card">
-    <label class="field">JSON actual (puedes copiarlo como respaldo) — solo tus cambios respecto a la base del juego (datos editados, logos, uniformes, colores, fotos, tipografías, catálogos). Lo que no tocaste no se incluye.
-      <textarea class="json-area" id="export-area" readonly placeholder="Pulsa «Generar JSON actual» para verlo y copiarlo."></textarea>
-    </label>
-    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
-      <button class="btn ghost sm" data-action="export-json">Generar JSON actual</button>
-      <span class="hint" style="font-size:11px;">Se genera solo al pulsar: serializar todo el respaldo (con imágenes) es pesado, así el editor no se ralentiza en cada render.</span>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">El respaldo contiene solo tus cambios respecto a la base del juego (datos editados, logos, uniformes, colores, fotos, tipografías, catálogos). Lo que no tocaste no se incluye.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn gold sm" data-action="download-backup">⬇ Descargar respaldo (.json)</button>
+      <button class="btn sm" data-action="trigger-import-file">⬆ Cargar respaldo (.json)</button>
+      <input type="file" id="import-file" accept=".json,application/json" style="display:none;">
     </div>
-    <div style="height:10px;"></div>
-    <label class="field">Pegar JSON para importar
-      <textarea class="json-area" id="import-area" placeholder="Pega aquí un JSON exportado previamente..."></textarea>
-    </label>
-    <div style="margin-top:10px;display:flex;gap:8px;">
-      <button class="btn" data-action="import-json">Importar y reemplazar</button>
-    </div>
+    <div class="hint" style="font-size:11px;margin-top:8px;">Descargar y cargar un archivo es más rápido que copiar y pegar, sobre todo cuando hay muchas imágenes.</div>
+
+    <details style="margin-top:14px;">
+      <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:600;">¿Prefieres copiar/pegar el texto? (avanzado)</summary>
+      <div style="margin-top:12px;">
+        <label class="field">JSON actual
+          <textarea class="json-area" id="export-area" readonly placeholder="Pulsa «Generar JSON» para verlo y copiarlo."></textarea>
+        </label>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+          <button class="btn ghost sm" data-action="export-json">Generar JSON</button>
+          <span class="hint" style="font-size:11px;">Se genera solo al pulsar.</span>
+        </div>
+        <label class="field" style="margin-top:12px;">Pegar JSON para importar
+          <textarea class="json-area" id="import-area" placeholder="Pega aquí un JSON exportado previamente..."></textarea>
+        </label>
+        <div style="margin-top:10px;"><button class="btn" data-action="import-json">Importar y reemplazar</button></div>
+      </div>
+    </details>
   </div>
   `;
 }
+
+// Descarga un texto como archivo (para el respaldo .json). Evita pintar decenas de MB en un
+// <textarea>, que era lo más lento de «Generar JSON».
+function downloadTextFile(filename, text, mime){
+  try{
+    const blob = new Blob([text], {type: mime || "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename || "descarga.json";
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ try{ document.body.removeChild(a); }catch(e){} try{ URL.revokeObjectURL(url); }catch(e){} }, 0);
+    return true;
+  }catch(e){ return false; }
+}
+// Nombre del archivo de respaldo, con fecha (AAAA-MM-DD) si el navegador la da.
+function backupFileName(){
+  let stamp = "";
+  try{ stamp = new Date().toISOString().slice(0,10); }catch(e){}
+  return "copa-manager-respaldo" + (stamp ? ("-"+stamp) : "") + ".json";
+}
+// Al elegir un archivo en «Cargar respaldo (.json)», se lee y se importa (misma lógica que pegar el
+// texto). Listener global, delegado por id del input (el editor se re-renderiza).
+document.addEventListener("change", (e)=>{
+  const inp = e.target;
+  if(!inp || inp.id!=="import-file") return;
+  const f = inp.files && inp.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload  = ()=>{ try{ if(typeof applyImportedBackupText==="function") applyImportedBackupText(String(reader.result||"")); } finally { inp.value=""; } };
+  reader.onerror = ()=>{ alert("No se pudo leer el archivo."); inp.value=""; };
+  reader.readAsText(f);
+});
 
 // Estado efímero del editor de regiones: `regionRecent` = nombres recién agregados (se muestran
 // arriba) y `regionOpen` = regiones que deben renderizarse abiertas. Se limpian al cambiar de pestaña
@@ -202,6 +244,53 @@ function renderEditor(){
 var regionRecent = [];
 var regionOpen = {};
 function regionEditorReset(){ regionRecent = []; regionOpen = {}; }
+
+// Renombra una región (clave de DB.regions) y propaga el cambio a TODO lo que la usa: la cobertura de
+// los medios (coverage, coverageReach y socialByCoverage). Devuelve true si se aplicó.
+function renameRegion(oldName, newName){
+  oldName = (oldName||"").trim();
+  newName = (newName||"").trim();
+  if(!newName || newName===oldName) return false;
+  const R = getRegions();
+  if(!(oldName in R)) return false;
+  // No permitir chocar con otra región ya existente (ignorando mayúsculas/acentos).
+  const clash = Object.keys(R).some(k=> k!==oldName && normLoose(k)===normLoose(newName));
+  if(clash){ alert("Ya existe una región con ese nombre."); return false; }
+  // Reconstruir el objeto conservando el ORDEN, solo renombrando la clave.
+  const rebuilt = {};
+  Object.keys(R).forEach(k=>{ rebuilt[ (k===oldName ? newName : k) ] = R[k]; });
+  DB.regions = rebuilt;
+  // Propagar a la cobertura de los medios.
+  (DB.media||[]).forEach(m=>{
+    if(Array.isArray(m.coverage)) m.coverage = m.coverage.map(c=> c===oldName ? newName : c);
+    if(m.country===oldName) m.country = newName;
+    if(m.coverageReach && typeof m.coverageReach==="object" && (oldName in m.coverageReach)){
+      const v = m.coverageReach[oldName]; delete m.coverageReach[oldName]; m.coverageReach[newName] = v;
+    }
+    if(m.socialByCoverage && typeof m.socialByCoverage==="object" && (oldName in m.socialByCoverage)){
+      const v = m.socialByCoverage[oldName]; delete m.socialByCoverage[oldName]; m.socialByCoverage[newName] = v;
+    }
+  });
+  // Conservar el estado del editor con el nuevo nombre y dejar la región renombrada visible arriba.
+  if(typeof regionRecent!=="undefined"){
+    regionRecent = regionRecent.map(n=> n===oldName ? newName : n);
+    if(regionRecent.indexOf(newName)<0) regionRecent.unshift(newName);
+  }
+  if(typeof regionOpen!=="undefined"){ if(regionOpen[oldName]) regionOpen[newName] = true; delete regionOpen[oldName]; }
+  persist();
+  return true;
+}
+// Al editar el nombre de una región (blur o Enter), se aplica el renombrado y se re-renderiza.
+document.addEventListener("change", (e)=>{
+  const inp = e.target;
+  if(!inp || !inp.classList || !inp.classList.contains("region-name-input")) return;
+  const oldName = inp.dataset.oldname || "";
+  const newName = (inp.value||"").trim();
+  if(!newName){ inp.value = oldName; return; }       // vacío: revertir sin cambios
+  if(newName===oldName) return;                       // sin cambios
+  if(renameRegion(oldName, newName)){ render(); }     // aplicado: refrescar la vista
+  else { inp.value = oldName; }                        // colisión u error: revertir
+});
 
 // Un renglón colapsable por región (nombre + lista de países editable).
 function regionDetailsHTML(name, countries, open){
@@ -212,7 +301,10 @@ function regionDetailsHTML(name, countries, open){
   return `
   <details class="region-item" data-region="${escapeHtml(name)}" ${open?'open':''} style="border:1px solid var(--line);border-radius:8px;margin-bottom:8px;padding:8px 12px;">
     <summary style="cursor:pointer;display:flex;align-items:center;gap:10px;list-style:none;">
-      <b style="font-family:'Space Grotesk',sans-serif;">${escapeHtml(name)}</b>
+      <input class="region-name-input" value="${escapeHtml(name)}" data-oldname="${escapeHtml(name)}"
+        onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+        title="Editar el nombre de la región"
+        style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;min-width:120px;max-width:280px;">
       <span class="hint" style="font-size:11px;">${countries.length} ${countries.length===1?'país':'países'}</span>
       <span style="flex:1;"></span>
       <button class="btn danger sm" data-action="remove-region" data-name="${escapeHtml(name)}" onclick="event.preventDefault();" style="flex-shrink:0;">Quitar región</button>

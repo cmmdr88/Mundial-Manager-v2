@@ -231,12 +231,14 @@ function renderTeamDetail(teamId){
     </div>
     <div style="flex:1;min-width:160px;border-left:1px solid var(--line);padding-left:18px;">
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Patrocinador de ropa</div>
-      ${t.kitSponsor ? `<span class="badge brand">${t.kitSponsor}</span>` : `<span style="font-size:13px;color:var(--muted);">Sin definir</span>`}
+      ${t.kitSponsor ? `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">${kitSponsorLogoIcon(t.kitSponsor)}${escapeHtml(t.kitSponsor)}</span>` : `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">Sin marca</span>`}
       <div style="margin-top:10px;">
         <button class="btn ghost sm" data-action="manage-kits" data-team="${t.id}">Editar uniformes</button>
       </div>
     </div>
   </div>
+
+  ${(typeof facilitiesSectionHTML==="function") ? facilitiesSectionHTML(t) : ""}
 
   <div class="section-title"><h2>Convocatoria</h2><button class="btn gold sm" data-action="add-player" data-team="${t.id}">+ Agregar jugador</button></div>
   ${t.players.length===0 ? `<div class="empty"><h3>Sin jugadores cargados</h3><p>Agrega la convocatoria desde aquí.</p></div>` : `
@@ -297,7 +299,7 @@ function squadSortChip(label, key){
 
 function modalAddEditTeam(team){
   const isEdit = !!team;
-  team = team || {id:null, officialName:"", commonName:"", shortName:"", fifaCode:"", iocCode:"", conf:"UEFA", group:"", host:false, color1:"#4F46E5", color2:"#15161D", awayColor1:"#FFFFFF", awayColor2:"#15161D", kitSponsor:"", logoImg:"", logoImgLight:"", kitHomeImg:"", kitAwayImg:"", stadium:"", stadiums:[], trainingGround:"", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialHashtag:"", socialAvatarLogo:"dark", socialAvatarColor:0};
+  team = team || {id:null, officialName:"", commonName:"", shortName:"", fifaCode:"", iocCode:"", conf:"UEFA", group:"", host:false, color1:"#4F46E5", color2:"#15161D", awayColor1:"#FFFFFF", awayColor2:"#15161D", kitSponsor:"", logoImg:"", logoImgLight:"", kitHomeImg:"", kitAwayImg:"", stadium:"", stadiums:[], trainingGround:"", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialVerified:"", socialAvatarLogo:"dark", socialAvatarColor:0};
   openModal(`
     <div class="modal-box">
       <div class="modal-head"><h2>${isEdit?"Editar selección":"Agregar selección"}</h2><button class="modal-close" data-action="close-modal">×</button></div>
@@ -387,7 +389,8 @@ function modalAddEditTeam(team){
           ${socialSectionHTML("tsoc", team, {
             logoOptions: [["dark","Logo oscuro"],["light","Logo claro"]],
             logos: { dark: team.logoImg||"", light: team.logoImgLight||team.logoImg||"" },
-            colors: [team.color1||"#4F46E5", team.color2||"#15161D", team.awayColor1||"#FFFFFF"]
+            colors: [team.color1||"#4F46E5", team.color2||"#15161D", team.color3||"#FFFFFF"],
+            colorInputs: ["f-color1","f-color2","f-color3"]
           })}
         </div>
       </div>

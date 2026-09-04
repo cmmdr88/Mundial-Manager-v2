@@ -35,13 +35,14 @@ function buildDefaultConfederations(){
       color1: c1,
       color2: c2,
       badgeColor: CONF_COLORS[id].fg,
-      logoImg: null
+      logoImg: null,
+      logoImgLight: null
     };
   });
   return out;
 }
 function buildDefaultFifa(){
-  return { fullName: FIFA_INFO_DEFAULT.fullName, commonName: FIFA_INFO_DEFAULT.commonName, color1:"#1A6BFF", color2:"#091B3D", logoImg:null };
+  return { fullName: FIFA_INFO_DEFAULT.fullName, commonName: FIFA_INFO_DEFAULT.commonName, color1:"#1A6BFF", color2:"#091B3D", logoImg:null, logoImgLight:null };
 }
 
 function confBadge(conf){
@@ -112,7 +113,12 @@ function modalEditFifa(){
           <label class="field" style="grid-column:1/-1;">${T('fifa.commonName.label')}<input id="f-fifa-commonname" value="${f.commonName}"></label>
           <label class="field">${T('fifa.color1.label')}${colorPickerHTML("", f.color1, "f-fifa-color1")}</label>
           <label class="field">${T('fifa.color2.label')}${colorPickerHTML("", f.color2, "f-fifa-color2")}</label>
-          ${imageUploadField(T('fifa.logo.label'), "fifalogo", f.logoImg, "")}
+
+          <div class="subhead">Escudo</div>
+          <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
+            ${imageUploadFieldCol("Escudo — fondo oscuro", "fifalogo", f.logoImg, "El que se usa en casi toda la app (fondo oscuro).")}
+            ${imageUploadFieldCol("Escudo — fondo claro", "fifalogo-l", f.logoImgLight, "Para fondos claros.")}
+          </div>
         </div>
       </div>
       <div class="modal-foot">
@@ -142,7 +148,11 @@ function modalEditConfederation(confId){
             <span style="font-size:11px;color:var(--muted);font-weight:400;">${T('confederation.badgeColor.hint')}</span>
           </label>
 
-          ${imageUploadField(T('confederation.logo.label'), "conflogo", info.logoImg, "")}
+          <div class="subhead">Escudo</div>
+          <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
+            ${imageUploadFieldCol("Escudo — fondo oscuro", "conflogo", info.logoImg, "El que se usa en casi toda la app (fondo oscuro).")}
+            ${imageUploadFieldCol("Escudo — fondo claro", "conflogo-l", info.logoImgLight, "Para fondos claros.")}
+          </div>
         </div>
       </div>
       <div class="modal-foot">

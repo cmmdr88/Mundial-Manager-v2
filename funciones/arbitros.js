@@ -257,7 +257,7 @@ function renderArbitros(){
           <td>${cn?flagIconHTML(cn)+escapeHtml(cn):"—"}</td>
           <td>${playerAge(r)!=null?playerAge(r):'—'}</td>
           <td>${r.role?escapeHtml(r.role):"—"}</td>
-          <td class="mono">${r.fifaSince||"—"}</td>
+          <td>${r.fifaSince||"—"}</td>
           <td><button class="btn ghost sm" data-action="edit-referee" data-id="${r.id}">Editar</button></td>
         </tr>`;
       }).join("") || `<tr><td colspan="6" style="text-align:center;color:var(--muted);">Sin resultados</td></tr>`}
