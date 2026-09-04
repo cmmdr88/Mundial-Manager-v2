@@ -180,16 +180,20 @@ function diffVal(base, cur){
 }
 
 // Aplica un parche de diffVal sobre `base` y devuelve el resultado.
+// NOTA de rendimiento: el único que llama a applyPatch es applyBackup, SIEMPRE con un parche recién
+// salido de JSON.parse (importación). Esos valores (`__set`, `added`) ya son copias frescas nuestras,
+// así que NO se clonan (clonarlos duplicaba en memoria todas las imágenes importadas y era el mayor
+// costo del import). La `base` (el seed) sí se clona, porque no debe mutarse.
 function applyPatch(base, patch){
   if(patch==null) return base;
-  if("__set" in patch) return _cloneVal(patch.__set);
+  if("__set" in patch) return patch.__set;   // valor recién parseado: ya es nuestro, sin clonar
   if(patch.__del) return undefined;   // el contenedor padre se encarga de borrar la clave
   if(patch.__idarr){
     const arr = Array.isArray(base) ? base.map(_cloneVal) : [];
     const idx = Object.create(null); arr.forEach((x,i)=>{ if(x && typeof x==="object" && "id" in x) idx[x.id]=i; });
     (patch.removed||[]).forEach(id=>{ if(id in idx) arr[idx[id]] = undefined; });
     (patch.changed||[]).forEach(ch=>{ if(ch.id in idx && arr[idx[ch.id]]!==undefined) arr[idx[ch.id]] = applyPatch(arr[idx[ch.id]], ch.patch); });
-    (patch.added||[]).forEach(v=>{ arr.push(_cloneVal(v)); });
+    (patch.added||[]).forEach(v=>{ arr.push(v); });   // valor recién parseado: sin clonar
     let out = arr.filter(x=> x!==undefined);
     if(patch.order){
       // Reordenar según la secuencia guardada. Los ids no listados (no debería haber) van al final,
@@ -217,17 +221,23 @@ function applyPatch(base, patch){
 // Referencia determinista para el respaldo: el SEED CRUDO (constante congelada), no buildDefaultDB()
 // —que deriva colores en tiempo de ejecución—. Así la reconstrucción nunca depende de estado derivado
 // y TODO ajuste del usuario respecto al seed queda garantizado en el JSON, siempre.
-function _rawSeedClone(){
+// Referencia CRUDA al seed, SIN clonar. Solo debe usarse como base de SOLO LECTURA (diffVal, y como
+// base de applyPatch —que clona internamente antes de modificar—). Nunca modificar lo que devuelve.
+function _rawSeedRef(){
   const src = (typeof BASE_DB_SEED!=="undefined") ? BASE_DB_SEED
             : (typeof window!=="undefined" ? window.BASE_DB_SEED : null);
   if(!src) throw new Error("Falta datos/base-datos-seed.js (BASE_DB_SEED)");
-  return (typeof structuredClone==="function") ? structuredClone(src) : JSON.parse(JSON.stringify(src));
+  return src;
+}
+function _rawSeedClone(){
+  return _cloneVal(_rawSeedRef());
 }
 
 // Construye el respaldo delta a partir del estado actual (o de `db`): todo lo que difiera del seed.
+// diffVal SOLO LEE la referencia, así que se usa el seed crudo sin clonar (evita clonar ~8 MB).
 function buildBackup(db){
   const src = db || (typeof DB!=="undefined" ? DB : null);
-  const ref = _rawSeedClone();
+  const ref = _rawSeedRef();
   const data = src ? (diffVal(ref, src) || {}) : {};
   return { __type:"copa-manager-backup", version:(src&&src.version)||ref.version||2, data };
 }
@@ -236,7 +246,12 @@ function buildBackup(db){
 // objeto de base de datos, o null si el pack no es un respaldo delta válido.
 function applyBackup(pack){
   if(!pack || pack.__type!=="copa-manager-backup") return null;
-  const result = applyPatch(_rawSeedClone(), pack.data || {});
+  const data = pack.data || {};
+  // applyPatch con un patch de objeto/arreglo YA clona la base internamente antes de modificarla, así
+  // que se le pasa el seed crudo (sin pre-clonar): así solo se clona UNA vez, no dos. Solo cuando el
+  // patch no cambia nada hay que clonar aquí para no devolver (y luego mutar) el seed constante.
+  const hasPatch = !!(data && (data.__obj || data.__idarr || ("__set" in data)));
+  const result = hasPatch ? applyPatch(_rawSeedRef(), data) : _rawSeedClone();
   // Mantener el contador de ids por encima de los ya usados, como hace buildDefaultDB.
   if(typeof _seedCounter==="number" && result && typeof result.nextIdSeed==="number") _seedCounter = Math.max(_seedCounter, result.nextIdSeed);
   return result;
