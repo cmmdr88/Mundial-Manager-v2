@@ -106,7 +106,7 @@ document.addEventListener("click", (e)=>{
   render();
   buildGlobalSearch();
   const badge = document.getElementById("season-badge");
-  if(badge) badge.textContent = "WIP · JULIO 2026 · VER " + APP_VERSION;
+  if(badge) badge.textContent = "WIP · SEPTIEMBRE 2026";
   // Pantallas iniciales (overlay): se muestran SIEMPRE al arrancar.
   if(typeof Onboarding!=="undefined" && Onboarding.boot) Onboarding.boot();
 })();

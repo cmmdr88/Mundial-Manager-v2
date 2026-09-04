@@ -26,9 +26,9 @@ function readSocial(key){
     socialAvatarManual: v("avatar-manual") === "1",
     socialProfileName: v("profile").trim(),
     socialUsername: v("username").replace(/[^A-Za-z0-9_]/g, "").slice(0, 15),
-    socialHashtag: v("hashtag").trim(),
+    socialVerified: (v("verif")||"").trim(),   // marca de verificación: "", "azul" o "dorado"
     socialAvatarLogo: v("avlogo") || null,
-    socialAvatarColor: (()=>{ const n = parseInt(v("avcolor")); return isNaN(n) ? 0 : n; })()
+    socialAvatarColor: (()=>{ const raw = v("avcolor"); if(raw==="white"||raw==="black") return raw; const n = parseInt(raw); return isNaN(n) ? 0 : n; })()
   };
 }
 
@@ -177,6 +177,8 @@ function handleAction(action, el){
     }
     case "add-club": modalAddEditClub(null); break;
     case "sort-clubs": toggleSort(clubsSort, el.dataset.key); render(); break;
+    case "sort-media": toggleSort(mediaSort, el.dataset.key); render(); break;
+    case "sort-sponsor": toggleSort(sponsorSort, el.dataset.key); render(); break;
     case "back-clubes": activeClubId=null; navIndex>0 ? navBack() : navigateTo("clubes", null); break;
     case "nav-club-arrow": {
       const ordered = orderedClubs();
@@ -414,6 +416,7 @@ function handleAction(action, el){
       f.color1 = document.getElementById("f-fifa-color1").value;
       f.color2 = document.getElementById("f-fifa-color2").value;
       f.logoImg = document.getElementById("f-fifalogo-data").value || null;
+      f.logoImgLight = document.getElementById("f-fifalogo-l-data").value || null;
       persist(); closeModal(); render();
       break;
     }
@@ -468,6 +471,7 @@ function handleAction(action, el){
       info.color2 = document.getElementById("f-conf-color2").value;
       info.badgeColor = document.getElementById("f-conf-badgecolor").value;
       info.logoImg = document.getElementById("f-conflogo-data").value || null;
+      info.logoImgLight = document.getElementById("f-conflogo-l-data").value || null;
       persist(); closeModal(); render();
       break;
     }
@@ -921,7 +925,7 @@ function handleAction(action, el){
         links,
         global: links.some(l=>l.type==="tournament"),
         teamId: (links.find(l=>l.type==="team")||{}).id || null,
-        ...(()=>{ const vd=document.getElementById("f-slogo-vd-data").value||null, vl=document.getElementById("f-slogo-vl-data").value||null, hd=document.getElementById("f-slogo-hd-data").value||null, hl=document.getElementById("f-slogo-hl-data").value||null; const pr=(document.getElementById("f-slogo-principal")||{}).value||"horizontal"; const gr=(document.getElementById("f-slogo-grafico")||{}).value||"hd"; const mainDark = pr==="vertical" ? (vd||hd||vl||hl) : (hd||vd||hl||vl); return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoGrafico:gr, logoImg: mainDark||null }; })(),
+        ...(()=>{ const vd=document.getElementById("f-slogo-vd-data").value||null, vl=document.getElementById("f-slogo-vl-data").value||null, hd=document.getElementById("f-slogo-hd-data").value||null, hl=document.getElementById("f-slogo-hl-data").value||null; const pr=(document.getElementById("f-slogo-principal")||{}).value||"horizontal"; const gr=(document.getElementById("f-slogo-grafico")||{}).value||"hd"; const ic=(document.getElementById("f-slogo-icono")||{}).value||"vd"; const mainDark = pr==="vertical" ? (vd||hd||vl||hl) : (hd||vd||hl||vl); return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoGrafico:gr, logoIcono:ic, logoImg: mainDark||null }; })(),
         color1: document.getElementById("f-scolor1").value,
         color2: document.getElementById("f-scolor2").value,
         color3: document.getElementById("f-scolor3").value
@@ -945,7 +949,30 @@ function handleAction(action, el){
     }
     case "add-media-coverage-row": {
       const container = document.getElementById("media-coverage-rows");
-      if(container) container.insertAdjacentHTML("beforeend", mediaCoverageRowHTML(""));
+      if(container){
+        container.insertAdjacentHTML("beforeend", mediaCoverageRowHTML(""));
+        const rows = container.querySelectorAll(".media-coverage-row .media-coverage-name");
+        const last = rows[rows.length-1]; if(last) last.focus();
+      }
+      // Refleja la nueva cobertura en "Perfiles por cobertura" cuando se le ponga nombre.
+      if(typeof rebuildMediaCoverageProfiles==="function") rebuildMediaCoverageProfiles();
+      break;
+    }
+    case "reset-media-cov-profile": {
+      // Restablece un perfil por cobertura al perfil por defecto: quita su imagen propia, limpia
+      // nombre/usuario y devuelve la marca de verificación a "usa la del perfil por defecto".
+      const key = el.dataset.key; if(!key) break;
+      const man = document.getElementById("f-"+key+"-avatar-manual"); if(man) man.value = "";
+      ["profile","username"].forEach(f=>{ const e2 = document.getElementById("f-"+key+"-"+f); if(e2) e2.value = ""; });
+      const vf = document.getElementById("f-"+key+"-verif"); if(vf) vf.value = "";
+      const wrap = document.querySelector('[data-social-key="'+key+'"]');
+      if(wrap && typeof wrap._applyDefaultAvatar==="function") wrap._applyDefaultAvatar();
+      else if(typeof mediaPropagateDefaultAvatar==="function") mediaPropagateDefaultAvatar();
+      // Actualiza la etiqueta del desplegable a "usa el perfil por defecto".
+      const det = el.closest("details");
+      const summary = det && det.querySelector("[data-cov-summary]");
+      const cov = wrap && wrap.getAttribute("data-social-cov");
+      if(summary && cov!=null && typeof mediaCovSummaryHTML==="function") summary.innerHTML = mediaCovSummaryHTML(cov, false);
       break;
     }
     case "add-region": {
@@ -1014,6 +1041,8 @@ function handleAction(action, el){
     case "remove-media-coverage-row": {
       const row = el.closest(".media-coverage-row");
       if(row) row.remove();
+      // Quita también su perfil de "Perfiles por cobertura" en vivo.
+      if(typeof rebuildMediaCoverageProfiles==="function") rebuildMediaCoverageProfiles();
       break;
     }
     case "remove-sponsor-cat-row": {
@@ -1057,18 +1086,19 @@ function handleAction(action, el){
       const name = document.getElementById("f-mname").value.trim();
       if(!name){ alert("El nombre es obligatorio"); return; }
       const mCats = [...document.querySelectorAll('input[name="media-cat"]:checked')].map(c=>c.value);
-      // Cada fila de cobertura aporta su nombre y su alcance (millones). Se quitan duplicados por
-      // nombre (se conserva el alcance de la primera aparición). coverageReach = { nombre: millones }.
+      // Cada fila de cobertura aporta su nombre y su IMPORTANCIA (1–100). Se quitan duplicados por
+      // nombre (se conserva la importancia de la primera aparición). coverageReach = { nombre: 1–100 }.
       const mCovReach = {};
       const mCov = (()=>{ const seen=new Set(); const out=[];
         [...document.querySelectorAll("#media-coverage-rows .media-coverage-row")].forEach(row=>{
           const nm = ((row.querySelector(".media-coverage-name")||{}).value||"").trim();
           if(!nm) return; const k=normLoose(nm); if(seen.has(k)) return; seen.add(k);
           const rv = (row.querySelector(".media-coverage-reach")||{}).value;
-          out.push(nm); mCovReach[nm] = Math.max(0, parseInt(rv)||0);
+          out.push(nm); mCovReach[nm] = Math.min(100, Math.max(0, parseInt(rv)||0));   // ranking 1–100
         });
         return out; })();
-      const mReachTotal = Object.keys(mCovReach).reduce((s,k)=>s+(mCovReach[k]||0), 0);
+      // Importancia global del medio = la más alta entre sus coberturas (referencia para lo internacional).
+      const mReachTotal = Object.keys(mCovReach).reduce((mx,k)=>Math.max(mx, mCovReach[k]||0), 0);
       const data = {
         name,
         categories: mCats,
@@ -1077,7 +1107,7 @@ function handleAction(action, el){
         coverage: mCov,
         coverageReach: mCovReach,
         country: mCov[0] || "",   // compatibilidad con código que aún lee `country`
-        reach: mReachTotal,       // alcance total = suma de los alcances por cobertura
+        reach: mReachTotal,       // importancia global = la más alta entre sus coberturas (1–100)
         ...(()=>{ const vd=document.getElementById("f-mlogo-vd-data").value||null, vl=document.getElementById("f-mlogo-vl-data").value||null, hd=document.getElementById("f-mlogo-hd-data").value||null, hl=document.getElementById("f-mlogo-hl-data").value||null; const pr=(document.getElementById("f-mlogo-principal")||{}).value||"horizontal"; const gr=(document.getElementById("f-mlogo-grafico")||{}).value||"hd"; const mainDark = pr==="vertical" ? (vd||hd||vl||hl) : (hd||vd||hl||vl); return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoGrafico:gr, logoImg: mainDark||null }; })(),
         color1: document.getElementById("f-mcolor1").value,
         color2: document.getElementById("f-mcolor2").value,
@@ -1091,7 +1121,16 @@ function handleAction(action, el){
           document.querySelectorAll("#media-social [data-social-cov], .form-grid [data-social-cov]").forEach(el=>{
             const cov = el.getAttribute("data-social-cov"); if(!cov) return;
             const p = readSocial(el.getAttribute("data-social-key"));
-            if(p.socialProfileName || p.socialUsername || p.socialHashtag || p.socialAvatarManual) out[cov] = p;
+            // La imagen solo se guarda si la cobertura subió una propia; si no, se hereda la del
+            // perfil por defecto (no se congela una copia). Cada campo de texto vacío también
+            // hereda el del default al consultarse (ver mediaSocialProfile).
+            if(!p.socialAvatarManual) p.socialAvatar = null;
+            const trim = s => (s==null?"":String(s).trim());
+            p.socialProfileName = trim(p.socialProfileName);
+            p.socialUsername = trim(p.socialUsername);
+            // Marca de verificación de la cobertura: "" = usa la del perfil por defecto (no se guarda).
+            p.socialVerified = trim(p.socialVerified);
+            if(p.socialProfileName || p.socialUsername || p.socialAvatarManual || p.socialVerified) out[cov] = p;
           });
           return out;
         })()
@@ -2016,47 +2055,69 @@ function handleAction(action, el){
       // segundos conformando ese texto en el <textarea> en cada re-render.
       const ta = document.getElementById("export-area");
       if(ta){
-        ta.value = JSON.stringify(buildBackup(DB), null, 1);
+        // Compacto (sin indentación): es ~40% menos texto y bastante más rápido de generar y de
+        // pintar en el <textarea>. El respaldo es un bloque para copiar/pegar, no para leerlo a mano.
+        ta.value = JSON.stringify(buildBackup(DB));
         try{ ta.focus(); ta.select(); }catch(e){}
       }
       break;
     }
+    case "download-backup": {
+      // Descarga el respaldo como archivo .json. Es lo más rápido: no hay que pintar decenas de MB
+      // de texto en un <textarea> (que es lo que hacía lento «Generar JSON»).
+      const text = JSON.stringify(buildBackup(DB));
+      const name = (typeof backupFileName==="function") ? backupFileName() : "copa-manager-respaldo.json";
+      const ok = (typeof downloadTextFile==="function") && downloadTextFile(name, text);
+      if(ok) showToast("Respaldo descargado"); else alert("No se pudo descargar el archivo de respaldo.");
+      break;
+    }
+    case "trigger-import-file": {
+      const inp = document.getElementById("import-file");
+      if(inp){ inp.value = ""; inp.click(); }
+      break;
+    }
     case "import-json": {
-      const txt = document.getElementById("import-area").value.trim();
-      if(!txt) return;
-      try{
-        const parsed = JSON.parse(txt);
-        if(parsed && parsed.__type==="copa-manager-backup"){
-          // RESPALDO DELTA: se parte de una base limpia y se aplican encima solo tus cambios
-          // (datos duros editados, logos, uniformes, colores, fotos, tipografías, catálogos).
-          if(typeof applyBackup!=="function") throw new Error("applyBackup no disponible");
-          const rebuilt = applyBackup(parsed);
-          if(!rebuilt || !rebuilt.teams) throw new Error("Respaldo inválido");
-          DB = rebuilt;
-          migrateDB();
-          HISTORY = []; saveHistory(); PREV_DB_JSON = JSON.stringify(DB);
-          activeTeamId = null;
-          resetNavHistory();
-          persist(true); render();
-          showToast("Respaldo importado: base + tus cambios");
-        } else if(parsed && parsed.__type==="copa-manager-visual-pack"){
-          // PACK VISUAL: se FUSIONA por id sobre la base actual (logos, uniformes, colores,
-          // patrocinadores y fotos). No reemplaza ni toca los datos duros.
-          if(typeof applyVisualPack!=="function" || !applyVisualPack(parsed)) throw new Error("Pack visual inválido");
-          persist(true); render();
-          showToast("Pack visual aplicado (logos, uniformes, colores y fotos)");
-        } else {
-          if(!parsed.teams) throw new Error("Formato inválido");
-          DB = parsed;
-          migrateDB();
-          HISTORY = []; saveHistory(); PREV_DB_JSON = JSON.stringify(DB); // el historial de la base anterior ya no aplica
-          activeTeamId = null;
-          resetNavHistory();
-          persist(true); render();
-          showToast("Base de datos importada y actualizada a la versión más reciente");
-        }
-      }catch(err){ alert("JSON inválido: " + err.message); }
+      applyImportedBackupText((document.getElementById("import-area")||{}).value || "");
       break;
     }
   }
+}
+
+// Importa un respaldo a partir de su TEXTO JSON (usado tanto por «Cargar respaldo (.json)» como por
+// el pegado manual). Detecta el tipo: respaldo delta, pack visual o base completa.
+function applyImportedBackupText(txt){
+  txt = (txt || "").trim();
+  if(!txt){ return; }
+  try{
+    const parsed = JSON.parse(txt);
+    if(parsed && parsed.__type==="copa-manager-backup"){
+      // RESPALDO DELTA: se parte de una base limpia y se aplican encima solo tus cambios
+      // (datos duros editados, logos, uniformes, colores, fotos, tipografías, catálogos).
+      if(typeof applyBackup!=="function") throw new Error("applyBackup no disponible");
+      const rebuilt = applyBackup(parsed);
+      if(!rebuilt || !rebuilt.teams) throw new Error("Respaldo inválido");
+      DB = rebuilt;
+      migrateDB();
+      HISTORY = []; saveHistory(); PREV_DB_JSON = JSON.stringify(DB);
+      activeTeamId = null;
+      resetNavHistory();
+      persist(true); render();
+      showToast("Respaldo importado: base + tus cambios");
+    } else if(parsed && parsed.__type==="copa-manager-visual-pack"){
+      // PACK VISUAL: se FUSIONA por id sobre la base actual (logos, uniformes, colores,
+      // patrocinadores y fotos). No reemplaza ni toca los datos duros.
+      if(typeof applyVisualPack!=="function" || !applyVisualPack(parsed)) throw new Error("Pack visual inválido");
+      persist(true); render();
+      showToast("Pack visual aplicado (logos, uniformes, colores y fotos)");
+    } else {
+      if(!parsed.teams) throw new Error("Formato inválido");
+      DB = parsed;
+      migrateDB();
+      HISTORY = []; saveHistory(); PREV_DB_JSON = JSON.stringify(DB); // el historial de la base anterior ya no aplica
+      activeTeamId = null;
+      resetNavHistory();
+      persist(true); render();
+      showToast("Base de datos importada y actualizada a la versión más reciente");
+    }
+  }catch(err){ alert("JSON inválido: " + err.message); }
 }

@@ -588,7 +588,11 @@ function pShort(p){
   return pName(p).split(/\s+/).pop();
 }
 // Nombre compacto "Inicial. Apellido" para los rectángulos (p. ej. "R. Jiménez", "G. Ochoa").
+// Si el jugador tiene NOMBRE COMÚN (mononombre conocido, p. ej. "Neymar", "Trézéguet"), se usa ese
+// tal cual — nunca "N. da Silva Santos Júnior".
 function pInitialLast(p){
+  const common = (p.commonName||"").trim();
+  if(common) return common;
   const first = (p.firstName||"").trim();
   const last  = (p.lastName||"").trim();
   if(first && last) return first.charAt(0).toUpperCase()+". "+last;
@@ -684,10 +688,39 @@ function render(){
 // que se ve (data-full). En los que sí se leen completos, quita el tooltip.
 function applyTruncationTitles(){
   try{
-    document.querySelectorAll('#cm-onb .cv-name[data-full], #cm-onb .cv-clubname[data-full], #cm-onb .cv-poslist[data-full]').forEach(el=>{
+    document.querySelectorAll('#cm-onb .cv-clubname[data-full], #cm-onb .cv-poslist[data-full]').forEach(el=>{
       const full = el.getAttribute('data-full') || '';
       if(el.scrollWidth > el.clientWidth + 1){ el.setAttribute('title', full); }
       else { el.removeAttribute('title'); }
+    });
+  }catch(e){}
+  fitConvNames();
+}
+// Ajuste del NOMBRE en la lista de convocatoria (columna izquierda), para evitar que se corte:
+//  1) se intenta el NOMBRE COMÚN completo (con su formato en negrita); si cabe, se deja.
+//  2) si no cabe, se prueba el NOMBRE CORTO ("Inicial. Apellido"); si cabe completo, se deja.
+//  3) si ni el corto cabe, se vuelve al NOMBRE COMÚN recortado con "…" (nunca el corto recortado).
+// El tooltip (nombre completo) aparece solo cuando el texto no se ve completo (casos 2 y 3).
+function fitConvNames(){
+  try{
+    document.querySelectorAll('#cm-onb .cv-name[data-short]').forEach(el=>{
+      // Guardamos una sola vez el HTML original (nombre común con su negrita) para poder restaurarlo.
+      if(!('cmHtml' in el.dataset)) el.dataset.cmHtml = el.innerHTML;
+      const commonHtml  = el.dataset.cmHtml;
+      const commonPlain = el.getAttribute('data-full') || '';
+      const short = el.getAttribute('data-short') || '';
+      const fits = ()=> el.scrollWidth <= el.clientWidth + 1;
+      // 1) nombre común completo (con negrita)
+      el.innerHTML = commonHtml;
+      if(fits()){ el.removeAttribute('title'); return; }
+      // 2) nombre corto "Inicial. Apellido"
+      if(short && short!==commonPlain){
+        el.textContent = short;
+        if(fits()){ el.setAttribute('title', commonPlain); return; }
+      }
+      // 3) ni el corto cabe: común recortado con "…" + tooltip con el nombre completo
+      el.innerHTML = commonHtml;
+      el.setAttribute('title', commonPlain);
     });
   }catch(e){}
 }
@@ -1073,10 +1106,9 @@ function coverageMatchesTeam(m, t){
   }
   return intl ? { intl:true } : null;
 }
-// Alcance (millones) de CADA entrada de cobertura de un medio, normalizando el nombre para poder
-// cruzarlo con países/regiones/confederaciones. Se lee de m.coverageReach = { nombre: millones }.
-// Migración: los medios antiguos sin coverageReach usan su m.reach (alcance global único) en la
-// PRIMERA entrada; el resto en 0.
+// IMPORTANCIA (1–100) de CADA entrada de cobertura de un medio, normalizando el nombre para poder
+// cruzarlo con países/regiones/confederaciones. Se lee de m.coverageReach = { nombre: 1–100 }.
+// Migración: los medios antiguos sin coverageReach usan su m.reach en la PRIMERA entrada; el resto en 0.
 function mediaReachMapFor(m){
   const cov = mediaCoverageEntries(m);
   const stored = (m.coverageReach && typeof m.coverageReach==="object") ? m.coverageReach : null;
@@ -1089,13 +1121,15 @@ function mediaReachMapFor(m){
   });
   return map;
 }
-// Alcance total del medio = suma de los alcances por cobertura.
-function mediaTotalReachM(m){ const mp = mediaReachMapFor(m); let s=0; for(const k in mp) s += mp[k]||0; return s; }
-// Prioridad de un medio para una selección + el alcance que decide el orden dentro de su nivel:
-//  tier 1) el PAÍS está explícito en la cobertura (solo o acompañado, da igual) → decide el alcance
-//          asignado a ESE país;
-//  tier 2) cubre al país vía REGIÓN o confederación → decide el alcance de esa entrada;
-//  tier 3) internacional (todo el mundo) → decide el alcance total del medio.
+// Importancia global del medio = la MÁS ALTA entre sus coberturas (referencia para el nivel
+// internacional). Con la escala 1–100 no se suman los valores; se toma el máximo.
+function mediaTotalReachM(m){ const mp = mediaReachMapFor(m); let mx=0; for(const k in mp) mx = Math.max(mx, mp[k]||0); return mx; }
+// Prioridad de un medio para una selección + la IMPORTANCIA (1–100) que decide el orden dentro de su
+// nivel (a mayor importancia, más prioridad para mostrar sus noticias):
+//  tier 1) el PAÍS está explícito en la cobertura (solo o acompañado, da igual) → decide la
+//          importancia asignada a ESE país;
+//  tier 2) cubre al país vía REGIÓN o confederación → decide la importancia de esa entrada;
+//  tier 3) internacional (todo el mundo) → decide la importancia global (máxima) del medio.
 // Devuelve { tier, reach } o null si el medio no cubre a esta selección.
 function mediaRankForTeam(m, t){
   const entries = mediaCoverageEntries(m);
@@ -1655,7 +1689,7 @@ function cvPlayerCells(p){
     ? `<span class="cv-clubin">${(typeof clubLogoIconHTML==="function")?clubLogoIconHTML(club):""}<span class="cv-clubname" data-full="${esc(clubCommon)}">${esc(clubCommon)}</span></span>`
     : `<span class="cv-clubname">—</span>`;
   return `
-    <span class="cv-jug"><span class="cv-photo">${personPhotoHTML(p.photo, p.gender)}</span><span class="cv-name" data-full="${esc(pName(p))}">${pNameHTML(p)}</span></span>
+    <span class="cv-jug"><span class="cv-photo">${personPhotoHTML(p.photo, p.gender)}</span><span class="cv-name" data-full="${esc(pName(p))}" data-short="${esc(pInitialLast(p))}">${pNameHTML(p)}</span></span>
     <span class="cv-pos">${posChipHTML(p.pos)}${posShown?`<span class="cv-poslist" data-full="${esc(posTitle)}">${posShown}</span>`:""}</span>
     <span class="cv-c l cv-club">${clubCell}</span>
     <span class="cv-c">${ageOf(p)}</span>
