@@ -31,8 +31,10 @@ function newsPhotoTraining(coachPhoto, teamLogo, widthPx, gender){
   const logo = teamLogo ? `<img src="${teamLogo}" style="position:absolute;right:6%;top:50%;transform:translateY(-50%);height:62%;width:auto;object-fit:contain;filter:drop-shadow(0 3px 8px rgba(0,0,0,.45));">` : "";
   const inner = `<div style="position:relative;width:480px;height:270px;overflow:hidden;background:#1b3a1b url('${NEWS_BACK_FIELD}') center/cover;">`
     + `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.15);"></div>`
-    + `<div style="position:absolute;left:3%;bottom:0;height:88%;display:flex;align-items:flex-end;">${coach}</div>`
+    // El logo va ANTES de la persona en el DOM para que quede SIEMPRE DETRÁS de la imagen de
+    // perfil (entrenador, jugador o árbitro), nunca encima.
     + logo
+    + `<div style="position:absolute;left:3%;bottom:0;height:88%;display:flex;align-items:flex-end;">${coach}</div>`
     + `</div>`;
   return `<div style="width:${W}px;height:${H}px;overflow:hidden;border-radius:${Math.round(10*k)}px;"><div style="transform:scale(${k});transform-origin:top left;">${inner}</div></div>`;
 }
