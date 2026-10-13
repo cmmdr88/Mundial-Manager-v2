@@ -505,12 +505,16 @@ function parseBulkPlayers(text){
   if(lines.length>0){
     const first = lines[0].toLowerCase();
     const looksHeader = !/^\s*\d/.test(lines[0]) &&
-      /(dorsal|posici|nombre|apellido|nacimiento|estatura|caps|internacional|goles|club|camiseta|marca|rating|height|birth)/.test(first);
+      /(dorsal|posici|nombre|apellido|nacimiento|estatura|caps|internacional|goles|club|camiseta|marca|rating|height|birth|pie|valor|favorito)/.test(first);
     if(looksHeader) lines = lines.slice(1);
   }
-  // Columnas: 0 Dorsal, 1 Pos, 2 Nombre, 3 Apellido, 4 Nombre común, 5 Nombre completo,
-  //           6 Fecha nac., 7 Estatura (cm), 8 Caps, 9 Goles sel.,
-  //           10 Club, 11 Nombre camiseta sel., 12 Marca, 13 Rating, 14 Rating potencial
+  // Columnas (orden fijo, separadas por tabulador; coma como respaldo):
+  //  0 Dorsal en selección   1 Posición           2 Nombre               3 Apellido
+  //  4 Nombre común          5 Nombre completo    6 Fecha de nacimiento  7 Estatura
+  //  8 Internacionalidades   9 Goles con selección 10 Club               11 Camiseta selección
+  // 12 Camiseta club         13 Marca patrocinadora 14 Rating             15 Rating potencial
+  // 16 Pie izquierdo         17 Pie derecho
+  // 18–37 Posición 1..10 / Valor 1..10   38 Dorsales favoritos selección   39 Dorsales favoritos club
   return lines.map(line=>{
     const cols = line.includes("\t") ? line.split("\t") : line.split(",");
     const c = cols.map(x=>(x||"").trim());
@@ -531,10 +535,32 @@ function parseBulkPlayers(text){
     const goalsNational = numInRange(c[9], 0, 100000);
     const club        = c[10] || "";
     const shirtNameTeam = (c[11]||"").slice(0,50);
-    const brand       = c[12] || "";
-    const rating      = (c[13]!=null && c[13]!=="") ? Math.max(0, Math.min(99, parseInt(c[13])||0)) : null;
-    const ratingPotential = (c[14]!=null && c[14]!=="") ? Math.max(0, Math.min(99, parseInt(c[14])||0)) : null;
-    return {number, numberUnassigned, pos, firstName, lastName, commonName, fullName, birthDate, height, caps, goalsNational, club, shirtNameTeam, brand, rating, ratingPotential};
+    const shirtNameClub = (c[12]||"").slice(0,50);
+    const brand       = c[13] || "";
+    const rating      = (c[14]!=null && c[14]!=="") ? Math.max(0, Math.min(99, parseInt(c[14])||0)) : null;
+    const ratingPotential = (c[15]!=null && c[15]!=="") ? Math.max(0, Math.min(99, parseInt(c[15])||0)) : null;
+    const footLeft    = numInRange(c[16], 1, 20);
+    const footRight   = numInRange(c[17], 1, 20);
+    // Pares Posición/Valor (10). La posición es un código válido (GK, CB, ST, …); el valor va de 0 a 20
+    // (0 = no apto, no se guarda). "CB (R)" / "CB (L)" indica el central por derecha / izquierda.
+    const positions   = {};
+    let cbSide = null;
+    for(let i=18;i<=36;i+=2){
+      let rawcode = (c[i]||"").toUpperCase().trim();
+      if(!rawcode) continue;
+      let code, side=null;
+      const cbm = rawcode.match(/^CB\s*[\(\-\s]?\s*([LR])\s*\)?$/);
+      if(cbm){ code="CB"; side=cbm[1]; } else { code = rawcode.replace(/[^A-Z]/g,""); }
+      if(POS_CAT_OF[code]!==undefined){
+        const v = parseInt(c[i+1]);
+        if(!isNaN(v) && v>0) positions[code] = Math.max(0, Math.min(20, v));
+        if(code==="CB" && side) cbSide = side;
+      }
+    }
+    const favNumbersTeam = parseFavNumbers(c[38]||"");
+    const favNumbersClub = parseFavNumbers(c[39]||"");
+    return {number, numberUnassigned, pos, firstName, lastName, commonName, fullName, birthDate, height, caps, goalsNational,
+            club, shirtNameTeam, shirtNameClub, brand, rating, ratingPotential, footLeft, footRight, positions, cbSide, favNumbersTeam, favNumbersClub};
   }).filter(Boolean);
 }
 
@@ -557,9 +583,242 @@ function getPlayerWithTeam(playerId){
   }
   return {player:null, team:null};
 }
+// ============================================================
+//  Internacionalidades y goles con selección — ajuste por calendario
+//  Los datos de la BD (player.caps / player.goalsNational) son AL 11 de junio de 2026 (antes del
+//  Mundial). El juego arranca el 1 de junio, así que:
+//   · Un amistoso de partidos.js entre el 1 y el 10 de junio YA está incluido en la base: mientras no
+//     se juegue (su fecha sigue en el futuro del reloj) hay que RESTARLO; al jugarse, vuelve a contar.
+//   · Un partido del 11 de junio en adelante (Mundial/futuro) NO está en la base: al jugarse, SE SUMA.
+//  Solo cuentan los jugadores que participaron (titular o cambio), nunca los que se quedaron en banca.
+// ============================================================
+const CAPS_BASE_CUTOFF = "2026-06-11";   // fecha a la que están actualizados los datos de la BD
+function capsCutoffMs(){ return Date.parse(CAPS_BASE_CUTOFF+"T00:00:00"); }
+// ¿El jugador participó (titular o entró de cambio) en este partido? (no cuenta la banca)
+function playedInFixtureForCaps(pid, f){
+  if(!f || !f.lineups) return false;
+  for(const sd of ["home","away"]){
+    const lu=f.lineups[sd]; if(!lu) continue;
+    if((lu.players||[]).some(x=>x.playerId===pid)) return true;                 // titular
+    if((lu.players||[]).some(x=>x.sub && x.sub.playerId===pid)) return true;    // entró de cambio
+  }
+  if((f.goals||[]).some(g=>g.playerId===pid && !g.og)) return true;             // anotó → jugó
+  return false;
+}
+// Goles (sin autogoles) del jugador en un partido.
+function goalsInFixtureForCaps(pid, f){ return (f.goals||[]).filter(g=>g.playerId===pid && !g.og).length; }
+// Ajuste {caps, goals} a aplicar sobre los valores base según el reloj del juego (con caché por reloj+nº partidos).
+var _capsAdjCache = (typeof window!=="undefined") ? (window.__capsAdjCache || (window.__capsAdjCache={stamp:null, map:{}})) : {stamp:null, map:{}};
+function capsGoalsAdjustment(pid){
+  let nowMs; try{ nowMs=(window.GameTime&&typeof GameTime.now==="function")?GameTime.now().getTime():capsCutoffMs(); }catch(e){ nowMs=capsCutoffMs(); }
+  const stamp = nowMs + ":" + ((typeof DB!=="undefined"&&DB.fixtures)?DB.fixtures.length:0);
+  if(_capsAdjCache.stamp!==stamp){ _capsAdjCache.stamp=stamp; _capsAdjCache.map={}; }
+  if(pid in _capsAdjCache.map) return _capsAdjCache.map[pid];
+  let caps=0, goals=0; const cut=capsCutoffMs();
+  ((typeof DB!=="undefined"&&DB.fixtures)||[]).forEach(f=>{
+    const mMs = matchDateTimeMs(f); if(mMs==null) return;
+    if(!playedInFixtureForCaps(pid, f)) return;
+    const g = goalsInFixtureForCaps(pid, f);
+    if(mMs < cut){ if(mMs > nowMs){ caps-=1; goals-=g; } }     // amistoso pre-Mundial aún no jugado → restar
+    else { if(mMs <= nowMs){ caps+=1; goals+=g; } }             // Mundial/futuro ya jugado → sumar
+  });
+  const r={caps, goals}; _capsAdjCache.map[pid]=r; return r;
+}
+// Internacionalidades efectivas del jugador a la fecha del juego (null si no hay dato base).
+function effectiveCaps(p){
+  if(!p || p.caps==null || !p.id) return p?p.caps:null;
+  return Math.max(0, p.caps + capsGoalsAdjustment(p.id).caps);
+}
+// Goles con selección efectivos a la fecha del juego (null si no hay dato base).
+function effectiveGoalsNational(p){
+  if(!p || p.goalsNational==null || !p.id) return p?p.goalsNational:null;
+  return Math.max(0, p.goalsNational + capsGoalsAdjustment(p.id).goals);
+}
 // Ficha de un jugador — mismo espíritu que renderTeamDetail (foto/datos a la izquierda, foto del
 // jugador, rating y botones de edición a la derecha). El contenido se irá llenando después;
 // por ahora ya están los campos base (incl. internacionalidades y goles con selección).
+/* ============================================================
+   Estadísticas del jugador (partido por partido)
+   ============================================================ */
+// Hash determinista → número pseudoaleatorio ESTABLE en [0,1). La calificación "al azar" depende solo del
+// jugador y del partido, así que no cambia entre recargas.
+function pmRand01(seedStr){
+  let h = 2166136261; const s = String(seedStr);
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h>>>0) % 100000) / 100000;
+}
+// Minutos reglamentarios (tope 90) a partir del minuto de un evento (ignora el añadido 90+X).
+function pmBaseMin(minStr){ const b=parseInt(String(minStr))||0; return Math.max(0, Math.min(b, 90)); }
+// Color de la calificación (verde alto → rojo bajo).
+function pmRendColor(r){
+  if(r>=7.5) return "#2fae66"; if(r>=6.5) return "#6fae4e"; if(r>=5.5) return "#c9a227";
+  if(r>=4.5) return "#d98324"; return "#d0453f";
+}
+const PM_MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+function pmTeamName(t){ return t ? (t.commonName||t.officialName||t.name||"—") : "—"; }
+// Minuto lineal (base + añadido) para ordenar/comparar sucesos: 90+2 → 92.
+function pmLin(minStr){ const s=String(minStr); const b=parseInt(s)||0; const em=/\+(\d+)/.exec(s); return b + (em?parseInt(em[1],10):0); }
+// Penalización de una EXPULSIÓN según minuto, tipo (roja directa vs 2ª amarilla) e impacto en el partido.
+// Escala aproximada:
+//   muy tardía sin impacto ≈ −0.4 · tardía ≈ −0.7 · 45'–75' ≈ −1.1 · temprana con daño ≈ −2.0 · provoca gol ≈ −2.3
+function pmRedPenalty(f, myTeamId, oppId, redMinStr, isSecondYellow){
+  const m = Math.max(1, Math.min(96, pmLin(redMinStr)));
+  let base = 2.55 - 0.0233*m;                 // más temprano → mayor castigo
+  base = Math.max(0.42, Math.min(2.2, base));
+  if(isSecondYellow) base *= 0.85;            // 2ª amarilla pega un poco menos que la roja directa
+  // Impacto: goles ENCAJADOS después de la roja y si el equipo terminó perdiendo.
+  const concededAfter = (f.goals||[]).filter(g=> g.teamId===oppId && pmLin(g.minute) >= m-1).length;
+  let impact = Math.min(concededAfter*0.4, 0.8);
+  const myScore = (myTeamId===f.teamA)?(f.scoreA||0):(f.scoreB||0);
+  const opScore = (myTeamId===f.teamA)?(f.scoreB||0):(f.scoreA||0);
+  if(myScore < opScore) impact += 0.15;       // el equipo perdió
+  base += Math.min(impact,1.0)*0.6;
+  return Math.min(base, 2.3);                 // tope del castigo por expulsión
+}
+function pmDateLabel(iso){
+  if(!iso || iso.length<10) return "—";
+  const dd=parseInt(iso.slice(8,10),10), mo=PM_MESES[(parseInt(iso.slice(5,7),10)||1)-1]||"", yr=iso.slice(0,4);
+  return `${dd} ${mo} ${yr}`;
+}
+// Estadísticas de UN jugador en UN partido concreto (o null si no participó / partido sin jugar).
+// Reutilizable: la tabla del jugador y el informe del partido (calificación/asistencias en la lista) lo usan.
+function pmFixtureStat(pid, f, isGK){
+  if(pid==null || !f) return null;
+  if(typeof fxPlayed==="function" && !fxPlayed(f)) return null;   // solo partidos ya jugados
+  let side=null, entry=null, teamId=null;
+  ["home","away"].forEach(sd=>{
+    const lu = f.lineups && f.lineups[sd]; if(!lu || side) return;
+    const st = (lu.players||[]).find(x=>x.playerId===pid);
+    if(st){ side=sd; entry={kind:"start", rec:st}; teamId=lu.teamId; return; }
+    const inp = (lu.players||[]).find(x=>x.sub && x.sub.playerId===pid);
+    if(inp){ side=sd; entry={kind:"in", rec:inp}; teamId=lu.teamId; return; }
+  });
+  if(!side){
+    // Sin alineación pero aparece en un gol/tarjeta: cuenta como jugado (90' por defecto).
+    const ev=[...(f.goals||[]),...(f.cards||[])].find(x=>x.playerId===pid);
+    if(ev){ side=(ev.teamId===f.teamA)?"home":"away"; teamId=ev.teamId; entry={kind:"ev"}; }
+  }
+  if(!side) return null;
+  const myTeamId = teamId || (side==="home"?f.teamA:f.teamB);
+  let dorsal=null, mins=90;
+  if(entry.kind==="start"){ dorsal=entry.rec.number; mins = (entry.rec.sub && entry.rec.sub.minute) ? pmBaseMin(entry.rec.sub.minute) : 90; }
+  else if(entry.kind==="in"){ dorsal=entry.rec.sub.number; mins = 90 - pmBaseMin(entry.rec.sub.minute); }
+  mins = Math.max(0, Math.min(90, mins));
+  const oppId = (myTeamId===f.teamA)?f.teamB:f.teamA; const oppT = (typeof getTeam==="function")?getTeam(oppId):null;
+  let goals=0, conceded=0;
+  if(isGK){ conceded = (myTeamId===f.teamA) ? (f.scoreB||0) : (f.scoreA||0); }
+  else { goals = (f.goals||[]).filter(g=>g.playerId===pid && !g.og).length; }
+  const ownGoals = (f.goals||[]).filter(g=>g.playerId===pid && g.og).length;
+  const yellows = (f.cards||[]).filter(c=>c.playerId===pid && (c.type||"yellow")==="yellow").length;
+  const reds = (f.cards||[]).filter(c=>c.playerId===pid && c.type==="red").length;
+  const assists = (f.goals||[]).filter(g=>g.assistPlayerId===pid).length;
+  let rating=null;
+  if(mins>14){
+    // Base 7 con un componente realista al azar (±0.85) → juego normal ≈ 6–8. Los goles/asistencias
+    // suben (más de un gol + asistencia pasa de 8).
+    let r = 7 + (pmRand01(pid+"|"+f.id)*1.7 - 0.85);
+    if(isGK){ if(conceded===0 && mins>=60) r += 0.8; r -= conceded*0.45; }
+    else { r += goals*0.7 + assists*0.7; }
+    // Tarjetas:
+    //   · Roja (directa o 2ª amarilla marcada con Roj) → castigo por expulsión (minuto/tipo/impacto).
+    //   · Doble amarilla SIN línea Roj → también es expulsión: se castiga igual (2ª amarilla).
+    //   · Una sola amarilla → castigo LEVE (no se penaliza de más).
+    if(reds>0){
+      const rc = (f.cards||[]).find(c=>c.playerId===pid && c.type==="red");
+      r -= pmRedPenalty(f, myTeamId, oppId, rc?rc.minute:"90", yellows>0);
+    } else if(yellows>=2){
+      const ymins=(f.cards||[]).filter(c=>c.playerId===pid && (c.type||"yellow")==="yellow").map(c=>pmLin(c.minute));
+      r -= pmRedPenalty(f, myTeamId, oppId, String(ymins.length?Math.max.apply(null,ymins):90), true);
+    } else if(yellows===1){
+      r -= 0.3;   // amarilla suelta: castigo leve
+    }
+    r -= ownGoals*1.3;
+    r = Math.max(3.0, Math.min(9.8, r));
+    rating = Math.round(r*10)/10;
+  }
+  return { id:f.id, date:f.date||"", dorsal, oppT, oppName: pmTeamName(oppT), mins, goals, conceded, assists, yellows, reds, rating, isGK };
+}
+// Calificación de un jugador en un partido (o null si SC / no participó). Para el informe del partido.
+function playerFixtureRating(pid, f){
+  const {player} = getPlayerWithTeam(pid);
+  const isGK = !!(player && player.pos==="GK");
+  const st = pmFixtureStat(pid, f, isGK);
+  return st ? st.rating : null;
+}
+// Nº de asistencias de un jugador en un partido concreto.
+function playerFixtureAssists(pid, f){
+  if(pid==null || !f) return 0;
+  return (f.goals||[]).filter(g=>g.assistPlayerId===pid).length;
+}
+// Estadísticas del jugador partido por partido (solo partidos jugados con datos), del más reciente al más viejo.
+function playerMatchStats(pid){
+  if(pid==null || typeof DB==="undefined" || !DB.fixtures) return [];
+  const {player} = getPlayerWithTeam(pid);
+  const isGK = !!(player && player.pos==="GK");
+  const rows=[];
+  (DB.fixtures||[]).forEach(f=>{
+    const st = pmFixtureStat(pid, f, isGK);
+    if(st) rows.push(st);
+  });
+  rows.sort((a,b)=> String(b.date).localeCompare(String(a.date)));   // más reciente primero
+  return rows;
+}
+// Tabla de estadísticas (filas por partido + totales). isGK: la columna de goles muestra los ENCAJADOS.
+function playerStatsTableHTML(pid){
+  const rows = playerMatchStats(pid);
+  if(!rows.length) return `<div style="font-size:12.5px;color:var(--muted);padding:2px 0;">Aún no hay partidos jugados con datos para este jugador.</div>`;
+  const isGK = rows[0].isGK;
+  const golLbl = isGK ? "GC" : "G", golTitle = isGK ? "Goles encajados" : "Goles anotados";
+  let tMin=0,tGol=0,tAsi=0,tYel=0,tRed=0,rSum=0,rCount=0;
+  const rendCell=(v)=> v!=null ? `<span class="pm-rend" style="background:${pmRendColor(v)};">${v.toFixed(1)}</span>` : `<span class="pm-sc" title="Sin calificación (menos de 15 minutos jugados)">SC</span>`;
+  const dorsalBadge=(n)=> n!=null ? `<span class="pm-num">${n}</span>` : `<span class="pm-num pm-num-empty">–</span>`;
+  const body = rows.map(r=>{
+    const gol = isGK ? r.conceded : r.goals;
+    tMin+=r.mins; tGol+=gol; tAsi+=r.assists; tYel+=r.yellows; tRed+=r.reds; if(r.rating!=null){ rSum+=r.rating; rCount++; }
+    const riv = r.oppT ? `<span class="jg-lnk2" data-action="open-team" data-id="${r.oppT.id}">vs. ${escapeHtml(r.oppName)}</span>` : `vs. ${escapeHtml(r.oppName)}`;
+    return `<tr>
+      <td class="pm-c pm-dorsal">${dorsalBadge(r.dorsal)}</td>
+      <td class="pm-l pm-riv">${riv}</td>
+      <td class="pm-l pm-dim pm-tight">${pmDateLabel(r.date)}</td>
+      <td class="pm-l pm-tight">${r.mins}'</td>
+      <td class="pm-sp"></td>
+      <td class="pm-s">${gol}</td>
+      <td class="pm-s">${r.assists}</td>
+      <td class="pm-s">${r.yellows}</td>
+      <td class="pm-s">${r.reds}</td>
+      <td class="pm-s pm-rendcol">${rendCell(r.rating)}</td>
+    </tr>`;
+  }).join("");
+  const avg = rCount ? Math.round(rSum/rCount*10)/10 : null;
+  const totals = `<tr class="pm-total">
+    <td class="pm-c pm-dorsal">TOTAL</td>
+    <td class="pm-l pm-riv">${rows.length} partido${rows.length===1?"":"s"}</td>
+    <td class="pm-l pm-tight"></td>
+    <td class="pm-l pm-tight">${tMin}'</td>
+    <td class="pm-sp"></td>
+    <td class="pm-s">${tGol}</td>
+    <td class="pm-s">${tAsi}</td>
+    <td class="pm-s">${tYel}</td>
+    <td class="pm-s">${tRed}</td>
+    <td class="pm-s pm-rendcol">${avg!=null?`<span class="pm-rend" style="background:${pmRendColor(avg)};">${avg.toFixed(1)}</span>`:"—"}</td>
+  </tr>`;
+  return `<div class="pm-scroll"><table class="pm-table">
+    <thead><tr>
+      <th class="pm-c" title="Dorsal en ese partido">Dorsal</th>
+      <th class="pm-l pm-riv">Rival</th>
+      <th class="pm-l pm-tight">Fecha</th>
+      <th class="pm-l pm-tight" title="Minutos reglamentarios">Min</th>
+      <th class="pm-sp"></th>
+      <th class="pm-s" title="${golTitle}">${golLbl}</th>
+      <th class="pm-s" title="Asistencias">A</th>
+      <th class="pm-s" title="Tarjetas amarillas"><span class="pm-ck yellow"></span></th>
+      <th class="pm-s" title="Tarjetas rojas"><span class="pm-ck red"></span></th>
+      <th class="pm-s pm-rendcol" title="Rendimiento (0–10)">Rend.</th>
+    </tr></thead>
+    <tbody>${body}${totals}</tbody>
+  </table></div>`;
+}
+
 function renderPlayerDetail(playerId){
   const {player:p, team} = getPlayerWithTeam(playerId);
   if(!p){ activePlayerId = null; return renderJugadores(); }
@@ -586,6 +845,7 @@ function renderPlayerDetail(playerId){
         <span class="num-badge">${p.number!=null?p.number:"–"}</span>
         <span>${playerDisplayNameHTML(p)}</span>
         <span style="display:inline-flex;align-items:center;gap:6px;"><span class="pos-chip pos-${p.pos}">${p.pos}</span>${positionsText(p)?`<span style="font-size:12.5px;color:var(--muted);font-weight:600;">${positionsText(p)}</span>`:""}</span>
+        ${(typeof window!=="undefined"&&typeof window.playerInjuryBadge==="function")?window.playerInjuryBadge(p):""}
       </h2>
       <div style="font-size:12.5px;color:var(--indigo-bright);font-weight:600;margin-bottom:6px;">${playerAgeText(p)}${p.height!=null?` · ${p.height} cm`:""} · ${p.club?`<span class="badge conf tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}" style="background:var(--surface-2);color:var(--muted);">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">Sin club</span>`}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
@@ -605,7 +865,7 @@ function renderPlayerDetail(playerId){
             : "";
           return tag + intl;
         })()}
-        <span style="font-size:13px;color:var(--muted);">Partidos: ${p.caps!=null?p.caps:"-"} / Goles: ${p.goalsNational!=null?p.goalsNational:"-"}</span>
+        <span style="font-size:13px;color:var(--muted);">Partidos: <b style="color:var(--ink);">${(()=>{const v=effectiveCaps(p);return v!=null?v:"-";})()}</b> / Goles: <b style="color:var(--ink);">${(()=>{const v=effectiveGoalsNational(p);return v!=null?v:"-";})()}</b></span>
       </div>
       <div style="margin-top:4px;">${p.brand ? `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">${kitSponsorLogoIcon(p.brand)}${escapeHtml(p.brand)}</span>` : `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">Sin sponsor</span>`}</div>
     </div>
@@ -618,6 +878,11 @@ function renderPlayerDetail(playerId){
       <button class="btn ghost sm" data-action="edit-player" data-team="${team?team.id:''}" data-id="${p.id}">Editar</button>
       <button class="btn danger sm" data-action="delete-player" data-team="${team?team.id:''}" data-id="${p.id}">Eliminar</button>
     </div>
+  </div>
+
+  <div class="pm-box" style="margin-top:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden;">
+    <div style="padding:12px 16px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;background:var(--surface-2);">Estadísticas del jugador</div>
+    <div style="padding:14px 16px;">${playerStatsTableHTML(p.id)}</div>
   </div>
   `;
 }
@@ -644,18 +909,24 @@ function playerValue(p,key){
     case "teamName": return p.teamName;
     case "country": return playerCountryName(p);
     case "age": return playerBirthSortKey(p);
+    case "height": return p.height;
     case "club": return p.club;
     case "rating": return p.rating;
+    case "caps": return effectiveCaps(p);
+    case "goals": return effectiveGoalsNational(p);
+    case "condition": return p.condition;
+    case "sharpness": return p.sharpness;
+    case "morale": return p.morale;
     default: return null;
   }
 }
-function playerType(key){ return ["age","rating","number","pos"].includes(key) ? "number" : "string"; }
-function playerDefaultDir(key){ return key==="rating" ? "desc" : "asc"; }
+function playerType(key){ return ["age","height","rating","number","pos","caps","goals","condition","sharpness","morale"].includes(key) ? "number" : "string"; }
+function playerDefaultDir(key){ return ["rating","caps","goals","condition","sharpness","morale"].includes(key) ? "desc" : "asc"; }
 
 function renderJugadores(){
   const all = DB.teams.flatMap(t=>t.players.map(p=>({...p, teamName:t.commonName, teamId:t.id})));
   const filtered = all.filter(p=>{
-    if(playerFilter.q && !playerDisplayName(p).toLowerCase().includes(playerFilter.q.toLowerCase())) return false;
+    if(playerFilter.q && !normLoose(playerDisplayName(p)).includes(normLoose(playerFilter.q))) return false;
     if(playerFilter.nat){ const co=nationalityCountryOf(p); if(!co || co.id!==playerFilter.nat) return false; }
     if(playerFilter.pos && p.pos!==playerFilter.pos) return false;
     return true;
@@ -693,7 +964,7 @@ function renderJugadores(){
 function playerTableHeadHTML(){
   return `<thead><tr>
     ${sortTh("Jugador","name",playerSort,"sort-players")}
-    ${sortTh("Pos","pos",playerSort,"sort-players")}
+    ${sortTh("Posición","pos",playerSort,"sort-players")}
     ${sortTh("País","country",playerSort,"sort-players")}
     ${sortTh("Edad","age",playerSort,"sort-players")}
     ${sortTh("Club","club",playerSort,"sort-players")}
@@ -704,12 +975,12 @@ function playerTableHeadHTML(){
 function playerRowHTML(p){
   return `
     <tr data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
-      <td>${personPhotoHTML(p, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(p)}</td>
+      <td>${personPhotoHTML(p, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(p)}${(typeof window!=="undefined"&&typeof window.playerInjuryBadge==="function")?window.playerInjuryBadge(p, p.teamId):""}</td>
       <td><span class="pos-chip pos-${p.pos}">${p.pos}</span> <span style="color:var(--muted);font-size:12px;">${positionsText(p)}</span></td>
       <td>${(()=>{const cn=playerCountryName(p);return cn?flagIconHTML(cn)+escapeHtml(cn):"—";})()}</td>
       <td>${playerAge(p)!=null?playerAge(p):'—'}</td>
       <td>${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</td>
-      <td class="mono">${p.rating}</td>
+      <td class="mono">${p.rating!=null?p.rating:"—"}</td>
       <td><button class="btn ghost sm" data-action="edit-player" data-team="${p.teamId}" data-id="${p.id}">Editar</button></td>
     </tr>`;
 }

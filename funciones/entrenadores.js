@@ -106,10 +106,13 @@ function coachContractChipsHTML(c){
     if(country){
       const label = `Selección de ${country.commonName}`;
       const teamId = country.teamLinks && country.teamLinks.absoluta;
-      const flag = flagIconHTML(country);
+      // Etiqueta de selección: usa el ESCUDO de la selección (no la bandera). Si no hay selección
+      // ligada, se conserva la bandera del país como respaldo.
+      const team = teamId ? getTeam(teamId) : null;
+      const icon = team ? teamLogoIconHTML(team) : flagIconHTML(country);
       chips.push(teamId
-        ? `<span class="badge conf tag-clickable" data-action="open-team" data-id="${teamId}" style="background:var(--surface-2);color:var(--muted);">${flag}${escapeHtml(label)}</span>`
-        : `<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">${flag}${escapeHtml(label)}</span>`);
+        ? `<span class="badge conf tag-clickable" data-action="open-team" data-id="${teamId}" style="background:var(--surface-2);color:var(--muted);">${icon}${escapeHtml(label)}</span>`
+        : `<span class="badge conf" style="background:var(--surface-2);color:var(--muted);">${icon}${escapeHtml(label)}</span>`);
     }
   }
   if(c.contractClub){
@@ -141,7 +144,7 @@ function renderCoachDetail(coachId){
     </div>
     <div style="flex:1;min-width:200px;">
       <h2 style="margin:0 0 2px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span class="num-badge" style="width:auto;padding:0 8px;font-size:10px;letter-spacing:.05em;">${coachRoleBadge(c.contractRole)}</span>
+        <span class="num-badge coach-role-badge" style="width:auto;padding:0 8px;font-size:10px;letter-spacing:.05em;">${coachRoleBadge(c.contractRole)}</span>
         <span>${playerDisplayNameHTML(c)}</span>
       </h2>
       <div style="font-size:12.5px;color:var(--indigo-bright);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -173,7 +176,7 @@ function coachRowHTML(c, team){
   const puesto = (c.contractRole||"").trim();
   return `
   <div class="player-row" data-action="open-coach" data-id="${c.id}" style="cursor:pointer;">
-    <span class="num-badge" style="width:auto;padding:0 6px;font-size:9px;letter-spacing:.04em;">${coachRoleBadge(c.contractRole)}</span>
+    <span class="num-badge coach-role-badge" style="width:auto;padding:0 8px;font-size:10px;letter-spacing:.05em;">${coachRoleBadge(c.contractRole)}</span>
     <span class="pname">${personPhotoHTML(c, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;flex-shrink:0;")}${playerDisplayNameHTML(c)}</span>
     <span class="pmeta">${playerAgeText(c)}${puesto?` · ${escapeHtml(puesto)}`:""}</span>
     <span class="prating">${c.rating!=null?c.rating:"-"}</span>
@@ -207,8 +210,9 @@ function coachEquipoCellHTML(c){
 function renderEntrenadores(){
   const all = DB.teams.flatMap(t=>(t.coaches||[]).map(c=>({...c, teamName:t.commonName, teamId:t.id})));
   const filtered = all.filter(c=>{
-    if(coachFilter.q && !playerDisplayName(c).toLowerCase().includes(coachFilter.q.toLowerCase())) return false;
+    if(coachFilter.q && !normLoose(playerDisplayName(c)).includes(normLoose(coachFilter.q))) return false;
     if(coachFilter.nat){ const co=nationalityCountryOf(c); if(!co || co.id!==coachFilter.nat) return false; }
+    if(coachFilter.role && normLoose(c.contractRole||"")!==normLoose(coachFilter.role)) return false;
     return true;
   }).sort((a,b)=>
     compareGeneric(coachValue(a,coachSort.key), coachValue(b,coachSort.key), coachType(coachSort.key), coachSort.dir)
@@ -216,6 +220,8 @@ function renderEntrenadores(){
   );
   const natOptions = [...new Map(all.map(c=>nationalityCountryOf(c)).filter(Boolean).map(c=>[c.id,c])).values()]
     .sort((a,b)=>a.commonName.localeCompare(b.commonName,'es'));
+  const roleOptions = [...new Set(all.map(c=>(c.contractRole||"").trim()).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'es'));
 
   const pg = paginate(filtered, coachPage);
   coachPage = pg.page;
@@ -229,6 +235,10 @@ function renderEntrenadores(){
     <select id="coach-nat-filter">
       <option value="">Todas las nacionalidades</option>
       ${natOptions.map(c=>`<option value="${c.id}" ${coachFilter.nat===c.id?"selected":""}>${escapeHtml(c.commonName)}</option>`).join("")}
+    </select>
+    <select id="coach-role-filter">
+      <option value="">Todos los puestos</option>
+      ${roleOptions.map(r=>`<option value="${escapeHtml(r)}" ${normLoose(coachFilter.role||"")===normLoose(r)?"selected":""}>${escapeHtml(r)}</option>`).join("")}
     </select>
     <button class="btn gold sm" data-action="add-coach" data-team="${coachFilter.team||''}">+ Agregar entrenador</button>
   </div>

@@ -94,7 +94,7 @@ function renderEditor(){
       </label>
     </div>
     <label class="field">Pega aquí las filas
-      <textarea class="json-area" id="bulk-import-area" placeholder="Columnas: Dorsal, Pos, Nombre, Apellido, Nombre común, Nombre completo, Fecha nac., Estatura (cm), Caps, Goles, Club, Nombre en camiseta (selección), Marca, Rating, Rating potencial&#10;Ej:&#10;10	FW	Lionel	Messi		Lionel Andrés Messi	June 24, 1987	170	191	112	Inter Miami	MESSI	Adidas	93	93&#10;16	FW	Julián	Quiñones		Julián Andrés Quiñones Quiñones	March 24, 1997	177	22	2	Al-Qadsiah	J.QUIÑONES	Nike	78	82"></textarea>
+      <textarea class="json-area" id="bulk-import-area" placeholder="Columnas (tabuladas, en este orden): Dorsal, Pos, Nombre, Apellido, Nombre común, Nombre completo, Fecha nac., Estatura, Internacionalidades, Goles, Club, Camiseta (selección), Camiseta (club), Marca, Rating, Rating pot., Pie izquierdo, Pie derecho, luego 10 pares Posición·Valor (código y valor 0–20), Dorsales favoritos (selección), Dorsales favoritos (club)&#10;Ej:&#10;10	FW	Lionel	Messi		Lionel Andrés Messi	June 24, 1987	170	191	112	Inter Miami	MESSI	MESSI	Adidas	93	93	18	20	ST	19	CAM	18	RW	17				&#10;16	FW	Julián	Quiñones		Julián Andrés Quiñones Quiñones	March 24, 1997	177	22	2	Al-Qadsiah	J.QUIÑONES	QUIÑONES	Nike	78	82	14	16	ST	16	CF	15						9, 16"></textarea>
     </label>
     <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
       <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">

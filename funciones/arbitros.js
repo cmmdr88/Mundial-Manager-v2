@@ -204,7 +204,7 @@ function renderRefereeDetail(refId){
 function renderArbitros(){
   const all = (DB.referees||[]);
   const filtered = all.filter(r=>{
-    if(refereeFilter.q && !playerDisplayName(r).toLowerCase().includes(refereeFilter.q.toLowerCase())) return false;
+    if(refereeFilter.q && !normLoose(playerDisplayName(r)).includes(normLoose(refereeFilter.q))) return false;
     if(refereeFilter.role && normLoose(r.role||"")!==normLoose(refereeFilter.role)) return false;
     if(refereeFilter.country && r.countryRepresentsId!==refereeFilter.country) return false;
     return true;

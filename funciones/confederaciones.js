@@ -119,6 +119,26 @@ function modalEditFifa(){
             ${imageUploadFieldCol("Escudo — fondo oscuro", "fifalogo", f.logoImg, "El que se usa en casi toda la app (fondo oscuro).")}
             ${imageUploadFieldCol("Escudo — fondo claro", "fifalogo-l", f.logoImgLight, "Para fondos claros.")}
           </div>
+
+          ${iconEditorSectionHTML("fifaicon", f, {
+            title:"Icono de la FIFA",
+            logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]],
+            logoInputs:{ dark:"f-fifalogo-data", light:"f-fifalogo-l-data" },
+            colors:[f.color1||"#1A6BFF", f.color2||"#091B3D"],
+            colorInputs:["f-fifa-color1","f-fifa-color2"]
+          })}
+
+          ${socialSectionHTML("fifasoc", f, {
+            logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]],
+            logos:{ dark:f.logoImg||"", light:f.logoImgLight||f.logoImg||"" },
+            logoInputs:{ dark:"f-fifalogo-data", light:"f-fifalogo-l-data" },
+            colors:[f.color1||"#1A6BFF", f.color2||"#091B3D"],
+            colorInputs:["f-fifa-color1","f-fifa-color2"]
+          })}
+
+          ${(typeof refereeKitsDetailsHTML==="function") ? refereeKitsDetailsHTML(refKitsWrapId("fifa", "FIFA"), {
+            hint: "Uniformes de árbitro de la FIFA. Son los que se usan por defecto en los partidos internacionales (amistosos y de selecciones que no forman parte de un torneo)."
+          }) : ""}
         </div>
       </div>
       <div class="modal-foot">
@@ -153,6 +173,26 @@ function modalEditConfederation(confId){
             ${imageUploadFieldCol("Escudo — fondo oscuro", "conflogo", info.logoImg, "El que se usa en casi toda la app (fondo oscuro).")}
             ${imageUploadFieldCol("Escudo — fondo claro", "conflogo-l", info.logoImgLight, "Para fondos claros.")}
           </div>
+
+          ${iconEditorSectionHTML("conficon", info, {
+            title:"Icono de la confederación",
+            logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]],
+            logoInputs:{ dark:"f-conflogo-data", light:"f-conflogo-l-data" },
+            colors:[info.color1||"#4F46E5", info.color2||"#15161D"],
+            colorInputs:["f-conf-color1","f-conf-color2"]
+          })}
+
+          ${socialSectionHTML("confsoc", info, {
+            logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]],
+            logos:{ dark:info.logoImg||"", light:info.logoImgLight||info.logoImg||"" },
+            logoInputs:{ dark:"f-conflogo-data", light:"f-conflogo-l-data" },
+            colors:[info.color1||"#4F46E5", info.color2||"#15161D"],
+            colorInputs:["f-conf-color1","f-conf-color2"]
+          })}
+
+          ${(typeof refereeKitsDetailsHTML==="function") ? refereeKitsDetailsHTML(refKitsWrapId("conf", confId), {
+            hint: "Uniformes que usan los árbitros de esta confederación. Se editan igual que los de la Copa del Mundo."
+          }) : ""}
         </div>
       </div>
       <div class="modal-foot">

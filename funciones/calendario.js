@@ -11,6 +11,28 @@
    (las funciones de estructura del torneo son internas de evento). Sin ciclo.
    ========================================================= */
 
+/* ---------- Revelado por reloj (simulación en "tiempo real") ----------
+   Los partidos que vienen con marcador cargado (p. ej. de partidos.js) se muestran como NO jugados
+   hasta que el reloj del juego (tiempo.js) llega a su fecha y hora; se van "revelando" conforme avanza
+   el tiempo. Sin reloj disponible (fuera del juego), no se oculta nada. Funciones GLOBALES para que las
+   usen tanto el juego (juego.js) como la forma en selecciones.js. */
+function matchDateTimeMs(f){
+  if(!f || !f.date) return null;
+  let t = (f.time && /^\d{1,2}:\d{2}/.test(f.time)) ? f.time : "00:00";
+  if(t.length===4) t = "0"+t;
+  const ms = Date.parse(f.date+"T"+t+":00");
+  return isNaN(ms) ? null : ms;
+}
+function matchHappened(f){
+  const ms = matchDateTimeMs(f); if(ms==null) return true;
+  let now = null;
+  try{ if(typeof window!=="undefined" && window.GameTime && typeof GameTime.now==="function") now = GameTime.now().getTime(); }catch(e){}
+  if(now==null) return true;
+  return ms <= now;
+}
+// "Jugado" para PANTALLA: tiene resultado Y su fecha/hora ya llegó en el reloj del juego.
+function fxPlayed(f){ return !!(f && f.played && matchHappened(f)); }
+
 /* ---------- CALENDARIO ---------- */
 function roundRobin(teamIds, groupId){
   const fixtures = [];
@@ -110,7 +132,7 @@ function findStadiumForVenue(name){
 //   [Nombre de torneo FIFA], [Ciudad], [Estado/provincia si lo tiene], [País]
 // Así se evitan los códigos abreviados que traen algunos partidos ("MEX", "PA"). Si el estadio no
 // está en el catálogo, se usa lo que traiga el partido.
-function venueLinkHTML(venueName, cityName){
+function venueLinkHTML(venueName, cityName, isWorldCup){
   const nm = (venueName||"").trim();
   if(!nm) return "";
   const st = findStadiumForVenue(nm);
@@ -118,7 +140,10 @@ function venueLinkHTML(venueName, cityName){
     const cityPart = cityName ? `, ${escapeHtml(cityName)}` : "";
     return `${escapeHtml(nm)}${cityPart}`;
   }
-  const shown = (st.tournamentName||"").trim() || stadiumDisplayName(st);
+  // Copa del Mundo → nombre de torneo FIFA/UEFA; amistosos y otros torneos → nombre oficial (o apodo).
+  const wc = (isWorldCup!==false);   // por defecto Mundial (el calendario del torneo)
+  const shown = (typeof stadiumMatchName==="function") ? stadiumMatchName(st, wc)
+              : ((st.tournamentName||"").trim() || stadiumDisplayName(st));
   const parts = [shown, (st.city||"").trim(), (st.state||"").trim(), (st.country||"").trim()]
     .map(x=>x.trim()).filter(Boolean);
   return escapeHtml([...new Set(parts)].join(", "));
@@ -185,7 +210,7 @@ function renderCalendario(){
             <div class="player-row">
               <div style="flex:1;min-width:0;">
                 <div style="font-size:13px;">${f.matchNo?`<span class="mono" style="color:var(--muted);font-size:11px;margin-right:5px;">M${f.matchNo}</span>`:""}${ta?escapeHtml(ta.commonName):'<span class="mono">?</span>'} <span style="color:var(--muted);">vs</span> ${tb?escapeHtml(tb.commonName):'<span class="mono">?</span>'}</div>
-                ${f.date?`<div style="font-size:11px;color:var(--muted);margin-top:1px;">${fmtFixtureDate(f.date)} · ${f.time||""}${f.venue?` · ${venueLinkHTML(f.venue, f.city)}`:(f.city?`, ${escapeHtml(f.city)}`:"")}</div>`:""}
+                ${f.date?`<div style="font-size:11px;color:var(--muted);margin-top:1px;">${fmtFixtureDate(f.date)} · ${f.time||""}${f.venue?` · ${venueLinkHTML(f.venue, f.city, (typeof matchIsWorldCup==="function"?matchIsWorldCup(f):true))}`:(f.city?`, ${escapeHtml(f.city)}`:"")}</div>`:""}
                 ${fixtureRefereeLineHTML(f)}
               </div>
               ${f.played ? `<span class="mono" style="font-weight:700;">${f.scoreA} - ${f.scoreB}</span>` :
@@ -220,7 +245,7 @@ function renderCalendario(){
                 <td>${cruce}${f.played?` <span class="mono" style="font-weight:700;">(${f.scoreA} - ${f.scoreB})</span>`:""}</td>
                 <td class="mono">${fmtFixtureDate(f.date)}</td>
                 <td class="mono">${f.time||""}</td>
-                <td style="font-size:12.5px;">${f.venue?venueLinkHTML(f.venue, f.city):(f.city?`<span style="color:var(--muted);">${escapeHtml(f.city)}</span>`:"")}${fixtureRefereeLineHTML(f)}</td>
+                <td style="font-size:12.5px;">${f.venue?venueLinkHTML(f.venue, f.city, (typeof matchIsWorldCup==="function"?matchIsWorldCup(f):true)):(f.city?`<span style="color:var(--muted);">${escapeHtml(f.city)}</span>`:"")}${fixtureRefereeLineHTML(f)}</td>
               </tr>`;
             }).join("")}
             </tbody>

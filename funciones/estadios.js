@@ -22,6 +22,8 @@
    estadio sin foto, así que abrir la pestaña Estadios podía generar varios
    MB de HTML y era muy lento. Con un Blob URL, cada tarjeta solo lleva una
    URL corta y el navegador guarda una única copia de la imagen. */
+// Tipos de propiedad de un estadio. Solo "Club" habilita el campo de Club Propietario.
+var STADIUM_OWNERSHIP_TYPES = ["Club","Federación del país","Gobierno","Grupo privado","Empresario","Aficionados","Institución educativa","Equipo de otro deporte"];
 var _stadiumGenBlobUrl = null;
 function stadiumGenericImageUrl(){
   if(_stadiumGenBlobUrl) return _stadiumGenBlobUrl;
@@ -88,7 +90,7 @@ function ensureStadiumFromName(name, clubName, country, city, isTraining){
   let st = findStadiumByName(nm);
   if(!st){
     st = { id:newId("st"), tournamentName:"", officialName:nm.slice(0,80), nickname:"", showNickname:false, capacity:null, turfType:"Natural",
-           city:(city||"").trim(), state:"", country:(country||"").trim(), lat:null, lng:null, owner:"", teams:[], worldCup:false, isTraining:!!isTraining, imgExterior:null, imgInterior:null, standColor:STADIUM_STAND_DEFAULT };
+           city:(city||"").trim(), state:"", showState:false, country:(country||"").trim(), lat:null, lng:null, owner:"", teams:[], worldCup:false, isTraining:!!isTraining, imgExterior:null, imgInterior:null, standColor:STADIUM_STAND_DEFAULT };
     if(!DB.stadiums) DB.stadiums = [];
     DB.stadiums.push(st);
   } else {
@@ -222,6 +224,28 @@ function stadiumOwnNameToShow(name){
   const st = (typeof findStadiumByName==="function") ? findStadiumByName(nm) : null;
   return st ? stadiumOfficialName(st) : nm;
 }
+// ¿El partido pertenece a la COPA DEL MUNDO? Los amistosos y (a futuro) otros torneos NO lo son.
+// Solo en la Copa del Mundo se usa el nombre de torneo FIFA/UEFA del estadio.
+function matchIsWorldCup(f){
+  if(!f) return false;
+  if(f.friendly || f.stage==="amistoso") return false;
+  try{
+    // A futuro: si un partido trae su propia competición y no es el evento actual, no es Mundial.
+    if(f.competition && DB && DB.event){
+      const ev = String(DB.event.id||"");
+      const c = String(f.competition);
+      if(c && c!==ev && c!=="worldcup" && c!=="mundial") return false;
+    }
+  }catch(e){}
+  return true;   // por ahora, lo demás en DB.fixtures es la Copa del Mundo
+}
+// Nombre del estadio para un PARTIDO. En la Copa del Mundo se usa el nombre de torneo FIFA/UEFA;
+// en amistosos y otros torneos se usa el nombre OFICIAL (o el apodo si es el principal), nunca el FIFA.
+function stadiumMatchName(st, isWorldCup){
+  if(!st) return "";
+  if(isWorldCup) return (st.tournamentName||"").trim() || stadiumOfficialName(st);
+  return stadiumOfficialName(st);
+}
 // Nombre para la lista "Todos los estadios": el del espacio oficial, o sea el apodo cuando está
 // marcado como principal (ahí el apodo SÍ manda, incluso en las sedes del Mundial).
 function stadiumOfficialName(s){
@@ -230,9 +254,13 @@ function stadiumOfficialName(s){
 // Subtítulo para la lista "Todos los estadios": el otro nombre del par oficial/apodo — el oficial si
 // arriba va el apodo, o el apodo si arriba va el oficial.
 function stadiumOfficialSubName(s){
-  const other = stadiumOtherName(s);
   const main = stadiumOfficialName(s);
-  return (other && normLoose(other)!==normLoose(main)) ? other : "";
+  const parts = [stadiumOtherName(s)];
+  // El nombre FIFA (de torneo) también aparece como secundario en las sedes del Mundial.
+  if(s.worldCup && (s.tournamentName||"").trim()) parts.push((s.tournamentName||"").trim());
+  const out = [];
+  parts.forEach(n=>{ if(n && normLoose(n)!==normLoose(main) && !out.some(x=>normLoose(x)===normLoose(n))) out.push(n); });
+  return out.join(" · ");
 }
 // Imagen genérica por defecto para estadios sin foto de exterior. Es de color fijo: NO se recolorea.
 var STADIUM_STAND_DEFAULT = "#B00010";   // color de grada por defecto (solo informativo en el editor)
@@ -259,7 +287,7 @@ function stadiumCardHTML(s, useOfficial){
       </div>
     </div>
     <div class="tag-list" style="margin-top:10px;">
-      <span class="badge conf">${s.city}${s.state?", "+s.state:""}</span>
+      <span class="badge conf">${s.city}${(s.showState&&s.state)?", "+s.state:""}</span>
       <span class="badge conf" style="background:var(--surface-2);color:var(--muted);">${flagIconHTML(s.country)}${escapeHtml(s.country)}</span>
       <span class="badge fifa mono">${s.capacity?s.capacity.toLocaleString("es-MX"):"—"}</span>
       <span class="badge ok">${s.turfType||"—"}</span>
@@ -287,7 +315,7 @@ function facilitiesSectionHTML(entity){
   const training = trainingName ? findStadiumByName(trainingName) : null;
   if(!stadium && !training && !otherStadiumNames.length) return ""; // sin instalaciones: no se muestra
   const imgFor = s => (s && stadiumHasExterior(s)) ? stadiumExteriorUrl(s) : stadiumGenericImageUrl();
-  const cityChip = s => s.city ? `<span class="badge conf">${escapeHtml(s.city)}${s.state?", "+escapeHtml(s.state):""}</span>` : "";
+  const cityChip = s => s.city ? `<span class="badge conf">${escapeHtml(s.city)}${(s.showState&&s.state)?", "+escapeHtml(s.state):""}</span>` : "";
 
   // Fila "Otros:" con los demás estadios del equipo (etiquetas que hacen wrap). Si no hay, no aparece
   // la palabra (solo queda el espacio).
@@ -385,10 +413,47 @@ function stadiumArticleSelectHTML(id, current){
   </select>`;
 }
 
+// Vista aérea (satélite) de una coordenada. Usa las TESELAS pre-renderizadas de Esri "World Imagery"
+// (sin API key, servidas por CDN => cargan rápido), montadas como un mosaico centrado en la coordenada.
+// Es solo imagen (no se mueve ni hace zoom), sin etiquetas, con un único pin centrado. Si no hay
+// coordenadas válidas, muestra una nota.
+function stadiumMapEmbedHTML(lat, lng){
+  const ok = (lat!=null && lng!=null && isFinite(lat) && isFinite(lng));
+  if(!ok){
+    return `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:12px;text-align:center;padding:0 16px;">Escribe las coordenadas (lat, lng) para ver la vista aérea.</div>`;
+  }
+  const z = 16, TS = 256, n = Math.pow(2, z);   // z=16: estadio completo + algo de alrededor
+  const latRad = lat*Math.PI/180;
+  const xf = (lng+180)/360*n;
+  const yf = (1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad))/Math.PI)/2*n;
+  const xt = Math.floor(xf), yt = Math.floor(yf);
+  const fx = (xf-xt)*TS, fy = (yf-yt)*TS;   // posición (px) de la coordenada dentro de la tesela central
+  let tiles = "";
+  for(let j=-1; j<=1; j++){
+    for(let i=-2; i<=2; i++){
+      const X = xt+i, Y = yt+j;
+      if(X<0 || Y<0 || X>=n || Y>=n) continue;
+      const left = (i*TS - fx), top = (j*TS - fy);
+      const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${Y}/${X}`;
+      tiles += `<img src="${url}" alt="" loading="lazy" style="position:absolute;left:calc(50% + ${left}px);top:calc(50% + ${top}px);width:${TS}px;height:${TS}px;pointer-events:none;">`;
+    }
+  }
+  const pin = `<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));pointer-events:none;" fill="#ff3b30" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7z"/><circle cx="12" cy="9" r="2.4" fill="#fff" stroke="none"/></svg>`;
+  return `<div style="position:absolute;inset:0;overflow:hidden;">${tiles}${pin}<span style="position:absolute;right:5px;bottom:3px;font-size:9px;color:#fff;text-shadow:0 1px 2px #000;opacity:.85;pointer-events:none;">Imágenes: Esri</span></div>`;
+}
+// Lee un texto de coordenadas "lat, lng" y devuelve {lat, lng} numéricos, o null si no es válido.
+function parseCoordsText(txt){
+  const parts = String(txt||"").split(",").map(x=>parseFloat(x.trim()));
+  if(parts.length===2 && isFinite(parts[0]) && isFinite(parts[1])) return {lat:parts[0], lng:parts[1]};
+  return null;
+}
 function modalAddEditStadium(stadium){
   const isEdit = !!stadium;
-  stadium = stadium || {id:null, tournamentName:"", officialName:"", nickname:"", showNickname:false, capacity:"", state:"", city:"", country:"", lat:"", lng:"", turfType:"Natural", owner:"", teams:[], imgExterior:null, imgInterior:null, standColor:STADIUM_STAND_DEFAULT};
+  stadium = stadium || {id:null, tournamentName:"", officialName:"", nickname:"", showNickname:false, capacity:"", state:"", showState:false, city:"", country:"", lat:"", lng:"", turfType:"Natural", ownershipType:"Club", owner:"", teams:[], imgExterior:null, imgInterior:null, standColor:STADIUM_STAND_DEFAULT, standColor2:STADIUM_STAND_DEFAULT, standColor2Linked:true};
   const standHex = stadium.standColor || STADIUM_STAND_DEFAULT;
+  // Segundo color de grada: por defecto sigue al primero (mismo color) hasta que se modifique a mano.
+  const stand2Linked = (stadium.standColor2Linked !== false);
+  const standHex2 = stand2Linked ? standHex : (stadium.standColor2 || standHex);
   openModal(`
     <div class="modal-box">
       <div class="modal-head"><h2>${isEdit?"Editar estadio":"Agregar estadio"}</h2><button class="modal-close" data-action="close-modal">×</button></div>
@@ -433,22 +498,48 @@ function modalAddEditStadium(stadium){
           <label class="field">${T('stadium.city.label')}<input id="f-st-city" list="city-list" value="${stadium.city||''}">
             <datalist id="city-list">${datalistOptions(allCities())}</datalist></label>
           <label class="field">${T('stadium.state.label')}<input id="f-st-state" value="${stadium.state||''}"></label>
+          <div class="field" style="grid-column:1/-1;display:flex;flex-direction:row;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:600;">
+            <input type="checkbox" id="f-st-showstate" ${stadium.showState?'checked':''} style="width:auto;flex-shrink:0;margin:0;">
+            <span>Mostrar estado o provincia (si no, solo se muestra la ciudad)</span>
+          </div>
           <label class="field" style="grid-column:1/-1;">${T('stadium.country.label')}
             <input id="f-st-country" list="country-name-list-stadium" value="${escapeHtml(stadium.country||'')}" placeholder="Escribe o elige un país">
             <datalist id="country-name-list-stadium">${datalistOptions((DB.countries||[]).slice().sort((a,b)=>a.commonName.localeCompare(b.commonName,'es')).map(c=>c.commonName))}</datalist>
           </label>
 
-          <label class="field">${T('stadium.coords.label')}
-            <input id="f-st-coords" value="${(stadium.lat!=null && stadium.lng!=null) ? stadium.lat+', '+stadium.lng : ''}" placeholder="${T('stadium.coords.placeholder')}">
-          </label>
-          <label class="field">Color de grada
-            ${colorPickerHTML("color-square", standHex, "f-st-stand")}
+          <div style="grid-column:1/-1;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+            <label class="field" style="flex:1 1 340px;min-width:240px;">${T('stadium.coords.label')}
+              <input id="f-st-coords" value="${(stadium.lat!=null && stadium.lng!=null) ? stadium.lat+', '+stadium.lng : ''}" placeholder="${T('stadium.coords.placeholder')}">
+            </label>
+            <label class="field" style="flex:0 0 auto;">Colores de grada
+              <span style="display:inline-flex;gap:12px;align-items:flex-start;">
+                ${colorPickerHTML("color-square", standHex, "f-st-stand")}
+                ${colorPickerHTML("color-square", standHex2, "f-st-stand2")}
+              </span>
+              <input type="hidden" id="f-st-stand2-linked" value="${stand2Linked?'1':'0'}">
+            </label>
+          </div>
+          <label class="field" style="grid-column:1/-1;">Vista aérea de la coordenada
+            <div id="f-st-map-wrap" style="position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;height:300px;background:var(--surface-2);">
+              ${stadiumMapEmbedHTML((stadium.lat!=null&&stadium.lng!=null&&isFinite(Number(stadium.lat))&&isFinite(Number(stadium.lng)))?Number(stadium.lat):null, (stadium.lat!=null&&stadium.lng!=null&&isFinite(Number(stadium.lat))&&isFinite(Number(stadium.lng)))?Number(stadium.lng):null)}
+            </div>
+            <span style="font-size:11px;color:var(--muted);font-weight:400;">Se actualiza al escribir o pegar las coordenadas. Requiere conexión a internet.</span>
           </label>
 
-          <label class="field" style="grid-column:1/-1;">${T('stadium.owner.label')}
-            <input id="f-st-owner" list="club-list-stadium" value="${stadium.owner||''}" placeholder="${T('stadium.owner.placeholder')}">
+          ${(()=>{ const cur=stadium.ownershipType||"Club"; return `
+          <label class="field" style="grid-column:1/-1;">Tipo de propiedad
+            <select id="f-st-ownership">${STADIUM_OWNERSHIP_TYPES.map(o=>`<option value="${escapeHtml(o)}" ${o===cur?'selected':''}>${escapeHtml(o)}</option>`).join("")}</select>
+          </label>`; })()}
+          <label class="field" style="grid-column:1/-1;">Club Propietario
+            <input id="f-st-owner" list="club-list-stadium" value="${stadium.owner||''}" placeholder="${T('stadium.owner.placeholder')}" ${((stadium.ownershipType||'Club')!=='Club')?'disabled style="opacity:.5;"':''}>
+            <span style="font-size:11px;color:var(--muted);font-weight:400;">Solo se puede poner un club cuando el Tipo de propiedad es “Club”.</span>
             <datalist id="club-list-stadium">${datalistOptions(DB.clubs.slice().sort((a,b)=>a.localeCompare(b,'es')))}</datalist>
             <datalist id="stadium-link-teams">${datalistOptions(DB.teams.slice().filter(t=>!t.hidden).sort((a,b)=>a.commonName.localeCompare(b.commonName,'es')).map(t=>t.commonName))}</datalist>
+          </label>
+          <label class="field" style="grid-column:1/-1;">Patrocinador (derechos de nombre)
+            <input id="f-st-sponsor" list="stadium-sponsor-list" value="${escapeHtml(stadium.sponsor||'')}" placeholder="Escribe uno nuevo o elige uno ya cargado">
+            <datalist id="stadium-sponsor-list">${datalistOptions((DB.sponsors||[]).map(s=>s.name).filter(Boolean).sort((a,b)=>a.localeCompare(b,'es')))}</datalist>
+            <span style="font-size:11px;color:var(--muted);font-weight:400;">Si escribes un nombre nuevo, se agrega automáticamente a Patrocinadores. Aparecerá como enlace “Estadio” dentro del patrocinador.</span>
           </label>
           <div class="field" style="grid-column:1/-1;display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">${T('stadium.teams.label')}
             <div id="stadium-team-rows">

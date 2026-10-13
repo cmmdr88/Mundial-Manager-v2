@@ -261,9 +261,17 @@ function currentMediaCoverageNames(){
 // ctx (logos + colores del medio) leído EN VIVO del formulario, para regenerar avatares.
 function currentMediaSocialCtx(){
   const val = id => (document.getElementById(id)||{}).value || "";
+  const logoOptions = [["hd","Horizontal — oscuro"],["hl","Horizontal — claro"],["vd","Vertical — oscuro"],["vl","Vertical — claro"]];
+  const logos = { hd: val("f-mlogo-hd-data")||val("f-mlogo-vd-data"), hl: val("f-mlogo-hl-data"), vd: val("f-mlogo-vd-data"), vl: val("f-mlogo-vl-data") };
+  const logoInputs = { hd:"f-mlogo-hd-data", hl:"f-mlogo-hl-data", vd:"f-mlogo-vd-data", vl:"f-mlogo-vl-data" };
+  // Logos alternos cargados en vivo en el editor (Alt 1, Alt 2, …).
+  document.querySelectorAll('.logo-alt-row[data-altprefix="malt"]').forEach(row=>{
+    const idx = row.getAttribute("data-alt-idx");
+    const src = val("f-malt-"+idx+"-data");
+    if(src){ logoOptions.push(["a"+idx, "Alt "+(parseInt(idx)+1)]); logos["a"+idx]=src; logoInputs["a"+idx]="f-malt-"+idx+"-data"; }
+  });
   return {
-    logoOptions: [["hd","Horizontal — oscuro"],["hl","Horizontal — claro"],["vd","Vertical — oscuro"],["vl","Vertical — claro"]],
-    logos: { hd: val("f-mlogo-hd-data")||val("f-mlogo-vd-data"), hl: val("f-mlogo-hl-data"), vd: val("f-mlogo-vd-data"), vl: val("f-mlogo-vl-data") },
+    logoOptions, logos, logoInputs,
     colors: [val("f-mcolor1")||"#4F46E5", val("f-mcolor2")||"#15161D", val("f-mcolor3")||"#FFFFFF"],
     colorInputs: ["f-mcolor1","f-mcolor2","f-mcolor3"]
   };
@@ -379,7 +387,7 @@ function mediaSocialProfile(m, coverageName){
 
 function modalAddEditMedia(media){
   const isEdit = !!media;
-  media = media || {id:null, name:"", categories:[], newsSource:true, coverage:["Internacional"], reach:20, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoPrincipal:"horizontal", logoGrafico:"hd", color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialVerified:"", socialAvatarLogo:"hd", socialAvatarColor:0, socialByCoverage:{}};
+  media = media || {id:null, name:"", categories:[], newsSource:true, coverage:["Internacional"], reach:20, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoAlts:[], logoPrincipal:"horizontal", logoGrafico:"hd", iconLogo:"hd", iconColor:"0", iconLogoSize:75, color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialVerified:"", socialAvatarLogo:"hd", socialAvatarColor:0, socialByCoverage:{}};
   // Compatibilidad: si solo existe el logo heredado, se muestra como "Horizontal — fondo oscuro".
   if(media.logoImg && !media.logoVDark && !media.logoHDark && !media.logoVLight && !media.logoHLight){ media = Object.assign({}, media, {logoHDark: media.logoImg}); }
   const mCats = mediaCategories(media);
@@ -429,8 +437,8 @@ function modalAddEditMedia(media){
                 </select>
               </label>
               <label class="field" style="flex:1 1 200px;">Logo en gráficos
-                <select id="f-mlogo-grafico">
-                  ${[["hd","Horizontal — fondo oscuro"],["hl","Horizontal — fondo claro"],["vd","Vertical — fondo oscuro"],["vl","Vertical — fondo claro"]].map(([v,l])=>`<option value="${v}" ${((media.logoGrafico||'hd')===v)?'selected':''}>${l}</option>`).join("")}
+                <select id="f-mlogo-grafico" data-logovar-sel="malt">
+                  ${logoVariantOptionsHTML(media, media.logoGrafico||'hd')}
                 </select>
               </label>
             </div>
@@ -443,12 +451,37 @@ function modalAddEditMedia(media){
             <label class="field" style="flex:0 0 auto;">Color 3${colorPickerHTML("color-square", media.color3||'#FFFFFF', "f-mcolor3")}</label>
           </div>
 
+          <div class="subhead">Icono del medio</div>
+          <div id="media-icon-box" style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+            <div id="micon-preview" class="micon-prev" style="align-self:center;"><img alt=""></div>
+            <label class="field" style="flex:1 1 140px;min-width:120px;">Color de fondo
+              <select id="f-micon-color">
+                ${[media.color1||'#4F46E5',media.color2||'#15161D',media.color3||'#FFFFFF'].map((c,i)=>`<option value="${i}" ${String(i)===String((media.iconColor!=null&&media.iconColor!=="")?media.iconColor:"0")?'selected':''}>Color ${i+1}${i===0?' (principal)':''}</option>`).join("")}
+                <option value="white" ${media.iconColor==="white"?'selected':''}>Blanco</option>
+                <option value="black" ${media.iconColor==="black"?'selected':''}>Negro</option>
+              </select>
+            </label>
+            <label class="field" style="flex:1 1 140px;min-width:120px;">Logo
+              <select id="f-micon-logo" data-logovar-sel="malt">
+                ${logoVariantOptionsHTML(media, media.iconLogo||'hd')}
+              </select>
+            </label>
+            <label class="field" style="flex:1 1 120px;min-width:110px;">Tamaño del logo (%)
+              <input type="number" id="f-micon-size" min="1" max="100" step="1" value="${(media.iconLogoSize!=null&&media.iconLogoSize!=="")?Math.max(1,Math.min(100,parseInt(media.iconLogoSize)||75)):75}">
+            </label>
+            <span class="hint" style="font-size:11px;flex:1 1 100%;">Se usa como icono del medio en las noticias (el mismo para todas las coberturas).</span>
+          </div>
+
           ${mediaSocialSectionHTML(media, {
-            logoOptions: [["hd","Horizontal — oscuro"],["hl","Horizontal — claro"],["vd","Vertical — oscuro"],["vl","Vertical — claro"]],
-            logos: { hd: media.logoHDark||media.logoImg||"", hl: media.logoHLight||"", vd: media.logoVDark||"", vl: media.logoVLight||"" },
+            logoOptions: logoVariantOptions(media),
+            logos: (()=>{ const lo={ hd: media.logoHDark||media.logoImg||"", hl: media.logoHLight||"", vd: media.logoVDark||"", vl: media.logoVLight||"" }; entityLogoAlts(media).forEach((a,i)=>{ if(a&&a.img) lo["a"+i]=a.img; }); return lo; })(),
+            logoInputs: (()=>{ const m={ hd:"f-mlogo-hd-data", hl:"f-mlogo-hl-data", vd:"f-mlogo-vd-data", vl:"f-mlogo-vl-data" }; entityLogoAlts(media).forEach((a,i)=>{ if(a&&a.img) m["a"+i]="f-malt-"+i+"-data"; }); return m; })(),
+            altPrefix: "malt",
             colors: [media.color1||"#4F46E5", media.color2||"#15161D", media.color3||"#FFFFFF"],
             colorInputs: ["f-mcolor1","f-mcolor2","f-mcolor3"]
           })}
+
+          ${(typeof logoAltsSectionHTML==="function") ? logoAltsSectionHTML("malt", entityLogoAlts(media)) : ""}
         </div>
       </div>
       <div class="modal-foot">

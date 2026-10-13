@@ -91,6 +91,59 @@ function crestHTML(t, extraStyle){
   return defaultCrestBoxHTML(t, extraStyle);
 }
 
+// Forma reciente: últimos 5 resultados de una selección (por id). Devuelve ['G'|'E'|'P'|null, ...] (5).
+// null = sin partido (círculo gris). Los clubes no tienen partidos: pasar allNull para 5 grises.
+// Texto del tooltip de cada círculo de forma: "25 feb 2026 · México 4-0 Islandia (Amistoso)".
+const FORMA_MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+function formaMatchTitle(f, teamId){
+  let ds=""; const d=f.date||"";
+  if(d.length>=10){ const y=d.slice(0,4), mo=parseInt(d.slice(5,7),10), da=parseInt(d.slice(8,10),10); ds=da+" "+(FORMA_MESES[mo-1]||"")+" "+y; }
+  const ta=getTeam(f.teamA), tb=getTeam(f.teamB);
+  const an=ta?(ta.commonName||ta.name):"?", bn=tb?(tb.commonName||tb.name):"?";
+  const sc=(f.scoreA!=null&&f.scoreB!=null)?(" "+f.scoreA+"-"+f.scoreB+" "):" vs ";
+  // Torneo entre paréntesis con su NOMBRE CORTO: Amistoso, el corto del torneo propio o el corto del Mundial.
+  let kind;
+  if(f.friendly||f.stage==="amistoso") kind=" (Amistoso)";
+  else if(f.competition && typeof matchIsWorldCup==="function" && !matchIsWorldCup(f)){
+    const c=(typeof competitionByName==="function")?competitionByName(f.competition):null;
+    const nm=(c&&(c.shortName||c.commonName)) || ((typeof competitionDisplayName==="function")?competitionDisplayName(f.competition):f.competition);
+    kind=" ("+nm+")";
+  } else {
+    let wc="Copa Mundial"; try{ if(typeof eventFieldText==="function") wc=eventFieldText(DB.event,'shortName')||eventFieldText(DB.event,'name')||wc; }catch(e){}
+    kind=" ("+wc+")";
+  }
+  return (ds?ds+" · ":"")+an+sc+bn+kind;
+}
+// Forma reciente: últimos 5 resultados jugados, en orden cronológico (el más reciente a la derecha).
+// Cada elemento es null (sin partido) o {res:'G'|'E'|'P', title:'…'} para el tooltip.
+function lastFiveForm(teamId){
+  const gate = (typeof fxPlayed==="function") ? fxPlayed : (f=>!!f.played);
+  let fx=[]; try{ fx=(DB.fixtures||[]).filter(f=>gate(f) && (f.teamA===teamId||f.teamB===teamId)); }catch(e){}
+  fx.sort((a,b)=> String((a.date||"")+(a.time||"")).localeCompare(String((b.date||"")+(b.time||""))));
+  const res=fx.slice(-5).map(f=>{ const gf=(f.teamA===teamId)?f.scoreA:f.scoreB, ga=(f.teamA===teamId)?f.scoreB:f.scoreA; if(gf==null||ga==null) return null; const r=gf>ga?"G":(gf<ga?"P":"E"); return {res:r, title:formaMatchTitle(f, teamId), fx:f.id}; });
+  while(res.length<5) res.unshift(null);
+  return res;
+}
+function formaRowHTML(results){
+  const dots=(results||[null,null,null,null,null]).map(item=>{
+    if(!item) return `<span class="forma-dot none"></span>`;
+    const r=(typeof item==="string")?item:item.res;
+    const title=(item && item.title)?` title="${escapeHtml(item.title)}"`:"";
+    if(r==="G") return `<span class="forma-dot g"${title}>G</span>`;
+    if(r==="E") return `<span class="forma-dot e"${title}>E</span>`;
+    if(r==="P") return `<span class="forma-dot p"${title}>P</span>`;
+    return `<span class="forma-dot none"${title}></span>`;
+  }).join("");
+  return `<div class="forma-row"><span class="forma-l">Forma</span>${dots}</div>`;
+}
+
+// Bandera "etiqueta" (mismo estilo que en la selección de equipo del onboarding: imagen suelta con
+// contorno, a la altura de las etiquetas de al lado). Se usa en perfiles, tarjetas y encabezados.
+function flagLabelHTML(x){
+  var s=""; try{ s=(typeof flagSrc==="function")?flagSrc(x):""; }catch(e){}
+  if(!s) return "";
+  return `<img class="flag-lbl" src="${s}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+}
 function teamCardHTML(t){
   const rating = teamRating(t);
   const status = squadStatus(t);
@@ -101,7 +154,7 @@ function teamCardHTML(t){
       <div class="meta">
         <div class="name">${t.commonName} ${fifaBadge(t)}</div>
         <div class="sub">
-          ${flagBadgeHTML(t)}
+          ${flagLabelHTML(t)}
           ${confBadge(t.conf)}
           ${t.host?`<span class="badge host">${T('general.badge.host')}</span>`:''}
           <span class="badge ${status}">${t.players.length} jugadores</span>
@@ -110,7 +163,7 @@ function teamCardHTML(t){
     </div>
     <div class="team-card-bottom">
       <div class="kit-swatch" title="Uniformes de jugador">
-        ${(t.kits||[]).filter(k=>k.category==="jugador").slice(0,3).map(k=>`<span class="kit-dot" style="background:${k.color1};"></span>`).join("")}
+        ${currentSlotKits(t,"jugador").slice(0,3).map(k=>`<span class="kit-dot" style="background:${k.color1};"></span>`).join("")}
       </div>
       <div class="rating">${rating}</div>
     </div>
@@ -191,7 +244,7 @@ function renderTeamDetail(teamId){
   if(!t || t.hidden){ activeTeamId=null; return renderSelecciones(); }  // el equipo oculto (agentes libres) no tiene perfil visible
   const rating = teamRating(t);
   const ratings = teamRatings(t);
-  const sponsorsOfTeam = DB.sponsors.filter(s=>sponsorEffectiveLinks(s).some(l=>l.type==="team" && l.id===t.id));
+  const sponsorsOfTeam = DB.sponsors.filter(s=>sponsorEffectiveLinks(s).some(l=>l.type==="team" && l.id===t.id)).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"", 'es'));
   const fifaRankNow = computeFifaRanks()[t.id] || null;
   const orderedT = orderedTeamsForNav();
   const tIdx = orderedT.findIndex(x=>x.id===t.id);
@@ -203,9 +256,9 @@ function renderTeamDetail(teamId){
   <div class="card" style="margin-top:14px;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
     ${crestHTML(t, "width:150px;height:150px;")}
     <div style="flex:1;min-width:200px;">
-      <h2 style="margin:0 0 2px;">${t.commonName} ${fifaBadge(t)}</h2>
+      <h2 style="margin:0 0 2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${t.commonName} ${flagLabelHTML(t)}${fifaBadge(t)}</h2>
       ${firstNicknameDisplay(t) ? `<div style="font-size:12.5px;color:var(--indigo-bright);font-weight:600;margin-bottom:2px;">${firstNicknameDisplay(t)}</div>` : ""}
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${flagIconHTML(t)}${t.federationName ? t.federationName + (t.federationAbbr ? ` (${t.federationAbbr})` : "") : ""}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${t.federationName ? t.federationName + (t.federationAbbr ? ` (${t.federationAbbr})` : "") : ""}</div>
       <div class="tag-list">
         ${confBadge(t.conf)}
         <span class="badge conf">Grupo ${t.group||"—"}</span>
@@ -213,6 +266,7 @@ function renderTeamDetail(teamId){
         ${t.host?`<span class="badge host">${T('general.badge.host')}</span>`:''}
         <span class="badge ${squadStatus(t)}">${t.players.length} jugadores</span>
       </div>
+      ${formaRowHTML(lastFiveForm(t.id))}
     </div>
     ${ratingBlockHTML(ratings)}
     <div style="display:flex;flex-direction:column;gap:8px;align-self:center;">
@@ -224,7 +278,7 @@ function renderTeamDetail(teamId){
   <div class="section-title"><h2>Uniformes</h2></div>
   <div class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
     <div style="flex:2;min-width:240px;display:flex;gap:14px;justify-content:flex-start;flex-wrap:wrap;">
-      ${(t.kits||[]).filter(k=>k.category==="jugador").slice(0,3).map(k=>`
+      ${currentSlotKits(t,"jugador").slice(0,3).map(k=>`
         <div class="kit-render" data-pending data-team-id="${t.id}" data-kit-id="${k.id}" data-action="edit-kit" data-team="${t.id}" data-id="${k.id}"
              style="width:110px;height:110px;background:var(--surface-2);border-radius:10px;cursor:pointer;flex-shrink:0;"></div>
       `).join("")}
@@ -283,10 +337,10 @@ function renderTeamDetail(teamId){
       ).map(c=>coachRowHTML(c, t)).join("")}
   </div>`}
 
-  <div class="section-title"><h2>Patrocinadores ligados</h2></div>
+  <div class="section-title"><h2>Patrocinadores</h2></div>
   <div class="card">
     ${sponsorsOfTeam.length===0 ? `<p style="font-size:13px;color:var(--muted);margin:0;">Ninguno todavía. Puedes ligar uno desde la pestaña Patrocinadores.</p>` :
-      sponsorsOfTeam.map(s=>`<div class="kv"><span>${escapeHtml(s.name)} <span style="color:var(--muted);">(${escapeHtml(sponsorCategoriesOf(s).join(", ")||"—")})</span></span><span class="mono">$${s.value}M</span></div>`).join("")}
+      sponsorsOfTeam.map(s=>`<div class="kv"><span>${escapeHtml(s.name)} <span style="color:var(--muted);">(${escapeHtml(sponsorCategoriesOf(s).join(", ")||"—")})</span></span></div>`).join("")}
   </div>
   `;
 }
@@ -297,6 +351,8 @@ function squadSortChip(label, key){
   return `<button class="sort-chip ${active?'active':''}" data-action="sort-squad" data-key="${key}"><span>${label}</span>${arrow?`<span class="arrow">${arrow}</span>`:""}</button>`;
 }
 
+// El Press Wall de una selección usa el editor genérico (datos/presswall.js): 16 espacios fijos con
+// color representativo + marca opcional, preview a todo el ancho y tamaño de logo ajustable.
 function modalAddEditTeam(team){
   const isEdit = !!team;
   team = team || {id:null, officialName:"", commonName:"", shortName:"", fifaCode:"", iocCode:"", conf:"UEFA", group:"", host:false, color1:"#4F46E5", color2:"#15161D", awayColor1:"#FFFFFF", awayColor2:"#15161D", kitSponsor:"", logoImg:"", logoImgLight:"", kitHomeImg:"", kitAwayImg:"", stadium:"", stadiums:[], trainingGround:"", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialVerified:"", socialAvatarLogo:"dark", socialAvatarColor:0};
@@ -363,7 +419,21 @@ function modalAddEditTeam(team){
             <label class="field" style="flex:0 0 auto;">${T('team.color1.label')}${colorPickerHTML("color-square", team.color1, "f-color1")}</label>
             <label class="field" style="flex:0 0 auto;">${T('team.color2.label')}${colorPickerHTML("color-square", team.color2, "f-color2")}</label>
             <label class="field" style="flex:0 0 auto;">${T('team.color3.label')}${colorPickerHTML("color-square", team.color3||'#FFFFFF', "f-color3")}</label>
+            <label class="field" style="flex:1 1 180px;min-width:180px;">Logo principal (con estos colores)
+              <select id="f-logomain">
+                <option value="dark" ${(team.logoMain||'dark')==='dark'?'selected':''}>Escudo — fondo oscuro</option>
+                <option value="light" ${team.logoMain==='light'?'selected':''}>Escudo — fondo claro</option>
+              </select>
+            </label>
           </div>
+
+          ${(typeof iconEditorSectionHTML==="function") ? iconEditorSectionHTML("ticon", team, {
+            title:"Icono de la selección",
+            logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]],
+            logoInputs:{ dark:"f-logo-data", light:"f-logo-l-data" },
+            colors:[team.color1||"#4F46E5", team.color2||"#15161D", team.color3||"#FFFFFF"],
+            colorInputs:["f-color1","f-color2","f-color3"]
+          }) : ""}
 
           <div class="subhead">Instalaciones</div>
           <div class="field" style="grid-column:1/-1;display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">Estadios (en orden de importancia)
@@ -389,9 +459,82 @@ function modalAddEditTeam(team){
           ${socialSectionHTML("tsoc", team, {
             logoOptions: [["dark","Logo oscuro"],["light","Logo claro"]],
             logos: { dark: team.logoImg||"", light: team.logoImgLight||team.logoImg||"" },
+            logoInputs: { dark:"f-logo-data", light:"f-logo-l-data" },
             colors: [team.color1||"#4F46E5", team.color2||"#15161D", team.color3||"#FFFFFF"],
             colorInputs: ["f-color1","f-color2","f-color3"]
           })}
+
+          <details class="spw-details" style="grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;">
+            <summary style="cursor:pointer;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;list-style:none;background:var(--surface-2);white-space:nowrap;">Press Wall</summary>
+            <div style="padding:14px;">
+              <span style="display:block;font-size:11px;color:var(--muted);margin-bottom:10px;">Arriba el muro y la carga del back y la referencia; abajo las marcas. Agrega marcas para ir rellenando cada color de la referencia; cada marca tiene su color de referencia, el tipo de logo y su color de fondo (por defecto el del patrocinador).</span>
+              ${pwEditorHTML({prefix:"spw", brands:pwBrandsFor(team), back:team.pressWallBgImg||"", ref:team.pressWallRefImg||"", graphicPct:team.pressWallGraphicPct||100, graphicX:team.pressWallGraphicX||0, graphicY:team.pressWallGraphicY||0, live:false, layout:"stacked"})}
+            </div>
+          </details>
+
+          ${(()=>{ const fed = team.federation || {}; return `
+          <details class="spw-details" style="grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;">
+            <summary style="cursor:pointer;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;list-style:none;background:var(--surface-2);white-space:nowrap;">Federación</summary>
+            <div style="padding:14px;" class="form-grid">
+              <label class="field" style="grid-column:1/-1;">Federación
+                <input id="f-fed-name-display" value="${escapeHtml(team.federationName||'')}" disabled style="opacity:.65;">
+                <span style="font-size:11px;color:var(--muted);font-weight:400;">Se edita arriba (Nombre de la federación y Siglas).</span>
+              </label>
+              <label class="field">Siglas<input id="f-fed-abbr-display" value="${escapeHtml(team.federationAbbr||'')}" disabled style="opacity:.65;"></label>
+              <label class="field">Año de fundación<input id="f-fed-founded" type="number" min="1800" max="2099" value="${fed.foundedYear!=null?fed.foundedYear:''}" placeholder="p. ej. 1927"></label>
+              <label class="field">Año de ingreso a la FIFA<input id="f-fed-fifa" type="number" min="1900" max="2099" value="${fed.fifaJoinedYear!=null?fed.fifaJoinedYear:''}" placeholder="p. ej. 1929"></label>
+
+              <div class="subhead">Escudo de la federación</div>
+              <span style="grid-column:1/-1;font-size:11px;color:var(--muted);margin:-4px 0 4px;">Si lo dejas vacío se usa el escudo de la selección.</span>
+              <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
+                ${imageUploadFieldCol("Escudo — fondo oscuro", "fedlogo", fed.logoImg, "Si vacío, usa el de la selección.")}
+                ${imageUploadFieldCol("Escudo — fondo claro", "fedlogo-l", fed.logoImgLight, "Si vacío, usa el de la selección.")}
+              </div>
+
+              <div class="subhead">Redes sociales de la federación</div>
+              <span style="grid-column:1/-1;font-size:11px;color:var(--muted);margin:-4px 0 4px;">Cada campo vacío usa el de la selección (mostrado en gris). Escribe o sube una imagen para personalizar.</span>
+              ${socialProfileBlockHTML("fedsoc", fed, {
+                logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]],
+                logos:{ dark:fed.logoImg||team.logoImg||"", light:fed.logoImgLight||fed.logoImg||team.logoImgLight||team.logoImg||"" },
+                logoInputs:{ dark:"f-fedlogo-data", light:"f-fedlogo-l-data" },
+                fallbackLogoInputs:{ dark:"f-logo-data", light:"f-logo-l-data" },
+                colors:[fed.color1||team.color1||"#4F46E5", fed.color2||team.color2||"#15161D", fed.color3||team.color3||"#FFFFFF"],
+                colorInputs:["f-fed-color1","f-fed-color2","f-fed-color3"]
+              }, "Selección", {
+                inheritImage:true,
+                inheritSrc:"f-tsoc-avatar-data",
+                placeholders:{ profile:team.socialProfileName||team.socialHandle||"", username:team.socialUsername||"", verif:team.socialVerified||"" }
+              })}
+
+              <div class="subhead">Colores de la federación</div>
+              <label class="field" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:8px;font-weight:400;margin:-2px 0 2px;">
+                <input type="checkbox" id="f-fed-owncolors" ${fed.ownColors?'checked':''} style="width:auto;flex:0 0 auto;">
+                <span style="font-size:12px;">Usar colores propios (si no lo marcas, se usan los de la selección)</span>
+              </label>
+              <div id="f-fed-colors-wrap" style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;${fed.ownColors?'':'opacity:.45;pointer-events:none;'}">
+                <label class="field" style="flex:0 0 auto;">Color 1${colorPickerHTML("color-square", fed.color1||team.color1, "f-fed-color1")}</label>
+                <label class="field" style="flex:0 0 auto;">Color 2${colorPickerHTML("color-square", fed.color2||team.color2, "f-fed-color2")}</label>
+                <label class="field" style="flex:0 0 auto;">Color 3${colorPickerHTML("color-square", fed.color3||team.color3||'#FFFFFF', "f-fed-color3")}</label>
+              </div>
+
+              ${(typeof iconEditorSectionHTML==="function") ? iconEditorSectionHTML("fedicon", fed, {
+                title:"Icono de la federación",
+                logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]],
+                logoInputs:{ dark:"f-fedlogo-data", light:"f-fedlogo-l-data" },
+                fallbackLogoInputs:{ dark:"f-logo-data", light:"f-logo-l-data" },
+                colors:[fed.color1||team.color1||"#4F46E5", fed.color2||team.color2||"#15161D", fed.color3||team.color3||"#FFFFFF"],
+                colorInputs:["f-fed-color1","f-fed-color2","f-fed-color3"],
+                hint:"Si no cargas un escudo propio, usa el de la selección."
+              }) : ""}
+
+              ${(typeof refereeKitsDetailsHTML==="function") ? refereeKitsDetailsHTML(refKitsWrapId("fed", team.id||""), {
+                exists: !!team.id,
+                summary: "Uniformes de árbitro de la federación",
+                hint: "Uniformes que usan los árbitros de esta federación. Se editan igual que los de la Copa del Mundo.",
+                savedFirst: "Guarda primero la selección para poder crear los uniformes de árbitro de su federación."
+              }) : ""}
+            </div>
+          </details>`; })()}
         </div>
       </div>
       <div class="modal-foot">

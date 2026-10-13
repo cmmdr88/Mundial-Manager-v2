@@ -26,6 +26,9 @@ function buildDefaultEvent(){
     code:"FWC[Etiqueta de año]",
     officialName:"FIFA World Cup [Etiqueta de año]™",
     logoImg:null,
+    logoImgLight:null,
+    wordmarkImg:null,
+    wordmarkImgLight:null,
     // ---- Colores del torneo ----
     color1:"#D4AF37", color2:"#15161D", color3:"#FFFFFF",
     // ---- Próxima edición ----
@@ -441,17 +444,10 @@ function renderEventoDetail(){
   <div class="section-title"><h2>Uniformes de árbitros del torneo</h2><button class="btn ghost sm" data-action="manage-kits" data-team="${REFEREE_KIT_TEAM_ID}">Editar uniformes</button></div>
   ${refereeKitsCardHTML()}
 
-  ${(typeof getPressWall==="function") ? `
-  <div class="section-title"><h2>Press Wall</h2><span class="hint">Muro de patrocinadores para las fotos de prensa — asigna una marca a cada uno de los 16 espacios (se usa el «Logo en gráficos» de cada patrocinador). Los cambios se ven al instante.</span></div>
+  ${(typeof pwEditorHTML==="function") ? `
+  <div class="section-title"><h2 style="white-space:nowrap;">Press Wall</h2><span class="hint">Muro de patrocinadores para las fotos de prensa. Del lado izquierdo el muro y la carga del back y la referencia. Agrega marcas para ir rellenando cada color de la referencia; cada marca tiene su color de referencia, el tipo de logo y su color de fondo (por defecto el del patrocinador). Los cambios se ven al instante.</span></div>
   <div class="card">
-    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;">
-      <div>${pressWallComposeHTML(440)}</div>
-      <div style="flex:1;min-width:300px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 14px;">
-          ${getPressWall().map((name,i)=>`<label class="field" style="flex-direction:row;align-items:center;gap:8px;font-size:12px;margin:0;"><b style="width:20px;color:var(--muted);text-align:right;flex-shrink:0;">${i+1}</b><select data-action="set-presswall-slot" data-slot="${i}" style="flex:1;min-width:0;">${pressWallSponsorOptions(name)}</select></label>`).join("")}
-        </div>
-      </div>
-    </div>
+    ${pwEditorHTML({prefix:"evpw", brands:pwBrandsFor("event"), back:(DB.event&&DB.event.pressWallBgImg)||"", ref:(DB.event&&DB.event.pressWallRefImg)||"", graphicPct:(DB.event&&DB.event.pressWallGraphicPct)||100, graphicX:(DB.event&&DB.event.pressWallGraphicX)||0, graphicY:(DB.event&&DB.event.pressWallGraphicY)||0, live:true, layout:"two-col"})}
   </div>` : ""}
 
   <div class="section-title"><h2>Historial</h2><button class="btn ghost sm" data-action="edit-event-general">Editar historial</button></div>
@@ -652,7 +648,17 @@ function modalEditEventGeneral(){
           ${templateField("ev-short", "Nombre corto", ev.shortName)}
           ${templateField("ev-code", "Código", ev.code, "text-transform:uppercase;")}
 
-          ${imageUploadField("Logo del torneo", "evlogo", ev.logoImg, "PNG o JPG. Cuadrado se ve mejor. Si no hay logo se muestra el código en un escudo dorado.")}
+          <div class="subhead">Logo del torneo</div>
+          <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
+            ${imageUploadFieldCol("Logo — fondo oscuro", "evlogo", ev.logoImg, "El que se usa en casi toda la app (fondo oscuro).", 800)}
+            ${imageUploadFieldCol("Logo — fondo claro", "evlogo-l", ev.logoImgLight, "Para fondos claros (p. ej. el recuadro de próximo partido).", 800)}
+          </div>
+
+          <div class="subhead">Wordmark (texto-logo del torneo)</div>
+          <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
+            ${imageUploadFieldCol("Wordmark — fondo oscuro", "evwm", ev.wordmarkImg, "Versión clara del texto-logo, para fondos oscuros.", 2000)}
+            ${imageUploadFieldCol("Wordmark — fondo claro", "evwm-l", ev.wordmarkImgLight, "Reemplaza el nombre del torneo en el recuadro de próximo partido.", 2000)}
+          </div>
 
           <div class="field" style="grid-column:1/-1;">
             <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px;">Colores del torneo</div>
@@ -675,6 +681,22 @@ function modalEditEventGeneral(){
             </div>
             <div><button type="button" class="btn ghost sm" data-action="ev-add-host-row">+ Agregar anfitrión</button></div>
           </div>
+
+          ${(typeof iconEditorSectionHTML==="function") ? iconEditorSectionHTML("evicon", ev, {
+            title:"Icono del torneo",
+            logoOptions:[["dark","Logo oscuro"],["light","Logo claro"]],
+            logoInputs:{ dark:"f-evlogo-data", light:"f-evlogo-l-data" },
+            colors:[ev.color1||"#D4AF37", ev.color2||"#15161D", ev.color3||"#FFFFFF"],
+            colorInputs:["f-ev-color1","f-ev-color2","f-ev-color3"]
+          }) : ""}
+
+          ${(typeof socialSectionHTML==="function") ? socialSectionHTML("evsoc", ev, {
+            logoOptions:[["dark","Logo oscuro"],["light","Logo claro"]],
+            logos:{ dark:ev.logoImg||"", light:ev.logoImgLight||ev.logoImg||"" },
+            logoInputs:{ dark:"f-evlogo-data", light:"f-evlogo-l-data" },
+            colors:[ev.color1||"#D4AF37", ev.color2||"#15161D", ev.color3||"#FFFFFF"],
+            colorInputs:["f-ev-color1","f-ev-color2","f-ev-color3"]
+          }) : ""}
         </div>
 
         <details class="ev-collapse" style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;">
@@ -757,6 +779,9 @@ function saveEventGeneral(){
 
   // ---- Identidad ----
   ev.logoImg = document.getElementById("f-evlogo-data").value || null;
+  ev.logoImgLight = (document.getElementById("f-evlogo-l-data")||{}).value || null;
+  ev.wordmarkImg = (document.getElementById("f-evwm-data")||{}).value || null;
+  ev.wordmarkImgLight = (document.getElementById("f-evwm-l-data")||{}).value || null;
   const tpl = id => readTemplateField(document.getElementById(id));
   ev.name = tpl("ev-name") || ev.name;
   ev.shortName = tpl("ev-short");
@@ -769,6 +794,8 @@ function saveEventGeneral(){
   ev.color1 = document.getElementById("f-ev-color1").value;
   ev.color2 = document.getElementById("f-ev-color2").value;
   ev.color3 = document.getElementById("f-ev-color3").value;
+  if(typeof readSocial==="function") Object.assign(ev, readSocial("evsoc"));
+  if(typeof readIcon==="function") Object.assign(ev, readIcon("evicon"));
   ev.yearLabelStyle = {
     name: fieldYearStyle("ev-name"),
     shortName: fieldYearStyle("ev-short"),
