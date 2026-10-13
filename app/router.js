@@ -238,6 +238,7 @@ function render(){
   else if(activeTeamId) view.innerHTML = renderTeamDetail(activeTeamId);
   else if(activeTab==="inicio") view.innerHTML = renderInicio();
   else if(activeTab==="evento") view.innerHTML = renderEvento();
+  else if(activeTab==="competiciones") view.innerHTML = renderCompeticiones();
   else if(activeTab==="selecciones") view.innerHTML = renderSelecciones();
   else if(activeTab==="confederaciones") view.innerHTML = renderConfederaciones();
   else if(activeTab==="rankings") view.innerHTML = renderRankings();

@@ -24,11 +24,9 @@ function attachHandlers(){
     if(!el) return;
     handleAction(el.dataset.action, el);
   };
-  // Cambios en vivo de los selects del Press Wall (editor de Formato).
-  view.onchange = (e)=>{
-    const s = e.target.closest('select[data-action="set-presswall-slot"]');
-    if(s && typeof setPressWallSlot==="function"){ setPressWallSlot(+s.dataset.slot, s.value); }
-  };
+  // El Press Wall (torneo/selecciones/clubes) se cablea con un listener global en datos/presswall.js.
+  // Al montar, refresca los muros (necesario para el render async basado en la referencia).
+  if(typeof pwRefreshAllEditors==="function") pwRefreshAllEditors(document.getElementById("view"));
   renderKitPreviews();
 
   if(activeTab==="jugadores"){
@@ -42,8 +40,10 @@ function attachHandlers(){
   if(activeTab==="entrenadores"){
     const q = document.getElementById("coach-q");
     const tf = document.getElementById("coach-nat-filter");
+    const rf = document.getElementById("coach-role-filter");
     if(q) q.addEventListener("input", ()=>{ coachFilter.q=q.value; coachPage=1; render(); setTimeout(()=>{ const el=document.getElementById("coach-q"); if(el){el.focus(); el.selectionStart=el.selectionEnd=el.value.length;} },0); });
     if(tf) tf.addEventListener("change", ()=>{ coachFilter.nat=tf.value; coachPage=1; render(); });
+    if(rf) rf.addEventListener("change", ()=>{ coachFilter.role=rf.value; coachPage=1; render(); });
   }
   if(activeTab==="arbitros" && !activeRefereeId){
     const q = document.getElementById("referee-q");
@@ -102,6 +102,10 @@ document.addEventListener("click", (e)=>{
 /* ---------- Init ---------- */
 (async function init(){
   await loadDB();
+  // Importa los partidos del archivo editable partidos.txt (raíz) y los vuelca en el calendario.
+  // Publicado (GitHub Pages / servidor) se lee solo; abierto como archivo local en Chrome, el
+  // navegador bloquea la lectura y simplemente se omite (los partidos ya guardados se conservan).
+  if(typeof PartidosTxt!=="undefined" && PartidosTxt.load){ try{ await PartidosTxt.load(); }catch(e){} }
   await loadHistory();
   render();
   buildGlobalSearch();

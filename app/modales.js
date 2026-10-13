@@ -49,6 +49,169 @@ function openModal(html){
   if(typeof refreshDeclaredForOptions==="function") refreshDeclaredForOptions();
   // Inicializa las secciones de "Redes sociales" (genera/actualiza el avatar automático).
   if(typeof initAllSocialAvatars==="function") initAllSocialAvatars();
+  // Vista previa del "Icono del medio" (logo elegido sobre el color elegido).
+  if(typeof initMediaIconPreview==="function") initMediaIconPreview();
+  if(typeof initAllIconPreviews==="function") initAllIconPreviews();
+  // Colores propios de la federación: casilla que activa/desactiva los 3 selectores de color.
+  if(typeof initFedOwnColors==="function") initFedOwnColors();
+  // Federación: nombre/siglas en vivo + perfil de redes heredado (en gris) de la selección.
+  if(typeof initFedSection==="function") initFedSection();
+  // El Press Wall (selecciones/clubes) se actualiza con el listener global de datos/presswall.js;
+  // al abrir el modal hay que refrescar el muro (render async basado en la referencia).
+  if(typeof pwRefreshAllEditors==="function") pwRefreshAllEditors(document.getElementById("modal-root"));
+}
+// Vista previa en vivo del icono del medio: dibuja el logo elegido sobre el color de fondo elegido,
+// leyendo en tiempo real los colores y logos del formulario (misma lógica que el avatar de redes).
+function initMediaIconPreview(){
+  const box=document.getElementById("media-icon-box"); if(!box) return;
+  const prev=document.getElementById("micon-preview"); const img=prev?prev.querySelector("img"):null;
+  const colorSel=document.getElementById("f-micon-color"), logoSel=document.getElementById("f-micon-logo"), sizeInp=document.getElementById("f-micon-size");
+  if(!prev||!img||!colorSel||!logoSel) return;
+  const gv=id=>{ const el=document.getElementById(id); return el?el.value:""; };
+  // Incluye logos alternos (aN): se leen del input oculto f-malt-N-data.
+  const logoData=v=>{ if(/^a\d+$/.test(v)) return gv("f-malt-"+v.slice(1)+"-data"); return gv({hd:"f-mlogo-hd-data",hl:"f-mlogo-hl-data",vd:"f-mlogo-vd-data",vl:"f-mlogo-vl-data"}[v]||""); };
+  const colHex=()=>{ const v=colorSel.value; if(v==="white")return "#FFFFFF"; if(v==="black")return "#0D0D0D"; const ids=["f-mcolor1","f-mcolor2","f-mcolor3"]; return gv(ids[parseInt(v)||0])||"#15161D"; };
+  const upd=()=>{
+    prev.style.background=colHex();
+    // Prioridad al elegir/respaldar el logo: el elegido, luego hd → vd → hl → vl.
+    let src=logoData(logoSel.value); if(!src){ src=logoData("hd")||logoData("vd")||logoData("hl")||logoData("vl"); }
+    let pct=parseInt(sizeInp?sizeInp.value:75); if(isNaN(pct)) pct=75; pct=Math.max(1,Math.min(100,pct));
+    img.style.width=pct+"%"; img.style.height=pct+"%";
+    if(src){ img.src=src; img.style.display="block"; } else { img.removeAttribute("src"); img.style.display="none"; }
+  };
+  [colorSel,logoSel,sizeInp,document.getElementById("f-mcolor1"),document.getElementById("f-mcolor2"),document.getElementById("f-mcolor3")].forEach(e=>{ if(e){ e.addEventListener("change",upd); e.addEventListener("input",upd); } });
+  ["f-mlogo-hd-data","f-mlogo-hl-data","f-mlogo-vd-data","f-mlogo-vl-data"].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener("input",upd); });
+  upd();
+}
+// Sección "Icono de <entidad>" reutilizable (torneo, confederación, FIFA, patrocinador, club, selección, federación).
+// Misma lógica que el "Icono del medio": logo elegido sobre el color elegido, a un tamaño (%).
+//   key = prefijo de ids ("evicon","conficon","fifaicon","spicon","clicon","ticon","fedicon")
+//   opts = { title, logoOptions:[[val,label]], logoInputs:{val:inputId}, colors:[hex,...], colorInputs:[inputId,...], defaultLogo, hint }
+function iconEditorSectionHTML(key, obj, opts){
+  obj=obj||{}; opts=opts||{};
+  const title=opts.title||"Icono";
+  const logoOptions=opts.logoOptions||[["dark","Fondo oscuro"],["light","Fondo claro"]];
+  const colors=(opts.colors||[]).map(c=>c||"#0D0D0D");
+  const curColor=(obj.iconColor!=null&&obj.iconColor!=="")?String(obj.iconColor):"0";
+  const defLogo=opts.defaultLogo||(logoOptions[0]&&logoOptions[0][0])||"dark";
+  const curLogo=(obj.iconLogo||defLogo).toString();
+  const curSize=(obj.iconLogoSize!=null&&obj.iconLogoSize!=="")?Math.max(1,Math.min(100,parseInt(obj.iconLogoSize)||75)):75;
+  const ctx=JSON.stringify({logoInputs:opts.logoInputs||{}, fallbackLogoInputs:opts.fallbackLogoInputs||{}, colorInputs:opts.colorInputs||[], defaultLogo:defLogo, altPrefix:opts.altPrefix||""});
+  const colorOptions = colors.map((c,i)=>`<option value="${i}" ${String(i)===curColor?'selected':''}>Color ${i+1}${i===0?' (principal)':''}</option>`).join("")
+    + `<option value="white" ${curColor==="white"?'selected':''}>Blanco</option>`
+    + `<option value="black" ${curColor==="black"?'selected':''}>Negro</option>`;
+  return `
+  <div class="subhead">${escapeHtml(title)}</div>
+  <div class="org-icon-box" data-iconkey="${key}" style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+    <script type="application/json" id="f-${key}-iconctx">${ctx}</script>
+    <div id="${key}-preview" class="micon-prev" style="align-self:center;"><img alt=""></div>
+    <label class="field" style="flex:1 1 140px;min-width:120px;">Color de fondo
+      <select id="f-${key}-color">${colorOptions}</select>
+    </label>
+    <label class="field" style="flex:1 1 140px;min-width:120px;">Logo
+      <select id="f-${key}-logo"${opts.altPrefix?` data-logovar-sel="${opts.altPrefix}"`:''}>${logoOptions.map(([v,l])=>`<option value="${v}" ${v===curLogo?'selected':''}>${escapeHtml(l)}</option>`).join("")}</select>
+    </label>
+    <label class="field" style="flex:1 1 120px;min-width:110px;">Tamaño del logo (%)
+      <input type="number" id="f-${key}-size" min="1" max="100" step="1" value="${curSize}">
+    </label>
+    <span class="hint" style="font-size:11px;flex:1 1 100%;">${opts.hint||"Se usa como icono en los lugares donde aparece esta entidad (por ejemplo, sus correos en el buzón)."}</span>
+  </div>`;
+}
+// Federación: la casilla "Usar colores propios" habilita/deshabilita los 3 selectores de color.
+// Si está desmarcada, los colores de la federación reflejan (y siguen) los de la selección.
+function initFedOwnColors(){
+  const chk=document.getElementById("f-fed-owncolors");
+  const wrap=document.getElementById("f-fed-colors-wrap");
+  if(!chk||!wrap) return;
+  const fedIds=["f-fed-color1","f-fed-color2","f-fed-color3"];
+  const teamIds=["f-color1","f-color2","f-color3"];
+  const syncFromTeam=()=>{
+    fedIds.forEach((fid,i)=>{
+      const fEl=document.getElementById(fid), tEl=document.getElementById(teamIds[i]);
+      if(!fEl||!tEl||fEl.value===tEl.value) return;
+      fEl.value=tEl.value;
+      fEl.dispatchEvent(new Event("input",{bubbles:true}));
+    });
+  };
+  const apply=()=>{
+    if(chk.checked){
+      wrap.style.opacity=""; wrap.style.pointerEvents="";
+    }else{
+      wrap.style.opacity=".45"; wrap.style.pointerEvents="none";
+      syncFromTeam();
+    }
+  };
+  chk.addEventListener("change", apply);
+  teamIds.forEach(tid=>{
+    const el=document.getElementById(tid);
+    if(el) el.addEventListener("input", ()=>{ if(!chk.checked) syncFromTeam(); });
+  });
+  apply();
+}
+// Federación (editor de selecciones): mantiene sincronizados EN VIVO el nombre y las siglas mostrados
+// en el submenú, y hace que el perfil de redes de la federación herede (en gris) el de la selección:
+// placeholders con el nombre/usuario de la selección y foto heredada del avatar de la selección.
+function initFedSection(){
+  // 1) Nombre y siglas de la federación: reflejan en vivo los campos editables de arriba.
+  const bind=(srcId,dstId)=>{
+    const src=document.getElementById(srcId), dst=document.getElementById(dstId);
+    if(src&&dst) src.addEventListener("input", ()=>{ dst.value = src.value; });
+  };
+  bind("f-federationname","f-fed-name-display");
+  bind("f-federationabbr","f-fed-abbr-display");
+
+  // 2) Perfil de redes de la federación heredado de la selección (perfil "tsoc").
+  const fedWrap=document.querySelector('[data-social-key="fedsoc"][data-inherit-image="1"]');
+  if(!fedWrap) return;
+  const VERIF_LABEL={ "":"Ninguna", none:"Ninguna", azul:"Azul", dorado:"Dorado", gris:"Gris" };
+  const gv=id=>(document.getElementById(id)||{}).value||"";
+  const refreshPlaceholders=()=>{
+    const p=document.getElementById("f-fedsoc-profile"), u=document.getElementById("f-fedsoc-username");
+    if(p) p.placeholder = gv("f-tsoc-profile") || "Nombre visible";
+    if(u) u.placeholder = gv("f-tsoc-username") || "usuario";
+    const vsel=document.getElementById("f-fedsoc-verif");
+    if(vsel && vsel.options.length){ vsel.options[0].textContent = "Según el perfil por defecto (" + (VERIF_LABEL[gv("f-tsoc-verif")]||"Ninguna") + ")"; }
+  };
+  const propagateAvatar=()=>{ if(typeof fedWrap._applyDefaultAvatar==="function") fedWrap._applyDefaultAvatar(); };
+  const refreshAll=()=>{ refreshPlaceholders(); propagateAvatar(); };
+  // En vivo: al cambiar el perfil por defecto (nombre/usuario/verif) de la selección.
+  ["f-tsoc-profile","f-tsoc-username","f-tsoc-verif"].forEach(id=>{
+    const el=document.getElementById(id); if(el){ el.addEventListener("input", refreshPlaceholders); el.addEventListener("change", refreshPlaceholders); }
+  });
+  // En vivo: al regenerarse el avatar de la selección (por logo, colores, tamaño o imagen subida).
+  ["f-tsoc-avlogo","f-tsoc-avcolor","f-tsoc-avsize","f-logo-data","f-logo-l-data","f-color1","f-color2","f-color3"].forEach(id=>{
+    const el=document.getElementById(id); if(el){ el.addEventListener("input", ()=>setTimeout(propagateAvatar,0)); el.addEventListener("change", ()=>setTimeout(propagateAvatar,0)); }
+  });
+  const tsocFile=document.getElementById("f-tsoc-avatar-file");
+  if(tsocFile) tsocFile.addEventListener("change", ()=>setTimeout(propagateAvatar,120));
+  // La generación del avatar de la selección es asíncrona: propaga tras un pequeño retraso al abrir.
+  refreshPlaceholders(); setTimeout(refreshAll, 60);
+}
+// Vista previa en vivo de todas las secciones "Icono de <entidad>" del formulario abierto.
+function initAllIconPreviews(){
+  document.querySelectorAll(".org-icon-box[data-iconkey]").forEach(box=>{
+    const key=box.getAttribute("data-iconkey");
+    let ctx={}; try{ ctx=JSON.parse((document.getElementById("f-"+key+"-iconctx")||{}).textContent||"{}"); }catch(e){}
+    const prev=document.getElementById(key+"-preview"); const img=prev?prev.querySelector("img"):null;
+    const colorSel=document.getElementById("f-"+key+"-color"), logoSel=document.getElementById("f-"+key+"-logo"), sizeInp=document.getElementById("f-"+key+"-size");
+    if(!prev||!img||!colorSel||!logoSel) return;
+    const gv=id=>{ const el=document.getElementById(id); return el?el.value:""; };
+    // Logo por variante: primero el propio; si está vacío, el de respaldo (p. ej. el escudo de la selección para la federación).
+    const logoData=v=>{ let s=gv((ctx.logoInputs||{})[v]||""); if(!s) s=gv((ctx.fallbackLogoInputs||{})[v]||""); if(!s && ctx.altPrefix && /^a\d+$/.test(v)) s=gv("f-"+ctx.altPrefix+"-"+v.slice(1)+"-data"); return s; };
+    const colHex=()=>{ const v=colorSel.value; if(v==="white")return "#FFFFFF"; if(v==="black")return "#0D0D0D"; const ids=ctx.colorInputs||[]; return gv(ids[parseInt(v)||0])||"#15161D"; };
+    const order=Object.keys(Object.assign({}, ctx.logoInputs||{}, ctx.fallbackLogoInputs||{}));
+    const upd=()=>{
+      prev.style.background=colHex();
+      let src=logoData(logoSel.value); if(!src){ for(const k of order){ src=logoData(k); if(src) break; } }
+      let pct=parseInt(sizeInp?sizeInp.value:75); if(isNaN(pct)) pct=75; pct=Math.max(1,Math.min(100,pct));
+      img.style.width=pct+"%"; img.style.height=pct+"%";
+      if(src){ img.src=src; img.style.display="block"; } else { img.removeAttribute("src"); img.style.display="none"; }
+    };
+    [colorSel,logoSel,sizeInp].forEach(e=>{ if(e){ e.addEventListener("change",upd); e.addEventListener("input",upd); } });
+    (ctx.colorInputs||[]).forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener("change",upd); el.addEventListener("input",upd); } });
+    Object.values(ctx.logoInputs||{}).concat(Object.values(ctx.fallbackLogoInputs||{})).forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener("input",upd); });
+    upd();
+  });
 }
 function closeModal(){ document.getElementById("modal-root").innerHTML = ""; }
 // Confirm propio, basado en nuestros modales — no depende de window.confirm(), que puede venir
@@ -105,6 +268,62 @@ function imageUploadFieldCol(label, key, currentValue, hintText, maxDim, format)
     <input type="hidden" id="${hiddenId}" value="${currentValue||''}">
   </label>`;
 }
+// Sección desplegable (cerrada por defecto) de LOGOS ALTERNOS ("Alt 1", "Alt 2", …) para el editor de
+// patrocinadores y medios. Cada alterno es una carga de imagen extra; una vez cargado queda disponible
+// como opción en todos los selectores de logo del editor (gráficos, icono, avatar) y del press wall.
+// prefix = "salt" (patrocinadores) | "malt" (medios). Los ids de los inputs son f-<prefix>-<i>-data.
+function logoAltRowHTML(prefix, i, alt){
+  alt = alt || {};
+  const label = "Alt " + (i+1);
+  return `<div class="logo-alt-row" data-altprefix="${prefix}" data-alt-idx="${i}" style="flex:1 1 190px;min-width:170px;max-width:230px;display:flex;flex-direction:column;gap:6px;">
+    ${imageUploadFieldCol(label, prefix+"-"+i, alt.img||"", "")}
+    <button type="button" class="btn danger sm" data-action="remove-logo-alt" data-altprefix="${prefix}" data-alt-idx="${i}" style="width:fit-content;">Quitar ${label}</button>
+  </div>`;
+}
+function logoAltsSectionHTML(prefix, alts){
+  alts = Array.isArray(alts) ? alts : [];
+  const rows = alts.map((a,i)=>logoAltRowHTML(prefix, i, a)).join("");
+  return `
+  <details class="logo-alts-details" data-altprefix="${prefix}" style="grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;">
+    <summary style="cursor:pointer;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;list-style:none;background:var(--surface-2);white-space:nowrap;">Logos alternos</summary>
+    <div style="padding:14px;">
+      <span style="display:block;font-size:11px;color:var(--muted);margin-bottom:10px;">Agrega aplicaciones de logo adicionales (Alt 1, Alt 2, …). Cada una queda disponible como opción en todos los selectores de logo (en gráficos, icono, avatar y en el press wall), junto a los logos horizontal y vertical, claro y oscuro.</span>
+      <div class="logo-alts-rows" data-altprefix="${prefix}" style="display:flex;flex-wrap:wrap;gap:16px;">${rows}</div>
+      <div style="margin-top:12px;"><button type="button" class="btn ghost sm" data-action="add-logo-alt" data-altprefix="${prefix}">+ Agregar logo alterno</button></div>
+    </div>
+  </details>`;
+}
+// Reconstruye las filas de logos alternos (reindexadas 0..n-1) tras agregar/quitar, y actualiza EN VIVO
+// las opciones "Alt N" de todos los selectores de logo del modal, conservando la selección por índice.
+function refreshLogoAltOptions(prefix){
+  const host = document.querySelector('.logo-alts-rows[data-altprefix="'+prefix+'"]');
+  if(!host) return;
+  // 1) Lee los alternos actuales en orden del DOM (conservando lo ya cargado) y reindexa 0..n-1.
+  //    Guarda el mapeo índice-viejo -> "aNuevo" para corregir las variantes elegidas que se hayan movido.
+  const remap = {};
+  const cur = [...host.querySelectorAll('.logo-alt-row')].map((row,i)=>{
+    const oldIdx = row.getAttribute("data-alt-idx");
+    const inp = document.getElementById("f-"+prefix+"-"+oldIdx+"-data");
+    if(oldIdx!=null) remap["a"+oldIdx] = "a"+i;
+    return { img:(inp&&inp.value)||"" };
+  });
+  host.innerHTML = cur.map((a,i)=>logoAltRowHTML(prefix, i, a)).join("");
+  // 2) Actualiza los selectores de logo (data-logovar-sel = este prefijo): quita opciones "aN" viejas
+  //    y agrega las de los alternos con imagen; reubica el valor elegido con el mapeo (si el alterno
+  //    elegido se movió) o lo devuelve a la 1ª opción si desapareció. Las variantes base no cambian.
+  const optLabel = i => "Alt " + (i+1);
+  document.querySelectorAll('select[data-logovar-sel="'+prefix+'"]').forEach(sel=>{
+    let prev = sel.value;
+    // Reubica el alterno elegido con el mapeo; si el alterno fue eliminado (no está en el mapeo),
+    // se marca como inexistente para que caiga a la 1ª opción base.
+    if(/^a\d+$/.test(prev)) prev = remap[prev] || "\u0000removed";
+    [...sel.querySelectorAll('option')].forEach(o=>{ if(/^a\d+$/.test(o.value)) o.remove(); });
+    cur.forEach((a,i)=>{ if(a.img){ const o=document.createElement("option"); o.value="a"+i; o.textContent=optLabel(i); sel.appendChild(o); } });
+    if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+    else if(sel.options.length) sel.value=sel.options[0].value;
+    sel.dispatchEvent(new Event("change",{bubbles:true}));
+  });
+}
 // Sección "Redes sociales" reutilizable (medios, clubes y selecciones).
 // Campos: imagen de perfil (cuadrada 300×300), Nombre de perfil, Nombre de usuario (máx 15,
 // solo letras/números/guion bajo) y Hashtag. Si NO se sube imagen de perfil, se genera una
@@ -124,12 +343,12 @@ function socialProfileBlockHTML(key, obj, ctx, covName, opts){
   opts = opts || {};
   const avatarOnly = !!opts.avatarOnly; // solo Imagen de perfil + logo del avatar + color de fondo
   const logoOptions = ctx.logoOptions || [];
-  const colors = (ctx.colors || []).map(c=>c || "#000000");
+  const colors = (ctx.colors || []).map(c=>c || "#0D0D0D");
   const logoSel = obj.socialAvatarLogo || (logoOptions[0] && logoOptions[0][0]) || "";
   const colorSel = (obj.socialAvatarColor!=null && obj.socialAvatarColor!=="") ? String(obj.socialAvatarColor) : "0";
   const manual = obj.socialAvatarManual ? "1" : "";
   // Contexto (logos + colores) para regenerar el avatar en el navegador, sin tocar el guardado.
-  const ctxJson = JSON.stringify({ logos: ctx.logos || {}, colors, colorInputs: ctx.colorInputs || [] });
+  const ctxJson = JSON.stringify({ logos: ctx.logos || {}, colors, colorInputs: ctx.colorInputs || [], logoInputs: ctx.logoInputs || {}, fallbackLogoInputs: ctx.fallbackLogoInputs || {}, altPrefix: ctx.altPrefix || "" });
   const covAttr = (covName!=null) ? ` data-social-cov="${escapeHtml(covName)}"` : "";
   // Opciones del "Color de fondo": Color 1/2/3 de la entidad (selección/club/medio) + Blanco + Negro.
   const avcolorOptionsHTML =
@@ -143,6 +362,11 @@ function socialProfileBlockHTML(key, obj, ctx, covName, opts){
     </label>`;
   const avcolorField = `<label class="field" style="flex:1 1 200px;min-width:0;">Color de fondo
       <select id="f-${key}-avcolor">${avcolorOptionsHTML}</select>
+    </label>`;
+  // Tamaño del logo dentro del avatar (%): 100% = ocupa el primer margen (ancho o alto) del cuadrado.
+  const avSizeVal = (obj.socialAvatarSize!=null && obj.socialAvatarSize!=="") ? Math.max(1,Math.min(100,parseInt(obj.socialAvatarSize)||75)) : 75;
+  const avsizeField = `<label class="field" style="flex:1 1 130px;min-width:0;">Tamaño del logo (%)
+      <input type="number" id="f-${key}-avsize" min="1" max="100" step="1" value="${avSizeVal}">
     </label>`;
   const hintSpan = `<span style="font-size:11px;color:var(--muted);font-weight:400;">El logo y el color solo se usan cuando no subes una imagen de perfil.</span>`;
   // Marca de verificación (se mostrará junto al nombre de perfil). Opciones: Ninguna / Azul / Dorado.
@@ -173,11 +397,12 @@ function socialProfileBlockHTML(key, obj, ctx, covName, opts){
         ${verifField}
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <label class="field" style="flex:1 1 130px;min-width:0;">Logo del avatar
-            <select id="f-${key}-avlogo">${logoOptions.map(([v,l])=>`<option value="${v}" ${v===logoSel?'selected':''}>${escapeHtml(l)}</option>`).join("")}</select>
+            <select id="f-${key}-avlogo"${ctx.altPrefix?` data-logovar-sel="${ctx.altPrefix}"`:''}>${logoOptions.map(([v,l])=>`<option value="${v}" ${v===logoSel?'selected':''}>${escapeHtml(l)}</option>`).join("")}</select>
           </label>
           <label class="field" style="flex:1 1 130px;min-width:0;">Color de fondo
             <select id="f-${key}-avcolor">${avcolorOptionsHTML}</select>
           </label>
+          ${avsizeField}
         </div>
         ${hintSpan}
       </div>
@@ -207,12 +432,14 @@ function socialProfileBlockHTML(key, obj, ctx, covName, opts){
       + `<option value="azul" ${covVerif==="azul"?'selected':''}>Azul</option>`
       + `<option value="dorado" ${covVerif==="dorado"?'selected':''}>Dorado</option>`
       + `<option value="gris" ${covVerif==="gris"?'selected':''}>Gris</option>`;
+    const inheritSrcAttr = ` data-inherit-src="${escapeHtml(opts.inheritSrc||"f-msoc-avatar-data")}"`;
     return `
-  <div data-social-key="${key}"${covAttr} data-inherit-image="1" style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px;">
+  <div data-social-key="${key}"${covAttr} data-inherit-image="1"${inheritSrcAttr} style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px;">
     <script type="application/json" id="f-${key}-avctx">${ctxJson}</script>
     <input type="hidden" id="f-${key}-avatar-manual" value="${manual}">
     <input type="hidden" id="f-${key}-avlogo" value="${escapeHtml(logoSel)}">
     <input type="hidden" id="f-${key}-avcolor" value="${escapeHtml(colorSel)}">
+    <input type="hidden" id="f-${key}-avsize" value="${avSizeVal}">
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
       <div style="flex:0 0 auto;width:200px;max-width:100%;">
         ${inheritUpload}
@@ -253,6 +480,7 @@ function socialProfileBlockHTML(key, obj, ctx, covName, opts){
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
       ${avlogoField}
       ${avcolorField}
+      ${avsizeField}
     </div>
     ${hintSpan}
   </div>`;
@@ -269,16 +497,17 @@ function resolveSocialBg(val, colors){
   val = (val==null ? "" : String(val));
   if(val==="white") return "#FFFFFF";
   if(val==="black") return "#0D0D0D";
-  const i = parseInt(val); return (colors||[])[isNaN(i)?0:i] || "#000000";
+  const i = parseInt(val); return (colors||[])[isNaN(i)?0:i] || "#0D0D0D";
 }
 // Compone un avatar cuadrado de 300×300: rellena el fondo con bgHex y dibuja el logo centrado,
 // ajustado dentro de un cuadro de 250×250 (conservando su proporción). Devuelve un data URI PNG.
-function composeSocialAvatar(logoSrc, bgHex){
+function composeSocialAvatar(logoSrc, bgHex, sizePct){
   return new Promise(resolve=>{
-    const size=300, box=250, pad=(size-box)/2;
+    const size=300; let pct=parseInt(sizePct); if(isNaN(pct)) pct=75; pct=Math.max(1,Math.min(100,pct));
+    const box=Math.round(size*pct/100), pad=(size-box)/2;
     const c=document.createElement("canvas"); c.width=size; c.height=size;
     const ctx=c.getContext("2d");
-    ctx.fillStyle = bgHex || "#000000"; ctx.fillRect(0,0,size,size);
+    ctx.fillStyle = bgHex || "#0D0D0D"; ctx.fillRect(0,0,size,size);
     if(!logoSrc){ resolve(c.toDataURL("image/png")); return; }
     const img=new Image();
     img.onload=()=>{
@@ -299,15 +528,16 @@ function initSocialAvatarSection(wrap){
   try{ ctx = JSON.parse(ctxEl.textContent||"{}"); }catch(e){}
   const hidden = gId("avatar-data"), manualFlag = gId("avatar-manual");
   const preview = gId("avatar-preview"), fileInp = gId("avatar-file");
-  const logoSel = gId("avlogo"), colorSel = gId("avcolor");
+  const logoSel = gId("avlogo"), colorSel = gId("avcolor"), sizeInp = gId("avsize");
   const setPreview = (src)=>{ if(preview){ if(src){ preview.src=src; preview.style.display="block"; } else { preview.removeAttribute("src"); preview.style.display="none"; } } };
   const clearBtn = wrap.querySelector('[data-action="clear-image"][data-target="f-'+key+'-avatar-data"]');
 
   // --- Perfiles POR COBERTURA (medios): la imagen se HEREDA del perfil por defecto ---
   if(wrap.getAttribute("data-inherit-image")==="1"){
+    const defSrcId = wrap.getAttribute("data-inherit-src") || "f-msoc-avatar-data";
     const applyDefault = ()=>{
       if(manualFlag && manualFlag.value==="1") return; // respeta imagen propia subida
-      const def = document.getElementById("f-msoc-avatar-data");
+      const def = document.getElementById(defSrcId);
       const src = def ? def.value : "";
       if(hidden) hidden.value = src; setPreview(src||"");
     };
@@ -324,13 +554,26 @@ function initSocialAvatarSection(wrap){
   // cambios de Color 1/2/3 del club/selección/medio. Si no, se usan los colores del ctx (snapshot).
   const colorInputIds = (ctx.colorInputs && ctx.colorInputs.length) ? ctx.colorInputs : null;
   const liveColors = ()=> colorInputIds
-    ? colorInputIds.map((id,i)=>{ const e=document.getElementById(id); return (e && e.value) || (ctx.colors||[])[i] || "#000000"; })
+    ? colorInputIds.map((id,i)=>{ const e=document.getElementById(id); return (e && e.value) || (ctx.colors||[])[i] || "#0D0D0D"; })
     : (ctx.colors||[]);
+  // Logos EN VIVO: si el ctx trae los ids de los inputs ocultos de logo (logoInputs), se leen de ahí en
+  // cada regeneración, para que el avatar refleje al instante un logo recién SUBIDO en el editor.
+  const logoInputMap = (ctx.logoInputs && typeof ctx.logoInputs==="object") ? ctx.logoInputs : null;
+  const fbLogoMap = (ctx.fallbackLogoInputs && typeof ctx.fallbackLogoInputs==="object") ? ctx.fallbackLogoInputs : null;
+  const liveLogo = (val)=>{
+    if(logoInputMap && logoInputMap[val]){ const e=document.getElementById(logoInputMap[val]); if(e && e.value) return e.value; }
+    // Respaldo en vivo (p. ej. el escudo de la selección para la federación) cuando el propio está vacío.
+    if(fbLogoMap && fbLogoMap[val]){ const e=document.getElementById(fbLogoMap[val]); if(e && e.value) return e.value; }
+    // Logos alternos añadidos en vivo (aN): se leen del input oculto f-<altPrefix>-N-data.
+    if(ctx.altPrefix && /^a\d+$/.test(val)){ const e=document.getElementById("f-"+ctx.altPrefix+"-"+val.slice(1)+"-data"); if(e && e.value) return e.value; }
+    return (ctx.logos||{})[val] || "";
+  };
   const regen = ()=>{
     if(manualFlag && manualFlag.value==="1"){ if(key==="msoc" && typeof mediaPropagateDefaultAvatar==="function") mediaPropagateDefaultAvatar(); return; } // no pisar la imagen subida a mano
-    const logo = (ctx.logos||{})[logoSel ? logoSel.value : ""] || "";
+    const logo = liveLogo(logoSel ? logoSel.value : "");
     const bg = resolveSocialBg(colorSel ? colorSel.value : "0", liveColors());
-    composeSocialAvatar(logo, bg).then(src=>{
+    const sz = sizeInp ? sizeInp.value : 75;
+    composeSocialAvatar(logo, bg, sz).then(src=>{
       if(manualFlag && manualFlag.value==="1") return;
       if(hidden) hidden.value = src; setPreview(src);
       // Perfil por defecto de un medio: propaga su imagen a los perfiles por cobertura.
@@ -339,8 +582,12 @@ function initSocialAvatarSection(wrap){
   };
   if(logoSel) logoSel.addEventListener("change", regen);
   if(colorSel) colorSel.addEventListener("change", regen);
+  if(sizeInp){ sizeInp.addEventListener("input", regen); sizeInp.addEventListener("change", regen); }
   // Regenerar EN VIVO cuando el usuario cambia los colores del club/selección/medio.
   if(colorInputIds){ colorInputIds.forEach(id=>{ const e=document.getElementById(id); if(e) e.addEventListener("input", regen); }); }
+  // Regenerar EN VIVO cuando se sube/cambia un logo (los inputs ocultos emiten 'input' al subir imagen).
+  if(logoInputMap){ Object.keys(logoInputMap).forEach(k=>{ const e=document.getElementById(logoInputMap[k]); if(e) e.addEventListener("input", regen); }); }
+  if(fbLogoMap){ Object.keys(fbLogoMap).forEach(k=>{ const e=document.getElementById(fbLogoMap[k]); if(e) e.addEventListener("input", regen); }); }
   if(fileInp) fileInp.addEventListener("change", ()=>{ if(fileInp.files && fileInp.files.length){ if(manualFlag) manualFlag.value="1"; } });
   // El botón "Quitar imagen" de este avatar: reactiva la generación automática.
   if(clearBtn) clearBtn.addEventListener("click", ()=>{ if(manualFlag) manualFlag.value=""; setTimeout(regen, 0); });

@@ -28,13 +28,104 @@ function readSocial(key){
     socialUsername: v("username").replace(/[^A-Za-z0-9_]/g, "").slice(0, 15),
     socialVerified: (v("verif")||"").trim(),   // marca de verificación: "", "azul" o "dorado"
     socialAvatarLogo: v("avlogo") || null,
-    socialAvatarColor: (()=>{ const raw = v("avcolor"); if(raw==="white"||raw==="black") return raw; const n = parseInt(raw); return isNaN(n) ? 0 : n; })()
+    socialAvatarColor: (()=>{ const raw = v("avcolor"); if(raw==="white"||raw==="black") return raw; const n = parseInt(raw); return isNaN(n) ? 0 : n; })(),
+    socialAvatarSize: (()=>{ const n = parseInt(v("avsize")); return isNaN(n) ? 75 : Math.max(1, Math.min(100, n)); })()
   };
 }
 
+// Lee los campos de la sección "Icono de <entidad>" (color de fondo, logo y tamaño).
+function readIcon(key){
+  return {
+    iconLogo: (document.getElementById("f-"+key+"-logo")||{}).value || "dark",
+    iconColor: (document.getElementById("f-"+key+"-color")||{}).value || "0",
+    iconLogoSize: (()=>{ const n=parseInt((document.getElementById("f-"+key+"-size")||{}).value); return isNaN(n)?75:Math.max(1,Math.min(100,n)); })()
+  };
+}
+// Lee los LOGOS ALTERNOS del editor (prefix "salt"/"malt"): conserva solo los que tienen imagen, en
+// orden del DOM, reindexados 0..k-1, y devuelve { alts:[{name,img}], remap:{ "aOld":"aNew" } } para
+// corregir las variantes elegidas (logoGrafico, logoIcono, iconLogo, socialAvatarLogo) que apunten a
+// un alterno cuyo índice cambió o que se quedó vacío.
+function collectLogoAlts(prefix){
+  const alts=[], remap={}; let newIdx=0;
+  document.querySelectorAll('.logo-alt-row[data-altprefix="'+prefix+'"]').forEach(row=>{
+    const oldIdx=row.getAttribute("data-alt-idx");
+    const inp=document.getElementById("f-"+prefix+"-"+oldIdx+"-data");
+    const img=(inp&&inp.value)||"";
+    if(img){ remap["a"+oldIdx]="a"+newIdx; alts.push({name:"Alt "+(newIdx+1), img}); newIdx++; }
+  });
+  return {alts, remap};
+}
+// Aplica el remapeo a una variante elegida: si apunta a un alterno vigente, lo reubica; si apunta a un
+// alterno que ya no existe, cae a `fallback` (variante base). Las variantes base se dejan intactas.
+function remapLogoVariant(v, remap, fallback){
+  v = (v==null) ? "" : String(v);
+  if(/^a\d+$/.test(v)) return remap[v] || (fallback||"hd");
+  return v;
+}
+// La selección que se está dirigiendo en el modo juego (team() vive dentro del IIFE de juego.js).
+function currentGameTeam(){
+  try{ if(typeof Juego!=="undefined" && Juego._state && Juego._state.teamId && typeof getTeam==="function") return getTeam(Juego._state.teamId); }catch(e){}
+  return null;
+}
+// Re-renderiza la pantalla de Plantilla del modo juego (vive en #jg-view, no en #view).
+function rerenderPlantilla(){
+  try{
+    if(typeof Juego!=="undefined" && Juego && typeof Juego.isActive==="function" && Juego.isActive()){
+      Juego.goScreen("plantilla", true); return;
+    }
+  }catch(e){}
+  if(typeof render==="function") render();
+}
 function handleAction(action, el){
   switch(action){
+    case "pw-add-brand": { if(typeof pwAddBrand==="function") pwAddBrand(el); break; }
+    case "pw-del-brand": { if(typeof pwDelBrand==="function") pwDelBrand(el); break; }
+    case "pw-mode": { if(typeof pwSetPreviewMode==="function") pwSetPreviewMode(el.getAttribute("data-pw"), el.getAttribute("data-mode")); break; }
     case "goto-calendario": navigateTo("calendario", null); break;
+    case "open-competition-event": navigateTo("evento", null); break;
+    case "open-competition-league": {
+      const lg = (el && el.dataset && el.dataset.league) || "";
+      if(typeof clubFilter!=="undefined"){ clubFilter.league = lg; clubFilter.q = ""; clubFilter.country = ""; }
+      navigateTo("clubes", null);
+      break;
+    }
+    case "edit-competition": {
+      if(typeof modalAddEditCompetition==="function") modalAddEditCompetition(el.dataset.comp||"", el.dataset.kind||"tournament");
+      break;
+    }
+    case "save-competition": {
+      const v = id => ((document.getElementById(id)||{}).value || "").trim();
+      const c = (typeof ensureCompetition==="function") ? ensureCompetition(el.dataset.name||"", el.dataset.kind||"tournament") : null;
+      if(!c){ closeModal(); break; }
+      c.officialName = v("f-comp-officialname");
+      c.commonName   = v("f-comp-commonname");
+      c.shortName    = v("f-comp-shortname");
+      c.code         = v("f-comp-code");
+      c.logoImg      = (document.getElementById("f-comp-logo-data")||{}).value || "";
+      c.logoImgLight = (document.getElementById("f-comp-logo-l-data")||{}).value || "";
+      c.color1 = v("f-comp-color1") || c.color1;
+      c.color2 = v("f-comp-color2") || c.color2;
+      c.color3 = v("f-comp-color3") || c.color3;
+      c.sponsor = v("f-comp-sponsor");
+      c.social = { web:v("f-comp-web"), x:v("f-comp-x"), ig:v("f-comp-ig"), fb:v("f-comp-fb"), yt:v("f-comp-yt") };
+      // Fondo del rectángulo del partido: qué logos (oscuro/claro), imagen de fondo o degradado de 2 colores.
+      c.matchLogoMode = ((document.getElementById("f-comp-logomode")||{}).value === "light") ? "light" : "dark";
+      c.matchBackImg  = (document.getElementById("f-comp-back-data")||{}).value || "";
+      c.backColor     = v("f-comp-backcolor");
+      delete c.backColor1; delete c.backColor2;
+      // ¿Los equipos usan su propio press wall en los partidos de este torneo? (activado por defecto)
+      { const cb=document.getElementById("f-comp-teampw"); c.useTeamPressWall = cb ? !!cb.checked : true; }
+      // Press Wall del torneo (mismo editor que clubes/selecciones).
+      c.pressWall        = (typeof pwEditorReadBrands==="function") ? pwEditorReadBrands("comppw") : (c.pressWall||[]);
+      c.pressWallBgImg   = ((typeof pwEditorBack==="function") ? pwEditorBack("comppw") : "") || null;
+      c.pressWallRefImg  = ((typeof pwEditorRefImg==="function") ? pwEditorRefImg("comppw") : "") || null;
+      c.pressWallGraphicPct = (typeof pwEditorGraphicPct==="function") ? pwEditorGraphicPct("comppw") : 100;
+      c.pressWallGraphicX   = (typeof pwEditorGraphicX==="function") ? pwEditorGraphicX("comppw") : 0;
+      c.pressWallGraphicY   = (typeof pwEditorGraphicY==="function") ? pwEditorGraphicY("comppw") : 0;
+      persist(); closeModal(); render();
+      if(typeof showToast==="function") showToast("Competición guardada");
+      break;
+    }
     case "goto-editor": navigateTo("editor", null); break;
     case "goto-patrocinadores": navigateTo("patrocinadores", null); break;
     case "goto-evento": eventoDetailOpen = false; navigateTo("evento", null); break;
@@ -213,6 +304,39 @@ function handleAction(action, el){
       break;
     }
     case "open-player": navigateToPlayer(el.dataset.id); break;
+    // Plantilla (modo juego): cambio de vista (Jugadores / Dorsales / Capitanes / Disciplina).
+    // Estas pantallas viven en #jg-view, así que se re-renderizan con Juego.goScreen, no con render().
+    case "plantilla-view": {
+      try{ plantillaView = el.dataset.view || "jugadores"; }catch(e){}
+      // goScreen SIN noPush: registra la subpestaña en el historial para que las flechas la recorran.
+      if(typeof Juego!=="undefined" && Juego && typeof Juego.isActive==="function" && Juego.isActive()) Juego.goScreen("plantilla");
+      else if(typeof render==="function") render();
+      break;
+    }
+    // Capitanes: la lista ordenada vive en team.captains ([0]=capitán, [1]=vice, resto = sucesión).
+    case "cap-add": {
+      const sel=document.getElementById("cap-add-select"); const id=sel&&sel.value; const t=currentGameTeam();
+      if(t&&id){ if(!Array.isArray(t.captains)) t.captains=[]; if(!t.captains.includes(id)) t.captains.push(id); persist(); rerenderPlantilla(); }
+      break;
+    }
+    case "cap-add-id": {
+      const t=currentGameTeam(); const id=el.dataset.id;
+      if(t&&id){ if(!Array.isArray(t.captains)) t.captains=[]; if(!t.captains.includes(id)) t.captains.push(id); persist(); rerenderPlantilla(); }
+      break;
+    }
+    case "cap-remove": {
+      const t=currentGameTeam(); const id=el.dataset.id;
+      if(t&&Array.isArray(t.captains)){ t.captains=t.captains.filter(x=>x!==id); persist(); rerenderPlantilla(); }
+      break;
+    }
+    case "cap-move": {
+      const t=currentGameTeam(); const id=el.dataset.id; const dir=el.dataset.dir;
+      if(t&&Array.isArray(t.captains)){
+        const i=t.captains.indexOf(id); const j=dir==="up"?i-1:i+1;
+        if(i>-1&&j>=0&&j<t.captains.length){ const tmp=t.captains[i]; t.captains[i]=t.captains[j]; t.captains[j]=tmp; persist(); rerenderPlantilla(); }
+      }
+      break;
+    }
     case "open-coach": navigateToCoach(el.dataset.id); break;
     case "open-referee": navigateToReferee(el.dataset.id); break;
     case "goto-calendario": navigateTo("calendario", null); break;
@@ -394,7 +518,12 @@ function handleAction(action, el){
     }
     case "sort-squad": {
       toggleSort(squadSort, el.dataset.key, playerDefaultDir(el.dataset.key));
-      render();
+      rerenderPlantilla();
+      break;
+    }
+    case "sort-cap": {
+      toggleSort(capSort, el.dataset.key, playerDefaultDir(el.dataset.key));
+      rerenderPlantilla();
       break;
     }
     case "sort-rankings": {
@@ -417,6 +546,7 @@ function handleAction(action, el){
       f.color2 = document.getElementById("f-fifa-color2").value;
       f.logoImg = document.getElementById("f-fifalogo-data").value || null;
       f.logoImgLight = document.getElementById("f-fifalogo-l-data").value || null;
+      Object.assign(f, readSocial("fifasoc"), readIcon("fifaicon"));
       persist(); closeModal(); render();
       break;
     }
@@ -472,6 +602,7 @@ function handleAction(action, el){
       info.badgeColor = document.getElementById("f-conf-badgecolor").value;
       info.logoImg = document.getElementById("f-conflogo-data").value || null;
       info.logoImgLight = document.getElementById("f-conflogo-l-data").value || null;
+      Object.assign(info, readSocial("confsoc"), readIcon("conficon"));
       persist(); closeModal(); render();
       break;
     }
@@ -558,9 +689,13 @@ function handleAction(action, el){
 
     case "clear-image": {
       const hidden = document.getElementById(el.dataset.target);
-      if(hidden) hidden.value = "";
+      // Avisa a quien escuche (iconos y avatares de redes) que el logo/imagen se quitó, para actualizarse en vivo.
+      if(hidden){ hidden.value = ""; hidden.dispatchEvent(new Event("input", {bubbles:true})); }
       const preview = document.getElementById(el.dataset.preview);
       if(preview){ preview.removeAttribute("src"); preview.style.display = "none"; }
+      // Si se quitó un LOGO ALTERNO (Alt N), actualiza las opciones "Alt N" de los selectores de logo.
+      const altM = /^f-(salt|malt)-\d+-data$/.exec((el.dataset.target)||"");
+      if(altM && typeof refreshLogoAltOptions === "function") refreshLogoAltOptions(altM[1]);
       break;
     }
 
@@ -589,6 +724,7 @@ function handleAction(action, el){
         league,
         logoImg: document.getElementById("f-cl-logo-data").value || null,
         logoImgLight: document.getElementById("f-cl-logo-l-data").value || null,
+        logoMain: (document.getElementById("f-cl-logomain")||{}).value || "dark",
         color1: document.getElementById("f-cl-color1").value,
         color2: document.getElementById("f-cl-color2").value,
         color3: document.getElementById("f-cl-color3").value,
@@ -599,7 +735,15 @@ function handleAction(action, el){
           .filter(n=>{ if(!n || seen.has(normLoose(n))) return false; seen.add(normLoose(n)); return true; }); })(),
         trainingGround: document.getElementById("f-cl-training").value.trim(),
         founded: (()=>{ const v=parseInt(document.getElementById("f-cl-founded").value); return (v>=1800&&v<=2100)?v:null; })(),
-        ...readSocial("clsoc")
+        // Press Wall del club: lista de marcas (nombre + código de color + color de fondo + tamaño) + back/referencia.
+        pressWall: (typeof pwEditorReadBrands==="function")?pwEditorReadBrands("clpw"):[],
+        pressWallBgImg: ((typeof pwEditorBack==="function")?pwEditorBack("clpw"):"") || null,
+        pressWallRefImg: ((typeof pwEditorRefImg==="function")?pwEditorRefImg("clpw"):"") || null,
+        pressWallGraphicPct: (typeof pwEditorGraphicPct==="function")?pwEditorGraphicPct("clpw"):100,
+        pressWallGraphicX: (typeof pwEditorGraphicX==="function")?pwEditorGraphicX("clpw"):0,
+        pressWallGraphicY: (typeof pwEditorGraphicY==="function")?pwEditorGraphicY("clpw"):0,
+        ...readSocial("clsoc"),
+        ...(typeof readIcon==="function"?readIcon("clicon"):{})
       };
       data.stadium = data.stadiums[0]||""; // el primero es el principal (compatibilidad)
       let prevStadiums = [];
@@ -639,6 +783,9 @@ function handleAction(action, el){
       data.stadiums.forEach(nm=> ensureStadiumFromName(nm, commonName, data.country, data.city));
       // 3) el campo de entrenamiento del club existe como instalación (isTraining) heredando ciudad y país.
       if((data.trainingGround||"").trim()) ensureStadiumFromName(data.trainingGround, null, data.country, data.city, true);
+      // Las marcas del Press Wall del club se registran como patrocinadores (sin duplicar por nombre) y
+      // quedan ligadas a este club para aparecer también en su perfil.
+      if(typeof ensurePresswallSponsors==="function") ensurePresswallSponsors(data.pressWall, {type:"club", name:commonName});
       if(typeof invalidateClubPlayerIndex==="function") invalidateClubPlayerIndex(); if(typeof registerCity==="function") registerCity(document.getElementById("f-cl-city").value); persist(); closeModal(); render();
       showToast("Club guardado");
       break;
@@ -674,6 +821,7 @@ function handleAction(action, el){
         color3: document.getElementById("f-color3").value,
         logoImg: document.getElementById("f-logo-data").value || null,
         logoImgLight: document.getElementById("f-logo-l-data").value || null,
+        logoMain: (document.getElementById("f-logomain")||{}).value || "dark",
         fifaPoints: fifaPointsRaw ? parseFloat(fifaPointsRaw) : null,
         eloRating: eloRaw ? parseFloat(eloRaw) : null,
         host: document.getElementById("f-host").checked,
@@ -683,8 +831,35 @@ function handleAction(action, el){
           .map(i=>{ const raw=i.value.trim(); if(!raw) return ""; const st=findStadiumByName(raw); return st? stadiumLinkName(st) : raw; })
           .filter(n=>{ if(!n || seen.has(normLoose(n))) return false; seen.add(normLoose(n)); return true; }); })(),
         trainingGround: document.getElementById("f-t-training").value.trim(),
-        ...readSocial("tsoc")
+        // Press Wall de la selección: lista de marcas (nombre + código de color + color de fondo + tamaño) + back/referencia.
+        pressWall: (typeof pwEditorReadBrands==="function")?pwEditorReadBrands("spw"):[],
+        pressWallBgImg: ((typeof pwEditorBack==="function")?pwEditorBack("spw"):"") || null,
+        pressWallRefImg: ((typeof pwEditorRefImg==="function")?pwEditorRefImg("spw"):"") || null,
+        pressWallGraphicPct: (typeof pwEditorGraphicPct==="function")?pwEditorGraphicPct("spw"):100,
+        pressWallGraphicX: (typeof pwEditorGraphicX==="function")?pwEditorGraphicX("spw"):0,
+        pressWallGraphicY: (typeof pwEditorGraphicY==="function")?pwEditorGraphicY("spw"):0,
+        ...readSocial("tsoc"),
+        ...(typeof readIcon==="function"?readIcon("ticon"):{})
       };
+      // Federación: año de fundación, ingreso a FIFA, escudo propio y perfil de redes propio
+      // (cualquiera vacío usa el de la selección al mostrarse).
+      (function(){
+        const foundedRaw=(document.getElementById("f-fed-founded")||{}).value;
+        const fifaRaw=(document.getElementById("f-fed-fifa")||{}).value;
+        const fed = {
+          foundedYear: foundedRaw!==""&&foundedRaw!=null ? parseInt(foundedRaw) : null,
+          fifaJoinedYear: fifaRaw!==""&&fifaRaw!=null ? parseInt(fifaRaw) : null,
+          logoImg: (document.getElementById("f-fedlogo-data")||{}).value || null,
+          logoImgLight: (document.getElementById("f-fedlogo-l-data")||{}).value || null,
+          ownColors: !!((document.getElementById("f-fed-owncolors")||{}).checked),
+          color1: (document.getElementById("f-fed-color1")||{}).value || null,
+          color2: (document.getElementById("f-fed-color2")||{}).value || null,
+          color3: (document.getElementById("f-fed-color3")||{}).value || null,
+        };
+        if(document.getElementById("f-fedsoc-profile")) Object.assign(fed, readSocial("fedsoc"));
+        if(document.getElementById("f-fedicon-logo") && typeof readIcon==="function") Object.assign(fed, readIcon("fedicon"));
+        data.federation = fed;
+      })();
       data.stadium = data.stadiums[0]||""; // el primero es el principal
       // Los estadios de la selección existen en el catálogo, pero sin registrarla como
       // equipo local (esa lista es de clubes) ni como dueña. Al crearse desde una selección se les
@@ -709,6 +884,9 @@ function handleAction(action, el){
       // se refleja también en el país vinculado (mismo fifaCode), para que no queden desincronizados.
       const linkedCountry = DB.countries.find(c=>c.teamLinks && c.teamLinks.absoluta===savedTeam.id);
       if(linkedCountry && linkedCountry.conf!==savedTeam.conf) linkedCountry.conf = savedTeam.conf;
+      // Las marcas del Press Wall de la selección se registran como patrocinadores (sin duplicar por
+      // nombre) y quedan ligadas a esta selección para aparecer también en su perfil.
+      if(typeof ensurePresswallSponsors==="function") ensurePresswallSponsors(data.pressWall, {type:"team", id:savedTeam.id});
       persist(); closeModal(); render();
       break;
     }
@@ -901,40 +1079,76 @@ function handleAction(action, el){
       const categories = (()=>{ const seen=new Set(); return [...document.querySelectorAll("#sponsor-cat-rows .sponsor-cat-name")]
         .map(i=>i.value.trim()).filter(Boolean)
         .filter(c=>{ const k=normLoose(c); if(seen.has(k)) return false; seen.add(k); return true; }); })();
+      const oldSponsor = id ? DB.sponsors.find(s=>s.id===id) : null;
+      const oldName = oldSponsor ? oldSponsor.name : name;
       const links = []; const seenLinks = new Set();
       [...document.querySelectorAll("#sponsor-link-rows .sponsor-link-row")].forEach(row=>{
         const type = row.querySelector(".sponsor-link-type").value;
         const v = row.querySelector(".sponsor-link-name").value.trim();
+        const value = Math.max(0, parseInt((row.querySelector(".sponsor-link-value")||{}).value)||0);
         let link = null;
-        if(type==="tournament"){ link = {type:"tournament"}; }
+        if(type==="tournament"){ link = {type:"tournament", value}; }
         else if(!v){ return; }
         else if(type==="team"){
           const t=DB.teams.find(x=>normLoose(x.commonName)===normLoose(v));
-          if(t) link={type:"team", id:t.id};
+          if(t) link={type:"team", id:t.id, value};
         } else if(type==="club"){
-          link={type:"club", name:(matchOrAddClub(v)||v)};
+          link={type:"club", name:(matchOrAddClub(v)||v), value};
+        } else if(type==="stadium"){
+          let st = (typeof findStadiumByName==="function") ? findStadiumByName(v) : null;
+          if(!st && typeof ensureStadiumFromName==="function") st = ensureStadiumFromName(v);
+          if(st) link={type:"stadium", id:st.id, value};
         }
         if(!link) return;
         const key=link.type+"|"+(link.id||normLoose(link.name||""));
         if(!seenLinks.has(key)){ seenLinks.add(key); links.push(link); }
       });
+      // Valor del patrocinador (compat/orden) = el del enlace de torneo (valor de la Copa del Mundo).
+      const tournamentLink = links.find(l=>l.type==="tournament");
       const data = {
         name,
         categories,
-        value: Math.max(0, parseInt(document.getElementById("f-sval").value)||0),
+        value: tournamentLink ? tournamentLink.value : 0,
         links,
         global: links.some(l=>l.type==="tournament"),
         teamId: (links.find(l=>l.type==="team")||{}).id || null,
-        ...(()=>{ const vd=document.getElementById("f-slogo-vd-data").value||null, vl=document.getElementById("f-slogo-vl-data").value||null, hd=document.getElementById("f-slogo-hd-data").value||null, hl=document.getElementById("f-slogo-hl-data").value||null; const pr=(document.getElementById("f-slogo-principal")||{}).value||"horizontal"; const gr=(document.getElementById("f-slogo-grafico")||{}).value||"hd"; const ic=(document.getElementById("f-slogo-icono")||{}).value||"vd"; const mainDark = pr==="vertical" ? (vd||hd||vl||hl) : (hd||vd||hl||vl); return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoGrafico:gr, logoIcono:ic, logoImg: mainDark||null }; })(),
+        ...(()=>{ const alts=(typeof collectLogoAlts==="function")?collectLogoAlts("salt"):{alts:[],remap:{}}; const vd=document.getElementById("f-slogo-vd-data").value||null, vl=document.getElementById("f-slogo-vl-data").value||null, hd=document.getElementById("f-slogo-hd-data").value||null, hl=document.getElementById("f-slogo-hl-data").value||null; const pr=(document.getElementById("f-slogo-principal")||{}).value||"horizontal"; const gr=remapLogoVariant((document.getElementById("f-slogo-grafico")||{}).value||"hd", alts.remap, "hd"); const ic=remapLogoVariant((document.getElementById("f-slogo-icono")||{}).value||"vd", alts.remap, "vd"); const mainDark = pr==="vertical" ? (vd||hd||vl||hl) : (hd||vd||hl||vl); return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoAlts:alts.alts, logoPrincipal:pr, logoGrafico:gr, logoIcono:ic, logoImg: mainDark||null }; })(),
         color1: document.getElementById("f-scolor1").value,
         color2: document.getElementById("f-scolor2").value,
-        color3: document.getElementById("f-scolor3").value
+        color3: document.getElementById("f-scolor3").value,
+        ...(()=>{ const ic=(typeof readIcon==="function")?readIcon("spicon"):{}; if(ic && "iconLogo" in ic){ const alts=(typeof collectLogoAlts==="function")?collectLogoAlts("salt"):{remap:{}}; ic.iconLogo=remapLogoVariant(ic.iconLogo, alts.remap, "hd"); } return ic; })()
       };
       // Reciprocidad: las selecciones/clubes ligados quedan con esta marca como kitSponsor (si no tienen otra).
       links.forEach(l=>{
         if(l.type==="team"){ const t=getTeam(l.id); if(t && !t.kitSponsor) t.kitSponsor=name; }
         if(l.type==="club"){ const c=getClubByName(l.name); if(c && !c.kitSponsor) c.kitSponsor=name; }
       });
+      // Reciprocidad de ESTADIOS (derechos de nombre): los estadios ligados quedan con esta marca como
+      // patrocinador; los que la tenían y ya no están ligados se limpian.
+      const linkedStadiumIds = new Set(links.filter(l=>l.type==="stadium").map(l=>l.id));
+      (DB.stadiums||[]).forEach(st=>{
+        if(linkedStadiumIds.has(st.id)) st.sponsor = name;
+        else if(st.sponsor && (normLoose(st.sponsor)===normLoose(name) || normLoose(st.sponsor)===normLoose(oldName))) st.sponsor = "";
+      });
+      // EMPRESAS RELACIONADAS: reconstruye las aristas que tocan a este patrocinador (por nombre nuevo o
+      // viejo) a partir de las filas del editor; las demás relaciones se conservan.
+      (()=>{
+        const rel = (typeof getSponsorRelations==="function") ? getSponsorRelations() : (DB.sponsorRelations=DB.sponsorRelations||[]);
+        const newEdges = [];
+        [...document.querySelectorAll("#sponsor-rel-rows .sponsor-rel-row")].forEach(row=>{
+          const phrase = (row.querySelector(".sponsor-rel-phrase")||{}).value;
+          const otherRaw = ((row.querySelector(".sponsor-rel-name")||{}).value||"").trim();
+          if(!otherRaw) return;
+          const otherSp = (typeof ensureSponsorByName==="function") ? ensureSponsorByName(otherRaw) : null;
+          const otherName = otherSp ? otherSp.name : otherRaw;
+          if(normLoose(otherName)===normLoose(name)) return; // sin auto-relación
+          const edge = (typeof sponsorRelationEdge==="function") ? sponsorRelationEdge(phrase, name, otherName) : null;
+          if(edge) newEdges.push(edge);
+        });
+        const touchesMe = e => [e.sub,e.sup].some(n=>normLoose(n)===normLoose(name) || normLoose(n)===normLoose(oldName));
+        DB.sponsorRelations = rel.filter(e=>!touchesMe(e));
+        newEdges.forEach(e=>{ if(!DB.sponsorRelations.some(x=>x.type===e.type && normLoose(x.sub)===normLoose(e.sub) && normLoose(x.sup)===normLoose(e.sup))) DB.sponsorRelations.push(e); });
+      })();
       categories.forEach(c=>addSponsorCategory(c));
       if(id){ Object.assign(DB.sponsors.find(s=>s.id===id), data); }
       else { DB.sponsors.push({id:newId("sp"), ...data}); }
@@ -945,6 +1159,24 @@ function handleAction(action, el){
     case "add-sponsor-cat-row": {
       const container = document.getElementById("sponsor-cat-rows");
       if(container) container.insertAdjacentHTML("beforeend", sponsorCategoryRowHTML(""));
+      break;
+    }
+    case "add-logo-alt": {
+      const prefix = el.dataset.altprefix; if(!prefix) break;
+      const host = document.querySelector('.logo-alts-rows[data-altprefix="'+prefix+'"]');
+      if(host && typeof logoAltRowHTML==="function"){
+        const n = host.querySelectorAll('.logo-alt-row').length;
+        host.insertAdjacentHTML("beforeend", logoAltRowHTML(prefix, n, {}));
+        // Asegura que el desplegable quede abierto para ver el nuevo campo.
+        const det = host.closest("details.logo-alts-details"); if(det) det.open = true;
+        if(typeof refreshLogoAltOptions==="function") refreshLogoAltOptions(prefix);
+      }
+      break;
+    }
+    case "remove-logo-alt": {
+      const prefix = el.dataset.altprefix; if(!prefix) break;
+      const row = el.closest('.logo-alt-row'); if(row) row.remove();
+      if(typeof refreshLogoAltOptions==="function") refreshLogoAltOptions(prefix);
       break;
     }
     case "add-media-coverage-row": {
@@ -1060,6 +1292,16 @@ function handleAction(action, el){
       if(row) row.remove();
       break;
     }
+    case "add-sponsor-rel-row": {
+      const container = document.getElementById("sponsor-rel-rows");
+      if(container && typeof sponsorRelRowHTML==="function") container.insertAdjacentHTML("beforeend", sponsorRelRowHTML({}));
+      break;
+    }
+    case "remove-sponsor-rel-row": {
+      const row = el.closest(".sponsor-rel-row");
+      if(row) row.remove();
+      break;
+    }
     case "set-sponsors-view": sponsorsView = el.dataset.view; render(); break;
 
     case "add-nationality-row": {
@@ -1108,11 +1350,14 @@ function handleAction(action, el){
         coverageReach: mCovReach,
         country: mCov[0] || "",   // compatibilidad con código que aún lee `country`
         reach: mReachTotal,       // importancia global = la más alta entre sus coberturas (1–100)
-        ...(()=>{ const vd=document.getElementById("f-mlogo-vd-data").value||null, vl=document.getElementById("f-mlogo-vl-data").value||null, hd=document.getElementById("f-mlogo-hd-data").value||null, hl=document.getElementById("f-mlogo-hl-data").value||null; const pr=(document.getElementById("f-mlogo-principal")||{}).value||"horizontal"; const gr=(document.getElementById("f-mlogo-grafico")||{}).value||"hd"; const mainDark = pr==="vertical" ? (vd||hd||vl||hl) : (hd||vd||hl||vl); return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoPrincipal:pr, logoGrafico:gr, logoImg: mainDark||null }; })(),
+        ...(()=>{ const alts=(typeof collectLogoAlts==="function")?collectLogoAlts("malt"):{alts:[],remap:{}}; const vd=document.getElementById("f-mlogo-vd-data").value||null, vl=document.getElementById("f-mlogo-vl-data").value||null, hd=document.getElementById("f-mlogo-hd-data").value||null, hl=document.getElementById("f-mlogo-hl-data").value||null; const pr=(document.getElementById("f-mlogo-principal")||{}).value||"horizontal"; const gr=remapLogoVariant((document.getElementById("f-mlogo-grafico")||{}).value||"hd", alts.remap, "hd"); const mainDark = pr==="vertical" ? (vd||hd||vl||hl) : (hd||vd||hl||vl); return { logoVDark:vd, logoVLight:vl, logoHDark:hd, logoHLight:hl, logoAlts:alts.alts, logoPrincipal:pr, logoGrafico:gr, logoImg: mainDark||null }; })(),
         color1: document.getElementById("f-mcolor1").value,
         color2: document.getElementById("f-mcolor2").value,
         color3: document.getElementById("f-mcolor3").value,
-        ...readSocial("msoc"),
+        iconLogo: remapLogoVariant((document.getElementById("f-micon-logo")||{}).value || "hd", (typeof collectLogoAlts==="function"?collectLogoAlts("malt").remap:{}), "hd"),
+        iconColor: (document.getElementById("f-micon-color")||{}).value || "0",
+        iconLogoSize: (()=>{ const n=parseInt((document.getElementById("f-micon-size")||{}).value); return isNaN(n)?75:Math.max(1,Math.min(100,n)); })(),
+        ...(()=>{ const s=readSocial("msoc"); if(s && "socialAvatarLogo" in s){ s.socialAvatarLogo=remapLogoVariant(s.socialAvatarLogo, (typeof collectLogoAlts==="function"?collectLogoAlts("malt").remap:{}), "hd"); } return s; })(),
         // Perfiles de redes sociales por valor de cobertura (país/región/…). Solo se guardan los que
         // el usuario personalizó (con nombre de perfil, usuario, hashtag o imagen manual); el resto
         // usará el perfil por defecto al consultarse (ver mediaSocialProfile).
@@ -1297,8 +1542,60 @@ function handleAction(action, el){
       persist(); closeModal(); render();
       break;
     }
-    case "manage-kits": modalManageKits(getTeam(el.dataset.team)); break;
-    case "add-kit": modalAddEditKit(getTeam(el.dataset.team), {category: el.dataset.category}, true); break;
+    case "manage-kits": window.KIT_ERA_VIEW=null; modalManageKits(getTeam(el.dataset.team)); break;
+    case "kit-era-prev": case "kit-era-next": {
+      const team=getTeam(el.dataset.team); const ss=orderedSeasons(team);
+      let i=ss.findIndex(s=>s.id===window.KIT_ERA_VIEW); if(i<0) i=0;
+      i += (action==="kit-era-next"?1:-1); i=Math.max(0, Math.min(ss.length-1, i));
+      window.KIT_ERA_VIEW = ss[i] ? ss[i].id : null; modalManageKits(team); break;
+    }
+    case "kit-era-new": modalNewKitSeason(getTeam(el.dataset.team)); break;
+    case "kit-era-create": {
+      const team=getTeam(el.dataset.team);
+      const name=(document.getElementById("f-newseason-name")||{}).value || "";
+      const date=(document.getElementById("f-newseason-date")||{}).value || "";
+      const modeEl=document.querySelector('input[name="newseason-mode"]:checked');
+      const mode=modeEl?modeEl.value:"copy";
+      if(!date){ alert("Elige la fecha de presentación."); break; }
+      if(orderedSeasons(team).some(s=>String(s.date||"")===date)){ alert("Ya existe una temporada con esa fecha."); break; }
+      // Marca por defecto de la nueva temporada: la de la temporada visible o la del equipo.
+      const srcSeason = (team.kitSeasons||[]).find(s=>s.id===window.KIT_ERA_VIEW) || null;
+      const season = { id:newId("ksn"), name:(name.trim()|| (typeof kitEraLabel==="function"?kitEraLabel(date):date)), date, brand:(srcSeason?srcSeason.brand:null)||team.kitSponsor||null };
+      team.kitSeasons = team.kitSeasons||[]; team.kitSeasons.push(season);
+      const srcId = srcSeason ? srcSeason.id : null;
+      if(mode==="copy" && srcId){
+        // Copia EXACTA de las equipaciones de la temporada visible → parrilla independiente.
+        const idMap={};   // id viejo → id nuevo (para remapear enlaces portero→jugador)
+        const copies=[];
+        (team.kits||[]).filter(k=>k.seasonId===srcId && k.category!=="arbitro").forEach(base=>{
+          const copy=JSON.parse(JSON.stringify(base));
+          const nid=newId("kit"); idMap[base.id]=nid;
+          copy.id=nid; copy.seasonId=season.id; copy.ownDate=false; copy.dateStart=date;
+          copies.push(copy); team.kits.push(copy);
+        });
+        // Reapunta los enlaces del portero a los kits de jugador YA copiados en la nueva temporada.
+        copies.forEach(c=>{ if(c.category==="portero" && Array.isArray(c.linkedJugadorKitIds)){ c.linkedJugadorKitIds=c.linkedJugadorKitIds.map(id=>idMap[id]).filter(Boolean); } });
+      } else {
+        // Desde cero: parrilla nueva con 2 de jugador (Local, Visita) y 1 de portero, en blanco.
+        team.kits.push({ id:newId("kit"), seasonId:season.id, category:"jugador", color1:team.color1||"#4F46E5", color2:team.color2||"#15161D", color3:"#FFFFFF" });
+        team.kits.push({ id:newId("kit"), seasonId:season.id, category:"jugador", color1:team.awayColor1||"#FFFFFF", color2:team.awayColor2||"#15161D", color3:"#000000" });
+        team.kits.push({ id:newId("kit"), seasonId:season.id, category:"portero", color1:"#2E2E2E", color2:"#39FF14", color3:"#FFFFFF" });
+      }
+      ensureTeamKits(team); window.KIT_ERA_VIEW=season.id; persist(); render(); modalManageKits(team); break;
+    }
+    case "kit-era-del": {
+      const team=getTeam(el.dataset.team); const sid=el.dataset.season;
+      if(orderedSeasons(team).length<=1){ alert("Debe existir al menos una temporada."); break; }
+      const s=(team.kitSeasons||[]).find(x=>x.id===sid);
+      modalConfirm(`¿Eliminar la temporada "${s?s.name:''}" y sus equipaciones?`, ()=>{
+        team.kits = (team.kits||[]).filter(k=>k.seasonId!==sid);
+        team.kitSeasons = (team.kitSeasons||[]).filter(x=>x.id!==sid);
+        window.KIT_ERA_VIEW=null;
+        ensureTeamKits(team); persist(); render(); modalManageKits(team);
+      });
+      break;
+    }
+    case "add-kit": modalAddEditKit(getTeam(el.dataset.team), {category: el.dataset.category, seasonId: window.KIT_ERA_VIEW||null}, true); break;
     case "edit-kit": {
       const team = getTeam(el.dataset.team);
       modalAddEditKit(team, team.kits.find(k=>k.id===el.dataset.id), el.dataset.fromManage==="1");
@@ -1312,12 +1609,13 @@ function handleAction(action, el){
       // conservan sus mínimos (2 de jugador, 1 de portero).
       if(!team.isRefereeKits){
         const min = kit.category==="jugador" ? 2 : 1;
-        const countSameCat = team.kits.filter(k=>k.category===kit.category).length;
-        if(countSameCat<=min){ alert(`Debe haber al menos ${min} uniforme${min>1?'s':''} de ${kit.category==="jugador"?"jugador":"portero"}.`); break; }
+        // El mínimo aplica DENTRO de la temporada del kit (cada temporada es una parrilla independiente).
+        const countSameCat = team.kits.filter(k=>k.category===kit.category && k.seasonId===kit.seasonId).length;
+        if(countSameCat<=min){ alert(`Debe haber al menos ${min} uniforme${min>1?'s':''} de ${kit.category==="jugador"?"jugador":"portero"} en esta temporada.`); break; }
       }
       modalConfirm(`¿Eliminar el uniforme "${kit.label}"?`, ()=>{
         team.kits = team.kits.filter(k=>k.id!==el.dataset.id);
-        if(team.isRefereeKits) ensureRefereeKits(); else ensureTeamKits(team);
+        if(team.isRefereeKits) ensureRefereeKits(team); else ensureTeamKits(team);
         persist(); render();
         modalManageKits(team);
       });
@@ -1346,7 +1644,8 @@ function handleAction(action, el){
         badgeNameLinked: kit.badgeNameLinked, badgeNameFontId: kit.badgeNameFontId, badgeNameColor: kit.badgeNameColor,
         badgeNameOutline: kit.badgeNameOutline, badgeNameOutlineColor: kit.badgeNameOutlineColor, badgeNameOutlineWidth: kit.badgeNameOutlineWidth,
         badgeNameSizePct: kit.badgeNameSizePct, badgeNameCondense: kit.badgeNameCondense||false, badgeNameLetterSpacing: kit.badgeNameLetterSpacing, badgeNameOffsetX: kit.badgeNameOffsetX, badgeNameOffsetY: kit.badgeNameOffsetY,
-        badgeNameArc: kit.badgeNameArc, badgeNameTextCase: kit.badgeNameTextCase
+        badgeNameArc: kit.badgeNameArc, badgeNameTextCase: kit.badgeNameTextCase,
+        backNameHidden: !!kit.backNameHidden
       }));
       showToast(`Uniforme "${kit.label}" copiado`);
       modalManageKits(team);
@@ -1385,6 +1684,7 @@ function handleAction(action, el){
       kit.backNameOffsetY = copy.backNameOffsetY!=null ? copy.backNameOffsetY : 0;
       kit.backNameArc = copy.backNameArc!=null ? copy.backNameArc : 1;
       kit.backNameTextCase = copy.backNameTextCase || "default";
+      kit.backNameHidden = !!copy.backNameHidden;   // se copia también "Mostrar nombre"
       kit.badgeNumberLinked = copy.badgeNumberLinked!==undefined ? !!copy.badgeNumberLinked : true;
       kit.badgeNumberFontId = copy.badgeNumberFontId!==undefined ? copy.badgeNumberFontId : kit.backNumberFontId;
       kit.badgeNumberColor = copy.badgeNumberColor || kit.backNumberColor;
@@ -1653,10 +1953,20 @@ function handleAction(action, el){
         data.refLocalKit = !!(localCb && localCb.checked);
         data.refLocalCountry = data.refLocalKit ? ((document.getElementById("f-kit-ref-local-country")||{}).value || "") : "";
         data.refFinalKit = !!(finalCb && finalCb.checked);
+      } else {
+        // Fecha propia (override): solo se guarda si el usuario activó la casilla. La marca es de la temporada.
+        const ownEl=document.getElementById("f-kit-owndate");
+        const dsEl=document.getElementById("f-kit-datestart");
+        data.ownDate = !!(ownEl && ownEl.checked);
+        if(ownEl && ownEl.checked && dsEl){ data.dateStart = parseUserKitDate(dsEl.value); }  // si no, se conserva la de su temporada
       }
       if(id){ Object.assign(team.kits.find(k=>k.id===id), data); }
-      else { team.kits.push({id:newId("kit"), category, label:autoKitLabel(team,category), ...data}); }
-      if(team.isRefereeKits) ensureRefereeKits();
+      else {
+        // Kit nuevo → pertenece a la temporada visible (parrilla actual); si no hay, a la base.
+        const seasonId = (category!=="arbitro") ? (window.KIT_ERA_VIEW || null) : null;
+        team.kits.push({id:newId("kit"), category, seasonId, label:autoKitLabel(team,category), ...data});
+      }
+      if(team.isRefereeKits) ensureRefereeKits(team); else ensureTeamKits(team);
       persist(); render();
       if(fromManage){ modalManageKits(team); } else { closeModal(); }
       break;
@@ -1692,7 +2002,9 @@ function handleAction(action, el){
         const parts = coordsRaw.split(",").map(x=>parseFloat(x.trim()));
         if(parts.length===2 && !isNaN(parts[0]) && !isNaN(parts[1])){ lat = parts[0]; lng = parts[1]; }
       }
-      const owner = matchOrAddClub(document.getElementById("f-st-owner").value);
+      const ownershipType = (document.getElementById("f-st-ownership")||{}).value || "Club";
+      // El Club Propietario solo aplica cuando el Tipo de propiedad es "Club".
+      const owner = (ownershipType==="Club") ? matchOrAddClub(document.getElementById("f-st-owner").value) : "";
       // Lee una fila por equipo (tipo + nombre): las selecciones deben existir (no se crean desde aquí);
       // los clubes usan el nombre canónico y se crean si son nuevos. Sin duplicados.
       const seen = new Set();
@@ -1721,16 +2033,26 @@ function handleAction(action, el){
         turfType: document.getElementById("f-st-turf").value,
         city: document.getElementById("f-st-city").value.trim(),
         state: document.getElementById("f-st-state").value.trim(),
+        showState: !!((document.getElementById("f-st-showstate")||{}).checked),
         country: document.getElementById("f-st-country").value.trim(),
         lat, lng,
+        ownershipType,
         owner: owner || "",
         teams,
         worldCup: document.getElementById("f-st-wc").checked,
         isTraining: document.getElementById("f-st-training").checked,
         imgExterior: document.getElementById("f-st-ext-data").value || null,
         imgInterior: document.getElementById("f-st-int-data").value || null,
-        standColor: (document.getElementById("f-st-stand")||{}).value || "#B00010"
+        standColor: (document.getElementById("f-st-stand")||{}).value || "#B00010",
+        standColor2: (document.getElementById("f-st-stand2")||{}).value || (document.getElementById("f-st-stand")||{}).value || "#B00010",
+        standColor2Linked: ((document.getElementById("f-st-stand2-linked")||{}).value !== "0")
       };
+      // Patrocinador (derechos de nombre): se crea automáticamente en Patrocinadores si es nuevo.
+      const sponsorRaw = ((document.getElementById("f-st-sponsor")||{}).value||"").trim();
+      const stSponsorObj = sponsorRaw && typeof ensureSponsorByName==="function" ? ensureSponsorByName(sponsorRaw) : null;
+      const stSponsorName = stSponsorObj ? stSponsorObj.name : "";
+      data.sponsor = stSponsorName;
+      const oldStadiumSponsor = id ? ((DB.stadiums.find(s=>s.id===id)||{}).sponsor || "") : "";
       // Si el estadio/instalación pertenece a un club (dueño) y no se escribió país o ciudad,
       // hereda el país y la ciudad del club dueño.
       if(owner){
@@ -1752,6 +2074,16 @@ function handleAction(action, el){
       let st;
       if(existing){ Object.assign(existing, data); st = existing; }
       else { st = {id:newId("st"), ...data}; DB.stadiums.push(st); }
+      // Reciprocidad del PATROCINADOR (derechos de nombre): mantiene el enlace "Estadio" dentro del
+      // patrocinador. Si cambió, quita el enlace del patrocinador anterior y lo agrega al nuevo (valor 0).
+      if(oldStadiumSponsor && normLoose(oldStadiumSponsor)!==normLoose(stSponsorName)){
+        const prevSp = (typeof findSponsorByName==="function") ? findSponsorByName(oldStadiumSponsor) : null;
+        if(prevSp && Array.isArray(prevSp.links)) prevSp.links = prevSp.links.filter(l=>!(l.type==="stadium" && l.id===st.id));
+      }
+      if(stSponsorName){
+        const sp = (typeof findSponsorByName==="function") ? findSponsorByName(stSponsorName) : null;
+        if(sp){ if(!Array.isArray(sp.links)) sp.links = []; if(!sp.links.some(l=>l.type==="stadium" && l.id===st.id)) sp.links.push({type:"stadium", id:st.id, value:0}); }
+      }
       const newLink = stadiumLinkName(st);
       if(oldNames){
         const pairs = [[oldNames.t, data.tournamentName], [oldNames.o, data.officialName], [oldNames.n, data.nickname]]
@@ -2008,9 +2340,16 @@ function handleAction(action, el){
           if(p.goalsNational!=null) existing.goalsNational = p.goalsNational;
           if(club)                  existing.club          = club;
           if(p.shirtNameTeam)     { existing.shirtNameTeam = p.shirtNameTeam; existing.shirtNameTeamLinked = false; }
+          if(p.shirtNameClub)     { existing.shirtNameClub = p.shirtNameClub; existing.shirtNameClubLinked = false; }
           if(brand)                 existing.brand         = brand;
           if(p.rating!=null)        existing.rating        = p.rating;
           if(p.ratingPotential!=null) existing.ratingPotential = p.ratingPotential;
+          if(p.footLeft!=null)      existing.footLeft      = p.footLeft;
+          if(p.footRight!=null)     existing.footRight     = p.footRight;
+          if(p.positions && Object.keys(p.positions).length) existing.positions = p.positions;
+          if(p.cbSide)              existing.cbSide        = p.cbSide;
+          if(p.favNumbersTeam && p.favNumbersTeam.length) existing.favNumbersTeam = p.favNumbersTeam;
+          if(p.favNumbersClub && p.favNumbersClub.length) existing.favNumbersClub = p.favNumbersClub;
           updated++;
         } else {
           const defaultFull = `${firstName} ${lastName}`.trim();
@@ -2023,9 +2362,11 @@ function handleAction(action, el){
             club, rating:p.rating??70, ratingPotential:p.ratingPotential??null, brand,
             nationalityIds: teamCountry?[teamCountry.id]:[], declaredForCountryId: teamCountry?teamCountry.id:null,
             photo:null, caps:p.caps, goalsNational:p.goalsNational,
-            favNumbersTeam:[], favNumbersClub:[],
-            shirtNameTeam:p.shirtNameTeam||"", shirtNameClub:"",
-            shirtNameTeamLinked:!p.shirtNameTeam, shirtNameClubLinked:true
+            footLeft:p.footLeft??null, footRight:p.footRight??null,
+            positions:p.positions||{}, cbSide:p.cbSide||null,
+            favNumbersTeam:p.favNumbersTeam||[], favNumbersClub:p.favNumbersClub||[],
+            shirtNameTeam:p.shirtNameTeam||"", shirtNameClub:p.shirtNameClub||"",
+            shirtNameTeamLinked:!p.shirtNameTeam, shirtNameClubLinked:!p.shirtNameClub
           });
           created++;
         }
@@ -2098,6 +2439,7 @@ function applyImportedBackupText(txt){
       if(!rebuilt || !rebuilt.teams) throw new Error("Respaldo inválido");
       DB = rebuilt;
       migrateDB();
+      reapplyPartidos();   // el respaldo reemplaza la base: re-inyecta los amistosos de partidos.js
       HISTORY = []; saveHistory(); PREV_DB_JSON = JSON.stringify(DB);
       activeTeamId = null;
       resetNavHistory();
@@ -2113,6 +2455,7 @@ function applyImportedBackupText(txt){
       if(!parsed.teams) throw new Error("Formato inválido");
       DB = parsed;
       migrateDB();
+      reapplyPartidos();   // la base importada reemplaza todo: re-inyecta los amistosos de partidos.js
       HISTORY = []; saveHistory(); PREV_DB_JSON = JSON.stringify(DB); // el historial de la base anterior ya no aplica
       activeTeamId = null;
       resetNavHistory();
@@ -2120,4 +2463,19 @@ function applyImportedBackupText(txt){
       showToast("Base de datos importada y actualizada a la versión más reciente");
     }
   }catch(err){ alert("JSON inválido: " + err.message); }
+}
+
+// Tras reemplazar la base (importar respaldo o base completa), los amistosos vienen de partidos.js,
+// no del JSON: se vuelven a inyectar aquí para que no se pierdan al importar. Si el archivo se leyó
+// como texto en memoria (window.PARTIDOS_TXT) se aplica al instante; si no, se recarga de forma
+// asíncrona y se vuelve a pintar.
+function reapplyPartidos(){
+  try{
+    if(typeof PartidosTxt==="undefined") return;
+    if(typeof window!=="undefined" && typeof window.PARTIDOS_TXT==="string"){
+      PartidosTxt.applyText(window.PARTIDOS_TXT);
+    } else if(PartidosTxt.load){
+      PartidosTxt.load().then(()=>{ try{ persist(true); }catch(e){} try{ render(); }catch(e){} });
+    }
+  }catch(e){}
 }
