@@ -142,6 +142,7 @@ input,select,textarea{
   font-family:'Inter',sans-serif;border:1px solid var(--line);border-radius:9px;
   padding:9px 11px;font-size:13.5px;background:var(--surface);color:var(--ink);width:100%;
 }
+input[type=radio],input[type=checkbox]{width:auto;flex:0 0 auto;}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--indigo-bright);outline-offset:1px;}
 input[type=color]{padding:3px;height:38px;}
 .color-square{width:56px;height:56px;padding:3px;cursor:pointer;}
@@ -161,6 +162,7 @@ label.field{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(
 .badge.ok{background:rgba(52,211,153,0.16);color:var(--success);}
 .badge.fifa{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);font-weight:800;letter-spacing:0.04em;}
 .badge.brand{background:rgba(245,200,66,0.16);color:var(--amber);}
+.badge.injured{background:rgba(255,107,106,0.16);color:var(--danger);margin-left:6px;}
 .badge.no-contract{background:rgba(146,152,172,0.12);color:var(--muted);}
 
 /* team crest */
@@ -172,6 +174,9 @@ label.field{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(
 .crest-mini img{width:100%;height:100%;object-fit:cover;display:block;}
 .crest-mini.has-img{background:none;box-shadow:none;border-radius:0;overflow:visible;}
 .crest-mini.has-img img{object-fit:contain;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.5));}
+/* Vista previa del icono del medio (logo sobre color de fondo) */
+.micon-prev{width:46px;height:46px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);overflow:hidden;background:#15161D;}
+.micon-prev img{width:72%;height:72%;object-fit:contain;display:block;}
 
 .img-upload{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .img-upload .thumb{
@@ -217,7 +222,9 @@ tr:hover td{background:var(--surface-2);}
 .empty h3{margin-bottom:4px;}
 
 /* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(4,5,9,0.7);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(4,5,9,0.7);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:100000;padding:16px;}
+/* El panel de autocompletado (app/datalist-autocomplete.js) debe quedar por ENCIMA de los modales del editor. */
+.ac-suggest{z-index:100001 !important;}
 .modal-box{background:var(--surface);border-radius:18px;max-width:580px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.25);}
 .modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line);}
 .modal-head h2{font-size:16px;margin:0;}
@@ -278,11 +285,86 @@ tr:hover td{background:var(--surface-2);}
   display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;
   font-size:11.5px;font-weight:700;flex-shrink:0;
 }
+/* Ícono de puesto del cuerpo técnico: usa .num-badge tal cual (índigo sólido, texto blanco) — exactamente
+   el mismo color y forma que el rectángulo de árbitros y el dorsal de jugadores. Sin override propio. */
 .club-chip{font-size:11px;color:var(--muted);background:var(--surface-2);padding:2px 8px;border-radius:20px;}
+/* ===== Plantilla: control segmentado del encabezado (JUGADORES/DORSALES/CAPITANES/DISCIPLINA) ===== */
+.pl-head{display:flex;align-items:center;justify-content:flex-start;gap:14px;flex-wrap:nowrap;margin:0 0 14px;}
+.pl-head .jg-buztitle{margin:0;}
+/* Encabezado de gestión (Plantilla, Tácticas…): TÍTULO con ancho fijo (reservado para el título más
+   largo, "Competiciones") para que la barra empiece siempre en el mismo punto; la pastilla ocupa el
+   resto hasta el final y las pestañas caen DENTRO, a la derecha. */
+.pl-head-title{flex:0 0 auto;min-width:148px;}
+.pl-head .jg-phead{flex:1 1 auto;margin-bottom:0;min-width:0;}
+/* Pastilla del equipo DELGADA: todo en una sola línea (escudo pequeño + nombre + banderas + chips). */
+.jg-phead-thin{display:flex;align-items:center;gap:9px;padding:6px 16px;margin-bottom:0;min-width:0;}
+.jg-phead-thin .jg-phead-logo{align-self:center;flex-shrink:0;margin-right:-6px;}
+.jg-phead-thin .jg-phead-logo img{height:30px;width:auto;max-width:34px;}
+.jg-phead-thin h1{margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;white-space:nowrap;}
+.jg-phead-thin h1 .jg-flag{height:18px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.25);flex-shrink:0;}
+.jg-phead-thin .jg-fedrow{margin:0 0 0 3px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+/* Las pestañas (Jugadores/Dorsales/…) van pegadas a la derecha DENTRO de la pastilla. */
+.jg-phead-thin .jg-phead-right{margin-left:auto;flex-shrink:0;padding-left:12px;}
+.pl-seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:2px;gap:2px;flex-wrap:wrap;}
+.pl-seg button{appearance:none;border:0;background:transparent;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:4px 12px;border-radius:7px;cursor:pointer;transition:background .14s,color .14s;text-align:center;}
+.pl-seg button:hover{color:var(--ink);}
+.pl-seg button.on{background:var(--indigo);color:#fff;}
+/* Cuadros nombre+dorsal (vista DORSALES), estilo de la selección de equipo del onboarding */
+.pl-dsec{margin-bottom:16px;}
+.pl-dsec-head{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;margin-bottom:10px;color:var(--ink);}
+.pl-dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;}
+.pl-chip{display:flex;align-items:center;gap:9px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;min-width:0;}
+.pl-chip .dp-name{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Círculos de estado (condición/ritmo/moral): rojo→amarillo→verde */
+.stat-dot{display:inline-block;width:13px;height:13px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);vertical-align:middle;}
+.stat-row{display:flex;align-items:center;gap:8px;font-size:13px;}
+.stat-grid{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;}
+.stat-lbl{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+/* Capitanes y disciplina */
+.pl-caprow{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);}
+.pl-caprow:last-child{border-bottom:none;}
+.pl-caprank{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;flex-shrink:0;background:var(--surface-2);color:var(--muted);}
+.pl-caprow .cap1{background:var(--amber);color:#1a1a1a;}
+.pl-caprow .cap2{background:rgba(245,200,66,.28);color:var(--amber);}
+.pl-captag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+.disc-table{width:100%;border-collapse:collapse;font-size:13px;}
+.disc-table th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);}
+.disc-table td{padding:8px;border-bottom:1px solid var(--line);}
+.disc-card{display:inline-flex;align-items:center;justify-content:center;width:15px;height:19px;border-radius:2px;font-size:10px;font-weight:700;color:#1a1a1a;margin-right:2px;}
+.disc-yellow{background:#f2c744;}
+.disc-red{background:#e5484d;color:#fff;}
+/* Tabla de Plantilla: hereda los estilos globales de tabla (mismos que la pestaña Jugadores). */
+.pl-table th{white-space:nowrap;}
+.pl-table td{vertical-align:middle;}
+.pl-table .club-chip{white-space:nowrap;}
+/* Disciplina: # y Jugador a la izquierda; de Posición en adelante, 5 columnas iguales repartidas. */
+.pl-disc{table-layout:fixed;width:100%;}
+.pl-disc td,.pl-disc th{padding-left:6px;padding-right:6px;}
+.pl-disc td:first-child,.pl-disc th:first-child{padding-left:10px;}
+.pl-disc .pl-disc-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* DORSALES: solo el dorso de la playera (número + apellido); la foto va en la esquina del cuadro y
+   el nombre completo debajo. Sin contorno ni caja; al pasar el cursor brilla (mismo efecto cliqueable). */
+.pl-dorsal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px;}
+.pl-dorsal-cell{display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:filter .12s;}
+.pl-dorsal-cell:hover{filter:brightness(1.12);}
+.pl-dorsal{position:relative;aspect-ratio:1;background:transparent;display:flex;align-items:center;justify-content:center;}
+.pl-dorsal .player-badge-render{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+.pl-dorsal-photo{position:absolute;left:6px;bottom:6px;width:30px;height:30px;border-radius:50%;overflow:hidden;background:var(--surface-2);box-shadow:0 0 0 2px var(--bg);}
+.pl-dorsal-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+.pl-dorsal-cap{display:flex;justify-content:center;font-size:10px;min-width:0;padding:0 1px;max-width:100%;}
+.pl-dorsal-cap .dn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:100%;text-align:center;}
+/* CAPITANES: pantalla dividida en dos (elegidos | todos los jugadores) */
+.pl-cap-split{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;}
+.pl-cap-left{flex:1 1 340px;min-width:290px;}
+.pl-cap-right{flex:1 1 380px;min-width:300px;}
 .flag-ic{height:0.95em;width:calc(0.95em * 3 / 2);object-fit:contain;border-radius:2px;vertical-align:-0.12em;margin-right:5px;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.18);}
 .flag-lg{height:16px;width:calc(16px * 3 / 2);object-fit:contain;border-radius:3px;vertical-align:-0.2em;margin-right:7px;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.18);}
 .flag-badge{padding:3px 7px;background:var(--surface-2);}
 .flag-badge img{height:13px;width:calc(13px * 3 / 2);object-fit:contain;border-radius:2px;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.18);}
+/* Bandera "etiqueta": mismo look que en la pantalla "Elige tu selección" del onboarding — bandera
+   con esquinas redondeadas y solo un contorno gris (sin marco ni relleno), a la altura de las
+   etiquetas/badges de al lado. */
+.flag-lbl{height:19px;width:calc(19px * 3 / 2);object-fit:cover;border-radius:3px;vertical-align:middle;flex-shrink:0;display:inline-block;align-self:center;box-shadow:0 0 0 1px rgba(255,255,255,.14);}
 /* Banderas base64 deduplicadas: mismo tamaño que .flag-ic / .flag-badge img pero pintadas como
    background-image (una sola definición por bandera en un <style>, referenciada por clase .fdyn-N). */
 .flag-ic-bg{display:inline-block;background-size:contain;background-repeat:no-repeat;background-position:center;}
@@ -343,6 +425,166 @@ tr:hover td{background:var(--surface-2);}
 textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-height:160px;}
 
 .footer-note{margin-top:40px;font-size:11.5px;color:var(--muted);text-align:center;}
+/* Forma reciente (perfiles de selección y club): 5 círculos G/E/P (o gris sin letra si no hay dato). */
+/* Forma como ETIQUETA, del mismo alto que los demás badges (perfil de selecciones y clubes). */
+.forma-row{display:inline-flex;align-items:center;gap:4px;margin-top:8px;background:var(--surface-2);border-radius:999px;padding:3px 9px 3px 11px;vertical-align:middle;}
+.forma-row .forma-l{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-right:3px;}
+.forma-dot{width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;}
+.forma-dot.g{background:var(--success);} .forma-dot.e{background:#5B6472;} .forma-dot.p{background:var(--danger);}
+.forma-dot.none{background:rgba(146,152,172,.28);}
+
+/* ===== Informe de partido (ventana completa) ===== */
+/* El informe es una pantalla normal dentro de #jg-view (no una capa encima). */
+.mr-screen{position:relative;}
+.mr-x{position:absolute;top:0;right:0;z-index:5;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:22px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .14s,border-color .14s;}
+.mr-x:hover{background:var(--surface-2);border-color:color-mix(in srgb,var(--indigo) 55%,var(--line));}
+.mr-body{max-width:1560px;margin:0 auto;}
+/* 3 columnas: cancha local | centro (detalle + línea de tiempo + estadísticas) | cancha visitante. */
+/* Fila 1: tarjeta de detalle (centro). Fila 2: cancha local | (incidencias + tiempo + estadísticas) | cancha visitante. */
+.mr-grid{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,660px) minmax(230px,1fr);grid-template-rows:auto auto;gap:18px;align-items:start;}
+.mr-topcard{grid-column:2;grid-row:1;}
+.mr-side-l{grid-column:1;grid-row:2;}
+.mr-center{grid-column:2;grid-row:2;}
+.mr-side-r{grid-column:3;grid-row:2;}
+.mr-center{display:flex;flex-direction:column;gap:18px;min-width:0;position:relative;z-index:3;}
+.mr-side{position:relative;z-index:1;}
+.mr-detail{width:100%;}
+.mr-section{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);}
+.mr-h{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink);padding-bottom:10px;margin-bottom:14px;border-bottom:1px solid var(--line);}
+/* Rectángulo secundario (goles / rojas) como tarjeta propia. */
+.mr-incidents .jg-incidents{border-radius:14px;border:1px solid var(--line);box-shadow:var(--shadow);}
+/* Canchas laterales: MISMO estilo del onboarding, en proporción (sin estirar). */
+.mr-side{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--shadow);}
+.mr-pcap{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;margin-bottom:10px;}
+.mr-pcap .mr-form{margin-left:auto;font-size:11px;color:var(--muted);font-weight:700;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:2px 8px;}
+.mr-side .jgt-pitch{margin:0 auto;max-width:100%;}
+/* Chip de posición (CB, ST…) centrado bajo el jugador. */
+/* Chip de posición: 25% más chico y pegado al nombre. */
+.mr-side .jgt-pos{text-align:center;font-size:6px;min-width:16px;padding:1px 3px;margin-top:1px;}
+/* Cuadro tras la foto: mismo color/transparencia y proporción de esquinas que "Define tu táctica"
+   del onboarding (las caras del informe son pequeñas: se baja el radio para que no se vean más redondas). */
+.mr-side .jgt-face{background:rgba(18,20,27,.55);border-radius:9px;}
+/* Nombre 25% más pequeño + número (mismo alto) a la izquierda, dentro de la cancha. */
+.mr-side .jgt-name{font-size:7.1px;display:inline-flex;align-items:center;gap:4px;}
+.mr-side .mr-num{display:inline-flex;align-items:center;justify-content:center;height:1.35em;min-width:1.35em;padding:0 3px;border-radius:4px;background:var(--indigo);color:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1em;line-height:1;flex-shrink:0;}
+.mr-field{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.96;}
+.mr-players{position:absolute;inset:0;}
+.mr-nolineup{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#dfe6df;font-size:12px;}
+.mr-slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;width:64px;}
+.mr-dot{position:relative;width:26px;height:26px;border-radius:50%;background:var(--indigo);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,.45);border:1.5px solid rgba(255,255,255,.85);}
+.mr-dot.out{background:#4a4f63;}
+.mr-outmin{position:absolute;bottom:-6px;right:-8px;background:var(--coral);color:#fff;font-size:8px;font-weight:700;border-radius:6px;padding:0 3px;line-height:1.4;}
+.mr-nm{font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);text-align:center;white-space:nowrap;max-width:74px;overflow:hidden;text-overflow:ellipsis;}
+/* Línea de tiempo */
+.mr-tl{display:flex;flex-direction:column;gap:8px;}
+.mr-tl-team{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12.5px;color:var(--muted);}
+.mr-tl-team img{height:18px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.25);}
+.mr-tl-track{position:relative;height:132px;background:var(--surface-2);border-radius:10px;}
+.mr-tl-line{position:absolute;left:0;right:0;top:50%;height:4px;transform:translateY(-50%);background:#3aa76a;}
+.mr-tl-half{position:absolute;left:50%;top:8px;bottom:22px;width:0;border-left:1px dashed color-mix(in srgb,var(--muted) 45%,transparent);}
+.mr-tl-top,.mr-tl-bot{position:absolute;left:0;right:0;height:50%;}
+.mr-tl-top{top:0;} .mr-tl-bot{bottom:0;}
+/* Iconos SIN círculo blanco: balón, tarjetas y cambio, en los tonos del simulador. */
+.mr-ev{position:absolute;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;cursor:default;pointer-events:none;z-index:3;}
+.mr-tl-top .mr-ev{bottom:9px;} .mr-tl-bot .mr-ev{top:9px;}
+.mr-ball{display:inline-block;width:9px;height:9px;}
+.mr-cardic{display:inline-block;width:6px;height:8px;border-radius:1.5px;box-shadow:0 1px 2px rgba(0,0,0,.5);}
+.mr-subsvg{width:9px;height:9px;}
+.mr-cardic.yellow{background:#F5C518;} .mr-cardic.red{background:#E0413A;}
+.mr-subsvg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));}
+.mr-ev-n{position:absolute;top:-7px;right:-9px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:var(--indigo);color:#fff;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.5);}
+.mr-tl-axis{position:absolute;left:0;right:0;bottom:3px;height:14px;}
+.mr-ax{position:absolute;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;}
+.mr-ax.l{left:6px;} .mr-ax.m{left:50%;transform:translateX(-50%);} .mr-ax.r{right:6px;}
+/* Columna sensible de ALTO COMPLETO por minuto: al pasar el cursor (arriba o abajo de la línea) muestra
+   su guía punteada y el tooltip. */
+.mr-col{position:absolute;top:0;bottom:0;width:2.6%;transform:translateX(-50%);cursor:default;z-index:4;}
+.mr-guide{position:absolute;left:50%;top:6px;bottom:20px;width:0;border-left:1.5px dashed color-mix(in srgb,var(--ink) 60%,transparent);transform:translateX(-50%);opacity:0;transition:opacity .1s;pointer-events:none;}
+.mr-col:hover .mr-guide{opacity:1;}
+.mr-guide-min{position:absolute;left:50%;bottom:-17px;transform:translateX(-50%);font-size:11px;font-weight:700;color:var(--ink);}
+/* Tooltip en los tonos del simulador (índigo), multilínea, por ENCIMA de la línea. */
+.mr-col[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);background:var(--indigo);color:#fff;font-size:11.5px;font-weight:600;line-height:1.5;white-space:pre;text-align:center;padding:7px 12px;border-radius:9px;box-shadow:0 8px 20px rgba(0,0,0,.5);z-index:60;pointer-events:none;}
+.mr-col[data-tip]:hover::before{content:"";position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--indigo);z-index:60;}
+/* Estadísticas */
+.mr-st-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.mr-st-team{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--ink);}
+.mr-st-team img{height:18px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.25);}
+.mr-st-row{margin-bottom:14px;}
+.mr-st-row:last-child{margin-bottom:0;}
+.mr-st-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;}
+.mr-st-v{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;color:var(--ink);min-width:44px;}
+.mr-st-top .mr-st-v:last-child{text-align:right;}
+.mr-st-l{font-size:12.5px;color:var(--muted);font-weight:600;text-align:center;flex:1;}
+.mr-st-bar{display:flex;height:8px;border-radius:5px;overflow:hidden;background:var(--surface-2);gap:2px;}
+.mr-st-h{background:#35b06f;border-radius:5px 0 0 5px;min-width:2px;}
+.mr-st-a{background:var(--coral);border-radius:0 5px 5px 0;min-width:2px;}
+/* Lista de alineación bajo la cancha (titulares + suplentes). */
+.mr-lu{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:2px;}
+.mr-lu-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:8px 0 4px;}
+.mr-lu-h:first-child{margin-top:0;}
+.mr-lu-row{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink);padding:2px 0;}
+.mr-lu-l{display:flex;align-items:center;gap:7px;flex:1;min-width:0;}
+.mr-lu-num{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:9.5px;color:#fff;background:var(--indigo);border-radius:4px;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 3px;flex-shrink:0;}
+.mr-lu-nm{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mr-lu-pos.mr-lu-pos{font-size:7.5px;min-width:18px;padding:1px 4px;text-align:center;flex-shrink:0;}
+/* Etiqueta de capitán (icono C) junto a la posición, como en Plantilla. */
+.mr-lu-cap{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:4px;background:#eeca5c;flex-shrink:0;}
+.mr-lu-cap img{width:10px;height:10px;object-fit:contain;display:block;}
+/* Hover en titulares/suplentes: NO se pinta de morado; solo se atenúa un poco (como el cuadro de detalles). */
+.mr-lu-row[data-action]{transition:opacity .12s;}
+.mr-lu-row[data-action]:hover{opacity:.72;}
+.mr-lu-ev{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.mr-lu-e{display:inline-flex;align-items:center;gap:2px;}
+.mr-lu-e .mr-ball,.mr-lu-e .mr-cardic,.mr-lu-e .mr-arw{flex-shrink:0;}
+.mr-lu-emin{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:var(--muted);}
+.mr-lu-e-boot .mr-boot{display:inline-block;width:9px;height:9px;flex-shrink:0;}
+.mr-lu-empty{font-size:11px;color:var(--muted);}
+/* Calificación del partido en el extremo de la fila (derecha en locales, izquierda en visitantes). */
+.mr-lu-rate{flex-shrink:0;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;width:34px;height:20px;padding:0;border-radius:6px;color:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;}
+.mr-lu-rate-sc{background:var(--surface-2);color:var(--muted);}
+.mr-lu-rate-empty{background:var(--surface-2);}
+/* Espejo: la cancha visitante muestra bandera al borde exterior y la lista pegada al centro. */
+.mr-side-r .mr-pcap{flex-direction:row-reverse;}
+.mr-side-r .mr-pcap .mr-form{margin-left:0;margin-right:auto;}
+/* Lista en ESPEJO (lado visitante): sucesos pegados al centro (izquierda), luego posición, nombre y el
+   número en el extremo derecho; encabezados recargados a la derecha. */
+.mr-lu-mirror .mr-lu-row{flex-direction:row-reverse;}
+.mr-lu-mirror .mr-lu-l{flex-direction:row-reverse;}
+.mr-lu-mirror .mr-lu-h{text-align:right;}
+/* Uniformes usados: previsualización igual a la del editor de uniformes. */
+/* Separación amplia ENTRE grupos (más que la de camiseta↔shorts) para que quede claro que los shorts y
+   las calcetas son de la camiseta a su IZQUIERDA, no de la de la derecha. */
+.mr-kits{display:grid;grid-template-columns:repeat(5,1fr);gap:26px;}
+.mr-kit{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;}
+.mr-kit-prev{display:flex;gap:6px;align-items:center;justify-content:center;}
+.mr-kit-gar{display:flex;flex-direction:column;gap:5px;}
+.mr-kit-lbl{font-size:10.5px;color:var(--muted);font-weight:700;text-align:center;}
+.mr-kit-prev img{width:100%;height:100%;object-fit:contain;}
+@media (max-width:1040px){ .mr-grid{grid-template-columns:1fr;} .mr-kits{gap:20px;} .mr-kit{min-width:90px;} }
+/* Estadísticas del jugador (tabla partido por partido) */
+.pm-scroll{overflow-x:auto;}
+.pm-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.pm-table th{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;padding:6px 7px;border-bottom:1px solid var(--line);white-space:nowrap;}
+.pm-table td{padding:7px 7px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);white-space:nowrap;color:var(--ink);}
+.pm-table .pm-c{text-align:center;}
+.pm-table .pm-l{text-align:left;}
+.pm-table .pm-s{text-align:center;}
+.pm-table .pm-dim{color:var(--muted);}
+/* La columna Rival y Min quedan pegadas al partido; el espaciador empuja las estadísticas a la derecha. */
+.pm-table .pm-tight{padding-left:10px;padding-right:4px;}
+.pm-table .pm-sp{width:100%;padding:0;}
+.pm-table .pm-s{padding-left:9px;padding-right:9px;}
+.pm-table .pm-rendcol{padding-right:2px;}
+.pm-table tbody tr:hover td{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
+.pm-table tr.pm-total td{border-top:2px solid var(--line);border-bottom:none;font-weight:700;background:color-mix(in srgb,var(--surface-2) 45%,transparent);}
+.pm-table tr.pm-total td.pm-dorsal{text-align:left;font-weight:800;letter-spacing:.05em;color:var(--ink);}
+/* Dorsal en etiqueta índigo (como en el resto de la app). */
+.pm-num{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 5px;border-radius:6px;background:var(--indigo);color:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;}
+.pm-num-empty{background:var(--surface-2);color:var(--muted);}
+.pm-rend{display:inline-block;min-width:30px;padding:2px 6px;border-radius:6px;color:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;}
+.pm-sc{display:inline-block;min-width:30px;padding:2px 6px;border-radius:6px;background:var(--surface-2);color:var(--muted);font-weight:700;font-size:11px;}
+.pm-ck{display:inline-block;width:8px;height:11px;border-radius:2px;vertical-align:middle;}
+.pm-ck.yellow{background:#f2c200;} .pm-ck.red{background:#e0574f;}
 </style>
 </head>
 <body>
@@ -411,6 +653,10 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 <script src="persistencia/historial.js"></script>
 <script src="app/router.js"></script>
 <script src="app/acciones.js"></script>
+<script src="nucleo/importar-partidos.js"></script>
+<script src="partidos.js"></script>
+<script src="nucleo/importar-lesiones.js"></script>
+<script src="lesiones.js"></script>
 <script>
 /* =========================================================
    COPA MANAGER 2026 — motor de datos + interfaz
@@ -681,7 +927,9 @@ let backBasesExpanded = false;
 
 /* ---------- Utilidades de orden genérico para tablas ---------- */
 // Orden de la convocatoria dentro del perfil de selección (mismo mecanismo que la pestaña Jugadores).
-let squadSort = {key:"number", dir:"asc"};
+let squadSort = {key:"name", dir:"asc"};
+let plantillaView = "jugadores"; // jugadores | dorsales | capitanes | disciplina
+let capSort = {key:"name", dir:"asc"}; // orden de la lista de la derecha en Capitanes
 /* ---------- RANKINGS ---------- */
 let rankingSection = "MUNDIAL";
 let rankingSort = {key:"fifaRank", dir:"asc"};
@@ -789,6 +1037,16 @@ document.addEventListener("change", (e)=>{
     const wrap = document.getElementById("f-c-role-otro-wrap");
     if(wrap) wrap.style.display = (e.target.value==="__otro__") ? "" : "none";
   }
+  // Estadio: el Club Propietario solo se puede escribir cuando el Tipo de propiedad es "Club".
+  if(e.target.id==="f-st-ownership"){
+    const owner = document.getElementById("f-st-owner");
+    if(owner){
+      const isClub = e.target.value==="Club";
+      owner.disabled = !isClub;
+      owner.style.opacity = isClub ? "" : ".5";
+      if(!isClub) owner.value = "";
+    }
+  }
   // Fila "Ligado a" del patrocinador: al cambiar el tipo, apunta el input a la lista correcta.
   if(e.target.classList && e.target.classList.contains("sponsor-link-type")){
     const row = e.target.closest(".sponsor-link-row");
@@ -796,11 +1054,15 @@ document.addEventListener("change", (e)=>{
     if(input){
       const t = e.target.value;
       const tournName = (typeof eventShortNameLabel==="function") ? eventShortNameLabel() : "Copa Mundial 2026™";
-      input.setAttribute("list", t==="tournament" ? "sponsor-link-tournaments" : t==="club" ? "sponsor-link-clubs" : "sponsor-link-teams");
-      input.placeholder = t==="tournament" ? tournName : t==="club" ? "Nombre del club" : "Nombre de la selección";
-      // Al cambiar el tipo se limpia lo escrito (un nombre de club no sirve como selección, etc.);
-      // si el tipo nuevo es Torneo, se prellena con el Nombre corto del evento.
-      input.value = (t==="tournament") ? tournName : "";
+      const listId = (typeof sponsorLinkListId==="function") ? sponsorLinkListId(t)
+        : (t==="tournament" ? "sponsor-link-tournaments" : t==="club" ? "sponsor-link-clubs" : t==="stadium" ? "sponsor-link-stadiums" : "sponsor-link-teams");
+      const ph = (typeof sponsorLinkPlaceholder==="function") ? sponsorLinkPlaceholder(t)
+        : (t==="tournament" ? tournName : t==="club" ? "Nombre del club" : t==="stadium" ? "Nombre del estadio" : "Nombre de la selección");
+      input.setAttribute("list", listId);
+      input.placeholder = ph;
+      // El nombre de Torneo es fijo (solo lectura); los demás tipos se escriben.
+      if(t==="tournament"){ input.value = tournName; input.setAttribute("readonly","readonly"); }
+      else { input.value = ""; input.removeAttribute("readonly"); }
     }
   }
   // "Kit local" de los árbitros: el selector de país solo tiene sentido si la casilla está marcada.
@@ -969,11 +1231,15 @@ document.addEventListener("change", (e)=>{
   const _fmt = input.dataset.imgformat === "jpeg" ? "image/jpeg" : "image/png";
   resizeImageToDataURL(file, parseInt(input.dataset.maxdim)||300, _fmt).then(dataUrl=>{
     const hidden = document.getElementById(input.dataset.target);
-    if(hidden) hidden.value = dataUrl;
+    // Avisa a quien escuche (p. ej. el avatar de redes) que este logo/imagen cambió, para regenerarse en vivo.
+    if(hidden){ hidden.value = dataUrl; hidden.dispatchEvent(new Event("input", {bubbles:true})); }
     const preview = document.getElementById(input.dataset.preview);
     if(preview){ preview.src = dataUrl; preview.style.display = "block"; }
     // Si es la imagen del PERFIL POR DEFECTO de un medio, propágala en vivo a los perfiles por cobertura.
     if(input.dataset.target === "f-msoc-avatar-data" && typeof mediaPropagateDefaultAvatar === "function") mediaPropagateDefaultAvatar();
+    // Si es un LOGO ALTERNO (Alt N), actualiza las opciones "Alt N" de todos los selectores de logo.
+    const altM = /^f-(salt|malt)-\d+-data$/.exec(input.dataset.target||"");
+    if(altM && typeof refreshLogoAltOptions === "function") refreshLogoAltOptions(altM[1]);
   }).catch(()=>{ showToast("No se pudo procesar esa imagen"); });
 });
 document.addEventListener("input", (e)=>{
@@ -981,6 +1247,38 @@ document.addEventListener("input", (e)=>{
     const field = e.target.closest(".color-field");
     const hexInput = field && field.querySelector(".color-hex-text");
     if(hexInput) hexInput.value = e.target.value.toUpperCase();
+  }
+});
+// Vista aérea del estadio: al escribir/pegar coordenadas válidas, recarga el mapa incrustado (con un
+// pequeño retraso para no recargarlo en cada tecla).
+document.addEventListener("input", (e)=>{
+  if(!(e.target && e.target.id==="f-st-coords")) return;
+  const wrap = document.getElementById("f-st-map-wrap");
+  if(!wrap || typeof stadiumMapEmbedHTML!=="function") return;
+  const txt = e.target.value;
+  clearTimeout(window._stMapT);
+  window._stMapT = setTimeout(()=>{
+    const c = (typeof parseCoordsText==="function") ? parseCoordsText(txt) : null;
+    wrap.innerHTML = stadiumMapEmbedHTML(c?c.lat:null, c?c.lng:null);
+  }, 700);
+});
+// Colores de grada del estadio: el SEGUNDO color sigue al primero por default; en cuanto se modifica
+// el segundo a mano, se desliga y deja de seguirlo (se guarda ese estado en f-st-stand2-linked).
+document.addEventListener("input", (e)=>{
+  const t = e.target; if(!t) return;
+  const primary = document.getElementById("f-st-stand");
+  const secondary = document.getElementById("f-st-stand2");
+  const linkedFlag = document.getElementById("f-st-stand2-linked");
+  if(!primary || !secondary || !linkedFlag) return;
+  const pField = primary.closest(".color-field"), sField = secondary.closest(".color-field");
+  if(sField && sField.contains(t)){ linkedFlag.value = "0"; return; }  // el usuario tocó el 2.º color
+  if(pField && pField.contains(t) && linkedFlag.value==="1"){          // cambió el 1.º y el 2.º sigue ligado
+    const val = primary.value;
+    if(secondary.value !== val){
+      secondary.value = val;
+      const hx = sField && sField.querySelector(".color-hex-text");
+      if(hx) hx.value = String(val).toUpperCase();
+    }
   }
 });
 document.addEventListener("input", (e)=>{
@@ -1123,6 +1421,23 @@ document.addEventListener("change", (e)=>{
     }
   }
 });
+// Campos de una TEMPORADA de uniformes (nombre, marca, fecha de presentación).
+document.addEventListener("change", (e)=>{
+  if(!(e.target && e.target.matches)) return;
+  const seasonOf=(el)=>{ const t=getTeam(el.dataset.team); return { team:t, s: t ? (t.kitSeasons||[]).find(x=>x.id===el.dataset.season) : null }; };
+  if(e.target.matches(".kit-season-name")){
+    const {s}=seasonOf(e.target); if(s){ s.name=(e.target.value||"").trim().slice(0,40); persist(); }
+  } else if(e.target.matches(".kit-season-brand")){
+    const {s}=seasonOf(e.target); if(s){ s.brand=(e.target.value||"").trim()||null; if(s.brand && typeof addBrand==="function") addBrand(s.brand); persist(); }
+  } else if(e.target.matches(".kit-season-date")){
+    const {team,s}=seasonOf(e.target); if(team && s){
+      const nd=e.target.value||"";
+      if((team.kitSeasons||[]).some(x=>x!==s && String(x.date||"")===nd)){ alert("Ya existe una temporada con esa fecha."); return; }
+      s.date=nd; ensureTeamKits(team); window.KIT_ERA_VIEW=s.id; persist(); render();
+      if(typeof modalManageKits==="function") modalManageKits(team);
+    }
+  }
+});
 document.addEventListener("change", (e)=>{
   if(e.target.matches && e.target.matches(".garmentbase-label-input")){
     const cfg = garmentConfig(e.target.dataset.type);
@@ -1137,6 +1452,8 @@ document.addEventListener("change", (e)=>{
 
 </script>
 <script src="app/datalist-autocomplete.js"></script>
+<script src="app/juego.js"></script>
+<script src="app/tiempo.js"></script>
 <script src="app/onboarding.js"></script>
 <script src="app/init.js"></script>
 </body>
