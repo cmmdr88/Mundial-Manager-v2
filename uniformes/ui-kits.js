@@ -86,8 +86,11 @@ async function drawBackNumberOnCanvas(ctx, size, kit){
   ctx.textBaseline = "alphabetic";
 
   // El dorso arbitral no lleva número: solo el apellido, en una franja mucho más chica y más alta.
+  // El nombre puede ocultarse por completo con el checkbox "Mostrar nombre" del editor (backNameHidden).
   const nameBox = (kit.category==="arbitro") ? REFEREE_BACK_TEXT_BOXES.name : BACK_TEXT_BOXES.name;
-  drawTextWithStyle(ctx, nameBox, previewNameText, nameFamily, kit.backNameColor, kit.backNameOutline, kit.backNameOutlineColor, kit.backNameOutlineWidth, kit.backNameSizePct, kit.backNameLetterSpacing, kit.backNameOffsetX, kit.backNameOffsetY, kit.backNameArc, size, outlineScale, undefined, kit.backNameCondense, true);
+  if(!kit.backNameHidden){
+    drawTextWithStyle(ctx, nameBox, previewNameText, nameFamily, kit.backNameColor, kit.backNameOutline, kit.backNameOutlineColor, kit.backNameOutlineWidth, kit.backNameSizePct, kit.backNameLetterSpacing, kit.backNameOffsetX, kit.backNameOffsetY, kit.backNameArc, size, outlineScale, undefined, kit.backNameCondense, true);
+  }
   if(kit.category!=="arbitro"){
     drawTextWithStyle(ctx, BACK_TEXT_BOXES.number, previewNumberText, numberFamily, kit.backNumberColor, kit.backNumberOutline, kit.backNumberOutlineColor, kit.backNumberOutlineWidth, kit.backNumberSizePct, kit.backNumberLetterSpacing, kit.backNumberOffsetX, kit.backNumberOffsetY, 1, size, outlineScale);
   }
@@ -128,7 +131,10 @@ async function buildPlayerNumberBadgeDataURL(player, team, size){
   const bg = await recolorToCanvas(backBase.baseImg, refKit.color1, refKit.color2, refKit.color3, size, size);
   ctx.drawImage(bg, 0, 0);
   const outlineScale = size/300;
-  const rawNameText = effectiveShirtName(player, "team") || "APELLIDO";
+  // _noName: dorsal LIBRE — se reserva el espacio del nombre (con "APELLIDO" fantasma) para que la
+  // ALTURA del número no cambie, pero NO se dibuja ningún apellido hasta que se asigne un jugador.
+  const _hideName = !!player._noName;
+  const rawNameText = _hideName ? "APELLIDO" : (effectiveShirtName(player, "team") || "APELLIDO");
   const nameText = applyTextCase(rawNameText, refKit.badgeNameTextCase!=null ? refKit.badgeNameTextCase : refKit.backNameTextCase);
   const numberText = player.number!=null ? String(player.number) : "";
   ctx.save();
@@ -160,7 +166,7 @@ async function buildPlayerNumberBadgeDataURL(player, team, size){
   const grp = badgeGroupTransform([nameInk, numInk], size);
   grp.apply(ctx);
   const badgeContainBounds = grp.bounds;
-  drawTextWithStyle(ctx, BACK_SQUARE_TEXT_BOXES.name, nameText, nameFamily,
+  if(!_hideName) drawTextWithStyle(ctx, BACK_SQUARE_TEXT_BOXES.name, nameText, nameFamily,
     refKit.badgeNameColor!=null?refKit.badgeNameColor:refKit.backNameColor,
     refKit.badgeNameOutline!=null?refKit.badgeNameOutline:refKit.backNameOutline,
     refKit.badgeNameOutlineColor!=null?refKit.badgeNameOutlineColor:refKit.backNameOutlineColor,
@@ -264,6 +270,7 @@ function kitCardHTML(t,k){
     ${(k.category==="portero" && k.linkedJugadorKitIds && k.linkedJugadorKitIds.length) ? `
       <div style="font-size:10.5px;color:var(--muted);margin-top:2px;">Solo con: ${k.linkedJugadorKitIds.map(id=>{ const jk=t.kits.find(x=>x.id===id); return jk?jk.label:null; }).filter(Boolean).join(", ")}</div>
     ` : ""}
+    ${k.ownDate ? `<div style="font-size:10px;color:var(--gold,#eeca5c);margin-top:3px;" title="Se presenta en fecha propia">Fecha propia: ${escapeHtml(kitEraLabel(k.dateStart)||'—')}</div>`:""}
     <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
       <button class="btn ghost sm" data-action="edit-kit" data-team="${t.id}" data-id="${k.id}" data-from-manage="1">Editar</button>
       <button class="btn ghost sm" data-action="copy-kit" data-team="${t.id}" data-id="${k.id}" title="Copiar este uniforme completo">Copiar</button>
@@ -501,11 +508,45 @@ function renderBackBasesSection(){
   `;
 }
 
+// Sección pegable (como la de Press Wall) para editar los uniformes de árbitro de una entidad
+// (torneo / federación / confederación). Replica el editor de la Copa del Mundo: muestra los kits
+// y un botón "Editar uniformes" que abre el mismo administrador de uniformes.
+//   wrapId  -> id de envoltorio (refKitsWrapId): __refkits__:comp|fed|conf:<id>
+//   opts    -> {summary, hint, savedFirst, exists}
+function refereeKitsDetailsHTML(wrapId, opts){
+  opts = opts || {};
+  const summary = opts.summary || "Uniformes de árbitro";
+  const exists = opts.exists!==false && (typeof getTeam==="function");
+  const t = exists ? getTeam(wrapId) : null;
+  let inner;
+  if(!t){
+    inner = `<span style="display:block;font-size:11.5px;color:var(--muted);">${escapeHtml(opts.savedFirst||"Guarda primero para poder crear los uniformes de árbitro.")}</span>`;
+  } else {
+    const kits = (t.kits||[]).slice(0,10);
+    inner = `
+      <span style="display:block;font-size:11px;color:var(--muted);margin-bottom:12px;">${escapeHtml(opts.hint||"Uniformes que usan los árbitros. Se editan igual que los de la Copa del Mundo.")}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:${kits.length?'12px':'0'};">
+        <button type="button" class="btn gold sm" data-action="manage-kits" data-team="${escapeHtml(wrapId)}">Editar uniformes</button>
+        <span style="font-size:12px;color:var(--muted);">${(t.kits||[]).length} uniforme${(t.kits||[]).length===1?'':'s'}</span>
+      </div>
+      ${kits.length ? `<div style="display:flex;gap:16px;flex-wrap:wrap;">
+        ${kits.map(k=>`<div style="text-align:center;width:84px;">
+          <div class="kit-render" data-pending data-team-id="${escapeHtml(wrapId)}" data-kit-id="${k.id}" data-action="edit-kit" data-team="${escapeHtml(wrapId)}" data-id="${k.id}" data-from-manage="0" style="width:84px;height:84px;background:var(--surface-2);border-radius:8px;cursor:pointer;" title="Editar este uniforme"></div>
+          <div style="font-weight:700;font-size:12px;margin-top:6px;">${escapeHtml(k.label||"")}</div>
+        </div>`).join("")}
+      </div>` : `<div class="empty" style="margin:0;"><h3>Sin uniformes de árbitro</h3><p>Agrégalos con “Editar uniformes”.</p></div>`}`;
+  }
+  return `<details class="clpw-details" style="grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;">
+    <summary style="cursor:pointer;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;list-style:none;background:var(--surface-2);white-space:nowrap;">${escapeHtml(summary)}</summary>
+    <div style="padding:14px;">${inner}</div>
+  </details>`;
+}
+
 function modalManageKits(team){
   // Uniformes de árbitros del torneo: un solo apartado, kits numerados Kit 1, Kit 2… y el
   // "Patrocinador de ropa" que por defecto es el patrocinador de indumentaria del torneo.
   if(team && team.isRefereeKits){
-    ensureRefereeKits();
+    ensureRefereeKits(team);
     const porDefecto = tournamentApparelSponsorName();
     openModal(`
       <div class="modal-box" style="max-width:680px;">
@@ -526,26 +567,101 @@ function modalManageKits(team){
     `);
     return;
   }
+  // --- Navegación por TEMPORADAS (parrillas por época) ---
+  // Cada temporada tiene nombre, marca y fecha de presentación. La parrilla muestra las equipaciones
+  // vigentes en la temporada visible; las flechas cambian TODA la parrilla. Por defecto se abre en la
+  // temporada vigente según el calendario del juego, que se distingue en color/negritas.
+  ensureKitSeasons(team);
+  const seasons = orderedSeasons(team);
+  const curId = currentSeasonId(team, kitNowISO());
+  let viewId = (window.KIT_ERA_VIEW && seasons.some(s=>s.id===window.KIT_ERA_VIEW)) ? window.KIT_ERA_VIEW : curId;
+  window.KIT_ERA_VIEW = viewId;
+  const vi = seasons.findIndex(s=>s.id===viewId);
+  const season = seasons[vi] || null;
+  const viewDate = season ? season.date : kitNowISO();
+  const cardsFor = (cat)=> seasonKitsCat(team, viewId, cat).map(k=>kitCardHTML(team,k)).join("");
+  const isCurrent = season && season.id===curId;
+  const brandDefault = team.kitSponsor||tournamentApparelSponsorName()||'';
+  const seasonBar = season ? `
+    <div class="kit-era-bar" style="margin-bottom:16px;padding:12px 14px;background:var(--surface-2);border-radius:12px;${isCurrent?'box-shadow:inset 0 0 0 2px var(--indigo,#4F46E5);':''}">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn ghost sm" data-action="kit-era-prev" data-team="${team.id}" ${vi<=0?'disabled':''}>◀</button>
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:${isCurrent?'var(--indigo,#4F46E5)':'var(--muted)'};font-weight:800;">Temporada ${vi+1} de ${seasons.length}${isCurrent?' · ACTUAL':''}</div>
+          <input class="kit-season-name" data-team="${team.id}" data-season="${season.id}" value="${escapeHtml(season.name||'')}" placeholder="Nombre (ej. 2026)"
+            style="width:100%;max-width:240px;text-align:center;border:none;background:transparent;font-size:18px;font-weight:800;color:${isCurrent?'var(--indigo,#4F46E5)':'var(--ink)'};padding:2px 4px;">
+        </div>
+        <button class="btn ghost sm" data-action="kit-era-next" data-team="${team.id}" ${vi>=seasons.length-1?'disabled':''}>▶</button>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-end;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+        <label class="field" style="margin:0;min-width:160px;">Marca
+          <input class="kit-season-brand" data-team="${team.id}" data-season="${season.id}" list="brand-list" value="${escapeHtml(season.brand||'')}" placeholder="${escapeHtml(brandDefault||'Marca de ropa')}">
+        </label>
+        <label class="field" style="margin:0;min-width:150px;">Presentación
+          <input type="date" class="kit-season-date" data-team="${team.id}" data-season="${season.id}" value="${escapeHtml(kitToDateInput(season.date))}">
+        </label>
+        <button class="btn ghost sm" data-action="kit-era-new" data-team="${team.id}">+ Nueva temporada</button>
+        ${seasons.length>1?`<button class="btn danger sm" data-action="kit-era-del" data-team="${team.id}" data-season="${season.id}" title="Eliminar esta temporada">✕ Temporada</button>`:""}
+      </div>
+      <datalist id="brand-list">${apparelBrandNames().map(b=>`<option value="${escapeHtml(b)}">`).join("")}</datalist>
+    </div>` : "";
   openModal(`
     <div class="modal-box" style="max-width:680px;">
       <div class="modal-head"><h2>Uniformes de ${team.commonName}</h2><button class="modal-close" data-action="close-modal">×</button></div>
       <div class="modal-body">
-        <label class="field" style="margin-bottom:18px;">${T('team.kitSponsor.label')}
-          <input id="f-kit-sponsor-top" class="team-kitsponsor-input" data-team="${team.id}" list="brand-list" value="${team.kitSponsor||''}" placeholder="${T('team.kitSponsor.placeholder')}">
-          <datalist id="brand-list">${apparelBrandNames().map(b=>`<option value="${escapeHtml(b)}">`).join("")}</datalist>
-        </label>
+        ${seasonBar}
         <div class="section-title" style="margin-top:0;"><h2 style="font-size:14px;">Uniformes de jugador</h2><button class="btn gold sm" data-action="add-kit" data-team="${team.id}" data-category="jugador">+ Agregar</button></div>
         <div class="grid cols-3">
-          ${(team.kits||[]).filter(k=>k.category==="jugador").map(k=>kitCardHTML(team,k)).join("")}
+          ${cardsFor("jugador")}
         </div>
         <div class="section-title"><h2 style="font-size:14px;">Uniformes de portero</h2><button class="btn gold sm" data-action="add-kit" data-team="${team.id}" data-category="portero">+ Agregar</button></div>
         <div class="grid cols-3">
-          ${(team.kits||[]).filter(k=>k.category==="portero").map(k=>kitCardHTML(team,k)).join("")}
+          ${cardsFor("portero")}
         </div>
       </div>
       <div class="modal-foot"><button class="btn ghost" data-action="close-modal">Cerrar</button></div>
     </div>
   `);
+}
+// ISO ("yyyy-mm-dd"/"yyyy-mm"/"yyyy"/"") → valor para <input type="date"> (siempre yyyy-mm-dd; mes→día 01).
+function kitToDateInput(iso){
+  iso=String(iso||"").trim(); if(!iso) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  if(/^\d{4}-\d{2}$/.test(iso)) return iso+"-01";
+  if(/^\d{4}$/.test(iso)) return iso+"-01-01";
+  return iso;
+}
+// Modal para crear una nueva temporada: nombre, fecha de presentación (calendario) y copiar/desde cero.
+function modalNewKitSeason(team){
+  const nowISO=kitNowISO();
+  openModal(`
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-head"><h2>Nueva temporada</h2><button class="modal-close" data-action="close-modal">×</button></div>
+      <div class="modal-body">
+        <label class="field" style="margin-bottom:14px;">Nombre
+          <input id="f-newseason-name" placeholder="ej. 2026" value="">
+        </label>
+        <label class="field" style="margin-bottom:14px;">Fecha de presentación
+          <input id="f-newseason-date" type="date" value="${escapeHtml(nowISO)}">
+        </label>
+        <div class="field">Equipaciones</div>
+        <label class="field" style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:400;margin-top:6px;"><input type="radio" name="newseason-mode" value="copy" checked> Copiar exactamente las equipaciones actuales</label>
+        <label class="field" style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:400;margin-top:6px;"><input type="radio" name="newseason-mode" value="scratch"> Empezar desde cero</label>
+      </div>
+      <div class="modal-foot">
+        <button class="btn ghost" data-action="close-modal">Cancelar</button>
+        <button class="btn gold" data-action="kit-era-create" data-team="${team.id}">Crear temporada</button>
+      </div>
+    </div>
+  `);
+}
+// Fecha actual del juego como ISO "yyyy-mm-dd" (para elegir la temporada por defecto).
+function kitNowISO(){
+  try{
+    const d = (window.GameTime && GameTime.now) ? GameTime.now() : new Date();
+    const p=n=>String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  }catch(e){ return ""; }
 }
 function modalAddEditKit(team, kit, fromManage){
   const isEdit = !!(kit && kit.id);
@@ -618,10 +734,16 @@ function modalAddEditKit(team, kit, fromManage){
     backNameOffsetY: kit.backNameOffsetY!=null ? kit.backNameOffsetY : 0,
     backNameArc: kit.backNameArc!=null ? kit.backNameArc : 1,
     backNameTextCase: kit.backNameTextCase || "default",
+    // Los uniformes de árbitro nacen SIN nombre en la espalda (backNameHidden=true) por defecto.
+    backNameHidden: (kit.backNameHidden!=null ? !!kit.backNameHidden : (kit.category==="arbitro")),
     badgeNumberLinked: kit.badgeNumberLinked!==undefined ? !!kit.badgeNumberLinked : true,
     badgeNameLinked: kit.badgeNameLinked!==undefined ? !!kit.badgeNameLinked : true,
     combinations: (kit.combinations && kit.combinations.length) ? kit.combinations : [defaultCombo(resolvedColor1, resolvedColor2, resolvedColor3)],
-    linkedJugadorKitIds: kit.linkedJugadorKitIds || []
+    linkedJugadorKitIds: kit.linkedJugadorKitIds || [],
+    // Temporada a la que pertenece (parrilla independiente) + fecha propia opcional.
+    seasonId: kit.seasonId || null,
+    dateStart: kit.dateStart || "",
+    ownDate: !!kit.ownDate
   };
   // La "Letra del dorso" (APELLIDO) hereda los valores del número mientras esté "vinculada"
   // (backName*Linked=true) — en cuanto el usuario la edite manualmente, se desvincula y guarda su propio valor.
@@ -658,7 +780,8 @@ function modalAddEditKit(team, kit, fromManage){
   // Local — los demás (Visita, Portero Visita, etc.) no se usan para este cuadro en el perfil.
   const isRefKit = kit.category==="arbitro";
   const showBadgeSection = !isRefKit && (kit.label==="Local" || kit.label==="Portero Local");
-  const jugadorKits = team.kits.filter(k=>k.category==="jugador");
+  // Solo los uniformes de jugador de la MISMA temporada que este kit (cada temporada es independiente).
+  const jugadorKits = team.kits.filter(k=>k.category==="jugador" && k.seasonId===kit.seasonId);
   openModal(`
     ${isRefKit ? `<style>[data-kit-number-only]{display:none !important;}</style>` : ""}
     <div class="modal-box" style="max-width:640px;">
@@ -772,7 +895,11 @@ function modalAddEditKit(team, kit, fromManage){
         </div>
 
         <div class="subhead" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-          <span>Nombre</span>
+          <span style="display:flex;align-items:center;gap:12px;">Nombre
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;text-transform:none;letter-spacing:0;">
+              <input type="checkbox" id="f-kit-backname-show" class="kit-modal-control" style="width:auto;margin:0;" ${kit.backNameHidden?'':'checked'}> Mostrar nombre
+            </label>
+          </span>
           <span style="display:flex;gap:8px;">
             <button type="button" class="btn ghost sm" data-action="copy-name-style">Copiar estilo</button>
             <button type="button" class="btn ghost sm" data-action="paste-name-style-color">Pegar estilo y color</button>
@@ -999,6 +1126,18 @@ function modalAddEditKit(team, kit, fromManage){
           </div>
         </div>
         ` : ""}
+        ${!isRefKit ? `
+        <div class="subhead">Fecha de esta equipación</div>
+        <div class="form-grid" style="margin-bottom:4px;">
+          <label class="field" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:400;">
+            <input type="checkbox" id="f-kit-owndate" class="kit-modal-control" ${kit.ownDate?'checked':''} onchange="var d=document.getElementById('f-kit-datestart'); if(d){ d.disabled=!this.checked; if(this.checked) d.focus(); }">
+            <span>Esta equipación se presenta en fecha propia (distinta a la temporada)</span>
+          </label>
+          <label class="field">Se presenta
+            <input id="f-kit-datestart" type="date" class="kit-modal-control" value="${escapeHtml(kitToDateInput(kit.dateStart))}" ${kit.ownDate?'':'disabled'}>
+            <span style="font-size:10px;color:var(--muted);font-weight:400;">Solo si se presenta en fecha distinta a la de su temporada. La marca se define en la temporada.</span>
+          </label>
+        </div>` : ""}
       </div>
       <div class="modal-foot">
         <button class="btn ghost" data-action="cancel-kit-edit" data-team="${team.id}" data-from-manage="${fromManage?'1':'0'}">Cancelar</button>
@@ -1097,7 +1236,9 @@ function readBackNameFields(){
     backNameOffsetX: offsetX ? (parseInt(offsetX.value)||0) : 0,
     backNameOffsetY: offsetY ? (parseInt(offsetY.value)||0) : 0,
     backNameArc: arc ? (parseInt(arc.value)||1) : 1,
-    backNameTextCase: textCase ? textCase.value : "default"
+    backNameTextCase: textCase ? textCase.value : "default",
+    // Checkbox "Mostrar nombre": si está desmarcado, el nombre NO se dibuja en la espalda.
+    backNameHidden: (function(){ const el=document.getElementById("f-kit-backname-show"); return el ? !el.checked : false; })()
   };
 }
 // Escribe los valores de un objeto de estilo (como el que devuelve readBackNameFields) en los

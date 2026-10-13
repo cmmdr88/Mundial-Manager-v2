@@ -136,12 +136,10 @@ function kitOrdinalLabel(n){ return KIT_ORDINAL_LABELS[n] || ("Uniforme "+(n+1))
 function autoKitLabel(team, category){
   // Los uniformes de árbitro se numeran Kit 1, Kit 2… (no tienen Local/Visita).
   if(category==="arbitro") return "Kit " + (team.kits.filter(k=>k.category==="arbitro").length + 1);
-  if(category==="jugador"){
-    const n = team.kits.filter(k=>k.category==="jugador").length;
-    return kitOrdinalLabel(n);
-  }
-  const n = team.kits.filter(k=>k.category==="portero").length;
-  return "Portero "+kitOrdinalLabel(n);
+  // Etiqueta provisional (ensureTeamKits reetiqueta por temporada): se cuenta dentro de la temporada visible.
+  const sid = (typeof window!=="undefined" && window.KIT_ERA_VIEW) || null;
+  const n = (team.kits||[]).filter(k=>k.category===category && (sid? k.seasonId===sid : true)).length;
+  return category==="jugador" ? kitOrdinalLabel(n) : ("Portero "+kitOrdinalLabel(n));
 }
 function normalizeKitFields(k){
     if(k.color3===undefined) k.color3 = "#FFFFFF";
@@ -216,6 +214,13 @@ function normalizeKitFields(k){
     k.badgeNameTextCase = k.badgeNameLinked ? k.backNameTextCase : (k.badgeNameTextCase || k.backNameTextCase);
     if(k.baseNumber===undefined) k.baseNumber = DB.kitBases[0] ? DB.kitBases[0].number : 1;
     if(k.category==="portero" && !Array.isArray(k.linkedJugadorKitIds)) k.linkedJugadorKitIds = [];
+    // --- Versiones por temporada/fecha ---
+    // slotKey agrupa las versiones (por época) de una MISMA equipación (Local, Visita, Portero…).
+    // Los kits antiguos sin slotKey se convierten cada uno en su propio slot (una sola versión).
+    if(k.slotKey===undefined || k.slotKey===null) k.slotKey = k.id || null;
+    if(k.dateStart===undefined || k.dateStart===null) k.dateStart = "";   // "" = desde siempre (base); "yyyy-mm-dd" o "yyyy-mm"
+    if(k.ownDate===undefined) k.ownDate = false;                          // true = esta equipación se estrena en fecha propia
+    if(k.brand===undefined) k.brand = null;                               // marca (patrocinador de indumentaria) de esta versión
     k.combinations.forEach(c=>{
       if(c.shortsColor1===undefined) c.shortsColor1 = k.color1;
       if(c.shortsColor2===undefined) c.shortsColor2 = k.color2;
@@ -241,14 +246,118 @@ function ensureTeamKits(t){
     t.kits.push({id:newId("kit"), category:"portero", label:"Portero "+kitOrdinalLabel(n), baseNumber:1, color1:"#2E2E2E", color2:"#39FF14", color3:"#FFFFFF", layers:[]});
   }
   t.kits.forEach(normalizeKitFields);
-  // Mantiene siempre la nomenclatura correcta según el orden (Local, Visita, Tercero... / Portero Local, Portero Visita...),
-  // así selecciones con nombres de versiones anteriores (Visitante, Tercera...) quedan al día solas.
-  const jugadorIds = new Set(t.kits.filter(k=>k.category==="jugador").map(k=>k.id));
+  ensureKitSeasons(t);
+  // Los enlaces de portero→jugador solo valen DENTRO de la misma temporada (parrillas independientes).
   t.kits.filter(k=>k.category==="portero").forEach(k=>{
-    k.linkedJugadorKitIds = (k.linkedJugadorKitIds||[]).filter(id=>jugadorIds.has(id));
+    const sameSeasonJug = new Set(t.kits.filter(j=>j.category==="jugador" && j.seasonId===k.seasonId).map(j=>j.id));
+    k.linkedJugadorKitIds = (k.linkedJugadorKitIds||[]).filter(id=>sameSeasonJug.has(id));
   });
-  t.kits.filter(k=>k.category==="jugador").forEach((k,i)=>{ k.label = kitOrdinalLabel(i); });
-  t.kits.filter(k=>k.category==="portero").forEach((k,i)=>{ k.label = "Portero "+kitOrdinalLabel(i); });
+  // Etiquetas por TEMPORADA: dentro de cada temporada y categoría, ordinal Local/Visita/Tercero…
+  // (Portero Local…). Cada temporada es una parrilla INDEPENDIENTE con sus propios kits.
+  const relabel=(cat, pre)=>{
+    orderedSeasons(t).forEach(s=>{
+      t.kits.filter(k=>k.category===cat && k.seasonId===s.id).forEach((k,i)=>{
+        k.label = pre ? (pre+kitOrdinalLabel(i)) : kitOrdinalLabel(i);
+      });
+    });
+  };
+  relabel("jugador","");
+  relabel("portero","Portero ");
+}
+// ---- Temporadas (parrillas INDEPENDIENTES por época) de un equipo ----
+// Cada temporada tiene nombre (manual), fecha de PRESENTACIÓN (calendario) y marca, y su PROPIO juego de
+// equipaciones (kits con seasonId). Agregar/eliminar un kit en una temporada NO toca las demás.
+function ensureKitSeasons(team){
+  if(!team || team.isRefereeKits) return;
+  if(!Array.isArray(team.kitSeasons)) team.kitSeasons=[];
+  const kits=(team.kits||[]).filter(k=>k.category!=="arbitro");
+  const byId={}; team.kitSeasons.forEach(s=>{ byId[s.id]=s; });
+  // Kits sin temporada válida → temporada base (reutiliza una con fecha "" o la crea con el año del juego).
+  const seasonless=kits.filter(k=>!(k.seasonId && byId[k.seasonId]));
+  if(seasonless.length){
+    let base=team.kitSeasons.find(s=>String(s.date||"")==="") || null;
+    if(!base){ base={id:newId("ksn"), name:(String(kitTodayISO()).slice(0,4)||"Base"), date:"", brand:(team.kitSponsor||null)}; team.kitSeasons.push(base); byId[base.id]=base; }
+    seasonless.forEach(k=>{ k.seasonId=base.id; });
+  }
+  // Poda temporadas sin kits y ordena por fecha de presentación.
+  const used=new Set(kits.map(k=>k.seasonId));
+  team.kitSeasons=team.kitSeasons.filter(s=>used.has(s.id));
+  team.kitSeasons.sort((a,b)=>kitDateExpand(a.date).localeCompare(kitDateExpand(b.date)));
+}
+function kitSeasonOf(team,k){ return ((team&&team.kitSeasons)||[]).find(s=>s.id===(k&&k.seasonId))||null; }
+function orderedSeasons(team){ return ((team&&team.kitSeasons)||[]).slice().sort((a,b)=>kitDateExpand(a.date).localeCompare(kitDateExpand(b.date))); }
+// Id de la temporada VIGENTE en una fecha (por defecto, la fecha del juego): la de mayor presentación <= fecha.
+function currentSeasonId(team, dateISO){
+  const ss=orderedSeasons(team); if(!ss.length) return null;
+  const d=kitDateExpand(dateISO || kitTodayISO()); let pick=ss[0];
+  ss.forEach(s=>{ if(kitDateExpand(s.date)<=d) pick=s; }); return pick.id;
+}
+// Kits de una temporada y categoría, en orden (define el ordinal Local/Visita/…).
+function seasonKitsCat(team, seasonId, category){
+  return ((team&&team.kits)||[]).filter(k=>k.category===category && k.seasonId===seasonId);
+}
+// Un kit por parrilla vigente HOY (para perfiles/vistas): la temporada actual, por categoría.
+function currentSlotKits(team, category){
+  return seasonKitsCat(team, currentSeasonId(team, kitTodayISO()), category);
+}
+// Resolución para el informe: temporada vigente a la FECHA del partido → kit por ordinal (Local=1…).
+// Si ese kit tiene fecha propia posterior al partido, retrocede a la temporada anterior.
+function seasonKitByOrdinal(team, category, num, dateISO){
+  const ss=orderedSeasons(team); if(!ss.length) return null;
+  let si=ss.findIndex(s=>s.id===currentSeasonId(team, dateISO)); if(si<0) si=0;
+  const idx=(num!=null && num>=1)?(num-1):0;
+  const d=kitDateExpand(dateISO || "9999-12-31");
+  for(let i=si;i>=0;i--){
+    const kits=seasonKitsCat(team, ss[i].id, category);
+    const k=kits[idx]||kits[0];
+    if(!k) continue;
+    if(k.ownDate && kitDateExpand(k.dateStart) > d) continue;   // fecha propia aún no presentada
+    return k;
+  }
+  const first=seasonKitsCat(team, ss[0].id, category);
+  return first[idx]||first[0]||null;
+}
+// Normaliza una fecha a "yyyy-mm-dd" comparable ("" = desde siempre → mínimo).
+function kitDateExpand(s){
+  s=String(s||"").trim();
+  if(!s) return "0000-00-00";
+  if(/^\d{4}$/.test(s)) return s+"-01-01";
+  if(/^\d{4}-\d{2}$/.test(s)) return s+"-01";
+  return s;   // se asume yyyy-mm-dd
+}
+// Fecha actual del juego como ISO (para elegir la temporada vigente en perfiles/vistas).
+function kitTodayISO(){
+  try{ const d=(window.GameTime&&GameTime.now)?GameTime.now():new Date(); const p=n=>String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }catch(e){ return ""; }
+}
+const KIT_MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+// Interpreta lo que teclea el usuario ("d/m/aaaa", "m/aaaa", "aaaa", o ISO) → "yyyy-mm-dd" / "yyyy-mm" / "".
+function parseUserKitDate(str){
+  str=String(str||"").trim(); if(!str) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str) || /^\d{4}-\d{2}$/.test(str) || /^\d{4}$/.test(str)) return str;  // ya ISO
+  const p=str.split(/[\/\-.\s]+/).filter(Boolean).map(x=>parseInt(x,10));
+  const pad=n=>String(n).padStart(2,"0");
+  if(p.length>=3 && p[2]>=1000){ return `${p[2]}-${pad(p[1])}-${pad(p[0])}`; }   // d m aaaa
+  if(p.length===2 && p[1]>=1000){ return `${p[1]}-${pad(p[0])}`; }               // m aaaa
+  if(p.length===1 && p[0]>=1000){ return String(p[0]); }                          // aaaa
+  return str;
+}
+// ISO ("yyyy-mm-dd"/"yyyy-mm"/"yyyy"/"") → texto legible para el usuario.
+function formatUserKitDate(iso){
+  iso=String(iso||"").trim(); if(!iso) return "";
+  const m=iso.split("-").map(x=>parseInt(x,10));
+  if(m.length>=3) return `${m[2]}/${m[1]}/${m[0]}`;
+  if(m.length===2) return `${m[1]}/${m[0]}`;
+  return String(m[0]||"");
+}
+// Etiqueta corta de una temporada (fecha de estreno) para la barra de navegación: "mar 2026" / "Base".
+function kitEraLabel(iso){
+  iso=String(iso||"").trim(); if(!iso) return "Base";
+  const m=iso.split("-").map(x=>parseInt(x,10));
+  const mes=(m[1]>=1&&m[1]<=12)?KIT_MESES[m[1]-1]:"";
+  if(m.length>=3) return `${m[2]}${mes?" "+mes:""} ${String(m[0])}`.replace(/\s+/g," ").trim();
+  if(m.length===2) return `${mes} ${m[0]}`.trim();
+  return String(m[0]||"");
 }
 
 /* ---------- Uniformes de árbitros del torneo ---------- */
@@ -280,9 +389,11 @@ function refereeKitSponsorName(){
 }
 // Normaliza los uniformes de árbitro: todos en la categoría "arbitro" y renumerados Kit 1, Kit 2…
 // No crea ninguno por defecto — se agregan a mano.
-function ensureRefereeKits(){
-  const t = refereeKitsTeam();
-  if(!t) return null;
+function ensureRefereeKits(teamArg){
+  // Acepta el equipo de árbitros global (por defecto) o el envoltorio de una entidad (torneo,
+  // federación, confederación) — ver refKitsTeamFor.
+  const t = teamArg || refereeKitsTeam();
+  if(!t || !Array.isArray(t.kits)) return t||null;
   t.kits.forEach(k=>{
     k.category = "arbitro";
     if(k.refLocalKit===undefined) k.refLocalKit = false;
@@ -293,6 +404,43 @@ function ensureRefereeKits(){
   t.kits.forEach((k,i)=>{ k.label = "Kit " + (i+1); });
   return t;
 }
+
+/* ---------- Uniformes de árbitro POR ENTIDAD (torneo / federación / confederación) ---------- */
+// Igual que el equipo de árbitros del torneo, pero los kits viven dentro de la propia entidad
+// (<entidad>.refereeKits) y su marca de ropa en <entidad>.refereeKitSponsor. Se envuelve como
+// "equipo" para reutilizar TODO el editor de uniformes (modalManageKits/add-kit/edit-kit/save-kit).
+const REFKITS_ID_PREFIX = "__refkits__:";
+function refKitsWrapId(kind, entityId){ return REFKITS_ID_PREFIX + kind + ":" + entityId; }
+function refKitsEntityFor(wrapId){
+  if(typeof wrapId!=="string" || wrapId.indexOf(REFKITS_ID_PREFIX)!==0) return null;
+  const rest = wrapId.slice(REFKITS_ID_PREFIX.length);
+  const i = rest.indexOf(":"); if(i<0) return null;
+  const kind = rest.slice(0,i), eid = rest.slice(i+1);
+  if(kind==="comp") return { kind, id:eid, entity:(DB.competitions||[]).find(c=>c.id===eid)||null, name:"competición" };
+  if(kind==="conf") return { kind, id:eid, entity:(DB.confederations&&DB.confederations[eid])||null, name:"confederación" };
+  if(kind==="fifa"){ if(!DB.fifa) return null; return { kind, id:eid, entity:DB.fifa, name:"FIFA" }; }
+  if(kind==="fed"){ const tm=(DB.teams||[]).find(t=>t.id===eid); if(tm){ if(!tm.federation) tm.federation={}; return { kind, id:eid, entity:tm.federation, name:"federación" }; } return null; }
+  return null;
+}
+// Devuelve un "equipo" envoltorio cuyos .kits y .kitSponsor apuntan (get/set) a la entidad real,
+// de modo que cualquier cambio del editor se guarda directamente en ella.
+function refKitsTeamFor(wrapId){
+  const found = refKitsEntityFor(wrapId);
+  if(!found || !found.entity) return null;
+  const ent = found.entity;
+  if(!Array.isArray(ent.refereeKits)) ent.refereeKits = [];
+  const wrap = { id: wrapId, commonName: "árbitros", isRefereeKits: true };
+  Object.defineProperty(wrap, "kits", {
+    get(){ if(!Array.isArray(ent.refereeKits)) ent.refereeKits=[]; return ent.refereeKits; },
+    set(v){ ent.refereeKits = v; }, enumerable:true, configurable:true
+  });
+  Object.defineProperty(wrap, "kitSponsor", {
+    get(){ return ent.refereeKitSponsor||""; },
+    set(v){ ent.refereeKitSponsor = v; }, enumerable:true, configurable:true
+  });
+  return wrap;
+}
+function isRefKitsWrapId(id){ return typeof id==="string" && id.indexOf(REFKITS_ID_PREFIX)===0; }
 // Países anfitriones del torneo, tomados de la edición del año en curso en el historial. Si esa
 // edición no tiene sedes cargadas, se usan las de la constante como respaldo.
 function refereeLocalKitCountries(){
