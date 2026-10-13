@@ -38,18 +38,36 @@ function newsPhotoTraining(coachPhoto, teamLogo, widthPx, gender){
     + `</div>`;
   return `<div style="width:${W}px;height:${H}px;overflow:hidden;border-radius:${Math.round(10*k)}px;"><div style="transform:scale(${k});transform-origin:top left;">${inner}</div></div>`;
 }
-// BACK 2 — press wall: fragmento del muro (centrado horizontal, bajado 25px, 120%) con blur(1) + entrenador.
-function newsPhotoPresswall(coachPhoto, widthPx, gender){
+// BACK 2 — press wall: fragmento del muro (centrado horizontal, bajado 25px, 120%) con blur(.5) + entrenador.
+function newsPhotoPresswall(team, coachPhoto, widthPx, gender){
   const W=widthPx||480, k=W/480, H=270*k;
-  const Z=1.20, cy=0.61, down=25;
-  const Wc=(480/0.746667)*Z, Hc=Wc*8006/8013;
-  const left=240-0.5*Wc, top=135-cy*Hc+down;
-  const bg = (typeof PRESSWALL_BG!=="undefined") ? PRESSWALL_BG : "";
-  const tiles = (typeof pressWallTilesHTML==="function") ? pressWallTilesHTML() : "";
+  // Antes de que arranque el torneo se usa el press wall de la SELECCIÓN; si no tiene uno propio,
+  // el default (por ahora, el mismo del Mundial). El muro se compone igual que en el previo del editor.
+  // IMPORTANTE: el onboarding trabaja con un snapshot de equipos (DATA) que NO incluye el press wall,
+  // así que el press wall se resuelve SIEMPRE desde el DB en vivo, por id.
+  let ownerAttr="event", back="", gpct=100, gx=0, gy=0;
+  try{
+    let dbTeam=null;
+    if(team && team.id){ dbTeam=(DB.teams||[]).find(x=>x.id===team.id)||null; }
+    const eff = dbTeam || team;
+    if(eff && typeof pwOwnerHasWall==="function" && pwOwnerHasWall(eff)){ ownerAttr=eff.id; back=eff.pressWallBgImg||""; gpct=eff.pressWallGraphicPct||100; gx=eff.pressWallGraphicX||0; gy=eff.pressWallGraphicY||0; }
+    else { back=(DB.event&&DB.event.pressWallBgImg)||""; gpct=(DB.event&&DB.event.pressWallGraphicPct)||100; gx=(DB.event&&DB.event.pressWallGraphicX)||0; gy=(DB.event&&DB.event.pressWallGraphicY)||0; }
+  }catch(e){}
+  // "Porcentaje en gráfico" (1-200%, default 100%) + posición (gx/gy) del gráfico.
+  gpct=Math.max(1,Math.min(200,parseInt(gpct)||100));
+  gx=Math.max(-400,Math.min(400,parseInt(gx)||0)); gy=Math.max(-400,Math.min(400,parseInt(gy)||0));
+  const Z=gpct/100;
+  const Hc=270*Z, Wc=Hc*8100/3400;
+  const left=240-0.5*Wc+gx, top=135-0.5*Hc+gy;
+  const wallBg = back ? `#ffffff url('${back}') center/cover no-repeat` : "#ffffff";
+  const wid = "pwnews-"+Math.random().toString(36).slice(2,9);
   const coach=_newsCoachImg(coachPhoto,'bottom center',gender);
+  // Capas (de atrás hacia adelante): back+logos → negro sólido 22% + blur sutil (profundidad) → entrenador.
+  // El negro y el blur van SOBRE el muro y los logos, pero el entrenador queda al frente (sin oscurecer ni desenfocar).
   const inner = `<div style="position:relative;width:480px;height:270px;overflow:hidden;background:#0E1830;">`
-    + `<div style="position:absolute;left:${left}px;top:${top}px;width:${Wc}px;height:${Hc}px;background:url('${bg}') center/cover;filter:blur(1px);">${tiles}</div>`
-    + `<div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:88%;display:flex;align-items:flex-end;justify-content:center;">${coach}</div>`
+    + `<div id="${wid}" class="pw-fill" data-pw-owner="${ownerAttr}" data-pw-keepsize="1" style="position:absolute;z-index:0;left:${left}px;top:${top}px;width:${Wc}px;height:${Hc}px;background:${wallBg};"></div>`
+    + `<div style="position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.18);backdrop-filter:blur(.5px);-webkit-backdrop-filter:blur(.5px);"></div>`
+    + `<div style="position:absolute;z-index:2;left:50%;bottom:0;transform:translateX(-50%);height:88%;display:flex;align-items:flex-end;justify-content:center;">${coach}</div>`
     + `</div>`;
   return `<div style="width:${W}px;height:${H}px;overflow:hidden;border-radius:${Math.round(10*k)}px;"><div style="transform:scale(${k});transform-origin:top left;">${inner}</div></div>`;
 }
