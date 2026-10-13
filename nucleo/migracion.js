@@ -144,6 +144,11 @@ function migrateDB(){
   else DB.stadiums.forEach(s=>{
     if(s.state===undefined) s.state = "";
     if(s.owner===undefined) s.owner = "";
+    // Tipo de propiedad: por defecto "Club" (comportamiento anterior: el dueño era un club).
+    if(s.ownershipType===undefined) s.ownershipType = "Club";
+    // Segundo color de grada: por defecto igual al primero y ligado (sigue al primero hasta editarlo).
+    if(s.standColor2===undefined) s.standColor2 = s.standColor || "#B00010";
+    if(s.standColor2Linked===undefined) s.standColor2Linked = true;
     if(!Array.isArray(s.teams)) s.teams = [];
     if(s.nickname===undefined) s.nickname = "";
     if(s.showNickname===undefined) s.showNickname = false;
@@ -269,6 +274,12 @@ function migrateDB(){
   DB.teams.forEach(t=>{ if(t.eloRating==null && ELO_RATING[t.commonName]!=null) t.eloRating = ELO_RATING[t.commonName]; });
   if(!DB.fifa) DB.fifa = buildDefaultFifa();
   if(!DB.strings) DB.strings = {};
+  // El texto "Nombre de torneo FIFA" pasa a "Nombre FIFA/UEFA". La semilla y los guardados traen la
+  // etiqueta personalizada "Nombre FIFA" (en DB.strings), que tiene prioridad sobre el default; aquí se
+  // actualiza a la nueva en cualquier partida (semilla o guardada). Idempotente.
+  if(DB.strings["stadium.tournamentName.label"]==="Nombre FIFA" || DB.strings["stadium.tournamentName.label"]==="Nombre de torneo FIFA"){
+    DB.strings["stadium.tournamentName.label"] = "Nombre FIFA/UEFA";
+  }
   if(DB.tabsMeta){
     // Migración: las personalizaciones viejas de pestañas pasan al sistema unificado de textos
     TABS.forEach(([id,label])=>{
@@ -294,7 +305,30 @@ function migrateDB(){
     if(s.color1===undefined) s.color1 = "#4F46E5";
     if(s.color2===undefined) s.color2 = "#15161D";
     if(s.color3===undefined) s.color3 = "#FFFFFF";
+    if(!Array.isArray(s.logoAlts)) s.logoAlts = [];
   });
+  // Relaciones entre patrocinadores ("Empresas relacionadas"): lista global de aristas dirigidas.
+  if(!Array.isArray(DB.sponsorRelations)) DB.sponsorRelations = [];
+  // VALORES POR ENLACE: cada "Ligado a" pasa a tener su propio valor. Una sola vez, todos los enlaces
+  // existentes quedan en 0 EXCEPTO el de la Copa del Mundo (enlace de torneo), que hereda el valor
+  // actual del patrocinador. Después, cada enlace nuevo nace en 0 y el usuario lo edita a mano.
+  if(!DB.sponsorLinkValuesDone){
+    DB.sponsors.forEach(s=>{
+      // Asegura `links` (deriva de global/teamId si aún no existía).
+      if(!Array.isArray(s.links)){
+        const links = [];
+        if(s.global) links.push({type:"tournament"});
+        if(s.teamId) links.push({type:"team", id:s.teamId});
+        s.links = links;
+      }
+      const wcVal = Math.max(0, parseInt(s.value)||0);
+      s.links.forEach(l=>{ l.value = (l.type==="tournament") ? wcVal : 0; });
+      // El valor del patrocinador (compat/orden) queda igual al de su enlace de torneo (0 si no lo tiene).
+      const t = s.links.find(l=>l.type==="tournament");
+      s.value = t ? (t.value||0) : 0;
+    });
+    DB.sponsorLinkValuesDone = true;
+  }
   // Medios: logo y 3 colores.
   DB.media.forEach(m=>{
     if(m.logoImg===undefined) m.logoImg = null;
@@ -481,8 +515,163 @@ function migrateDB(){
     if(typeof rejoinCommaCountries==="function") rejoinCommaCountries();
     DB._commaCountryRejoinV1 = true;
   }
+  // Amistosos de preparación de México rumbo al Mundial (forma reciente + calendario). Idempotente.
+  if(typeof ensureMexicoFriendlies==="function") ensureMexicoFriendlies();
   // Numeración oficial de los partidos (M1–M104): se sella en cada partido para poder ligar árbitros.
   if(typeof assignMatchNumbers==="function") assignMatchNumbers();
+}
+
+/* ============================================================
+   Amistosos de preparación de México rumbo al Mundial 2026.
+   Siembra 5 amistosos jugados + 1 futuro (vs Serbia), creando o ligando
+   árbitros, estadios y goleadores según haga falta. Idempotente y
+   self-healing: no duplica nada que ya exista (partidos por id estable;
+   árbitros, estadios y jugadores por nombre). Alimenta la "forma" reciente.
+   ============================================================ */
+const MEX_FRIENDLIES_SEED = [
+  { id:"amistoso-mex-2026-02-25", date:"2026-02-25", time:"20:00", opponent:"Islandia",
+    stadium:{name:"Estadio Corregidora", city:"Querétaro", state:"Querétaro", country:"México", capacity:33162},
+    referee:{firstName:"Steven", lastName:"Madrigal", country:"Costa Rica"},
+    attendance:34130, played:true, scoreA:4, scoreB:0,
+    goals:[ {team:"MEX", player:"Richard Ledezma", minute:"22"}, {team:"MEX", player:"Armando González", minute:"24"},
+            {team:"MEX", player:"Jesús Gallardo", minute:"59"}, {team:"MEX", player:"Brian Gutiérrez", minute:"90+2"} ] },
+  { id:"amistoso-mex-2026-03-28", date:"2026-03-28", time:"20:00", opponent:"Portugal",
+    stadium:{name:"Estadio Banorte", city:"Ciudad de México", state:"", country:"México", capacity:83264},
+    referee:{firstName:"Walter", lastName:"López", country:"Guatemala"},
+    attendance:84130, played:true, scoreA:0, scoreB:0, goals:[] },
+  { id:"amistoso-mex-2026-03-31", date:"2026-03-31", time:"19:00", opponent:"Bélgica",
+    stadium:{name:"Soldier Field", city:"Chicago", state:"Illinois", country:"Estados Unidos", capacity:61500},
+    referee:{firstName:"Rosendo", lastName:"Mendoza", country:"Estados Unidos"},
+    attendance:52412, played:true, scoreA:1, scoreB:1,
+    goals:[ {team:"MEX", player:"Jorge Sánchez", minute:"19"}, {team:"OPP", player:"Dodi Lukébakio", minute:"46"} ] },
+  { id:"amistoso-mex-2026-05-22", date:"2026-05-22", time:"20:00", opponent:"Ghana",
+    stadium:{name:"Estadio Cuauhtémoc", city:"Puebla", state:"Puebla", country:"México", capacity:46416},
+    referee:{firstName:"Selvin", lastName:"Brown", country:"Honduras"},
+    attendance:41235, played:true, scoreA:2, scoreB:0,
+    goals:[ {team:"MEX", player:"Brian Gutiérrez", minute:"2"}, {team:"MEX", player:"Guillermo Martínez", minute:"54"} ] },
+  { id:"amistoso-mex-2026-05-30", date:"2026-05-30", time:"20:00", opponent:"Australia",
+    stadium:{name:"Rose Bowl", city:"Pasadena", state:"California", country:"Estados Unidos", capacity:88565},
+    referee:{firstName:"Rubiel", lastName:"Vásquez", country:"Estados Unidos"},
+    attendance:78479, played:true, scoreA:1, scoreB:0,
+    goals:[ {team:"MEX", player:"Johan Vásquez", minute:"27"} ] },
+  { id:"amistoso-mex-2026-06-04", date:"2026-06-04", time:"20:00", opponent:"Serbia",
+    stadium:{name:"Estadio Nemesio Díez", city:"Toluca", state:"Estado de México", country:"México", capacity:30000},
+    referee:{firstName:"Keylor", lastName:"Herrera", country:"Costa Rica"},
+    attendance:null, played:false, scoreA:null, scoreB:null, goals:[] }
+];
+// Goleadores mexicanos que quizá no estén en el plantel: se crean con nombre y nacionalidad.
+const MEX_FRIENDLY_PLAYERS_TO_CREATE = [
+  { firstName:"Richard", lastName:"Ledezma", pos:"FW" }
+];
+
+// Busca un jugador dentro de una selección por nombre (varias variantes), sin distinguir acentos.
+function friendlyFindPlayer(team, name){
+  if(!team || !name) return null;
+  const key = normLoose(name);
+  const parts = name.trim().split(/\s+/);
+  const first = normLoose(parts[0]||""), last = normLoose(parts[parts.length-1]||"");
+  return (team.players||[]).find(p=>{
+    const fn = normLoose((p.firstName||"")+" "+(p.lastName||""));
+    const cn = normLoose(p.commonName||"");
+    const full = normLoose(p.fullName||"");
+    if(fn===key || cn===key || full===key) return true;
+    if(key && full && full.indexOf(key)>=0) return true;
+    if(first && last && normLoose(p.firstName||"")===first && normLoose(p.lastName||"")===last) return true;
+    return false;
+  }) || null;
+}
+// Crea un jugador con lo mínimo (nombre + nacionalidad). Fuera de la convocatoria (sin dorsal), por lo
+// que no altera el rating del equipo (isRegistered exige dorsal y no numberUnassigned).
+function friendlyCreatePlayer(team, sp, countryId){
+  const p = {
+    id: newId("p"),
+    firstName: sp.firstName||"", lastName: sp.lastName||"", commonName:"",
+    fullName: (sp.firstName+" "+sp.lastName).trim(),
+    pos: sp.pos||"MF", number: null, birthDate: null, club:"", rating: null, brand:"",
+    nationalityIds: countryId?[countryId]:[], declaredForCountryId: countryId||null,
+    caps:0, goalsNational:0, favNumbersTeam:[], favNumbersClub:[],
+    shirtNameTeam:(sp.lastName||"").toUpperCase(), shirtNameClub:(sp.lastName||"").toUpperCase(),
+    fullNameLinked:false, shirtNameTeamLinked:false, shirtNameClubLinked:false,
+    height:null, numberUnassigned:true, ratingPotential:null, numberClub:null, gender:"Masculino"
+  };
+  if(!Array.isArray(team.players)) team.players=[];
+  team.players.push(p);
+  return p;
+}
+// Crea o encuentra un árbitro por nombre (misma forma que applyRefereeSeed). Idempotente.
+function ensureFriendlyReferee(ref){
+  if(!Array.isArray(DB.referees)) DB.referees=[];
+  const key = r=>normLoose((r.firstName||"")+" "+(r.lastName||""));
+  const target = normLoose((ref.firstName||"")+" "+(ref.lastName||""));
+  let r = DB.referees.find(x=>key(x)===target);
+  if(r) return r;
+  const cid = refereeSeedCountryId(ref.country);
+  r = { id:newId("ref"), firstName:ref.firstName||"", lastName:ref.lastName||"", commonName:"", fullName:"",
+        fullNameLinked:true, birthDate:null, gender:"Masculino", fifaSince:null,
+        nationalityIds: cid?[cid]:[], countryRepresentsId: cid||null, countryWorksIds: cid?[cid]:[],
+        role:"Árbitro central", previousWorldCups:[], matches:[], photo:null };
+  DB.referees.push(r);
+  return r;
+}
+function ensureMexicoFriendlies(){
+  if(!Array.isArray(DB.fixtures)) DB.fixtures=[];
+  const findTeam = n => (DB.teams||[]).find(t=>normLoose(t.commonName||t.name)===normLoose(n));
+  const mex = findTeam("México");
+  if(!mex) return 0;
+  const mexCountryId = refereeSeedCountryId("México");
+  // 1) Goleadores mexicanos faltantes → se crean (nombre + nacionalidad).
+  MEX_FRIENDLY_PLAYERS_TO_CREATE.forEach(sp=>{
+    if(!friendlyFindPlayer(mex, sp.firstName+" "+sp.lastName)) friendlyCreatePlayer(mex, sp, mexCountryId);
+  });
+  // 2) Partidos + árbitros + estadios + goles.
+  let added=0;
+  MEX_FRIENDLIES_SEED.forEach(seed=>{
+    const existing = DB.fixtures.find(f=>f.id===seed.id);
+    if(existing){ healFriendlyGoals(existing); return; } // ya sembrado: sólo re-liga goleadores
+    const opp = findTeam(seed.opponent);
+    if(!opp) return;
+    const st = (typeof ensureStadiumFromName==="function")
+      ? ensureStadiumFromName(seed.stadium.name, null, seed.stadium.country, seed.stadium.city, false) : null;
+    if(st){
+      if(seed.stadium.capacity && !st.capacity) st.capacity = seed.stadium.capacity;
+      if(seed.stadium.state && !(st.state||"").trim()) st.state = seed.stadium.state;
+    }
+    const ref = ensureFriendlyReferee(seed.referee);
+    const goals = (seed.goals||[]).map(g=>{
+      const scTeam = (g.team==="MEX") ? mex : opp;
+      const pl = friendlyFindPlayer(scTeam, g.player);
+      return { playerId: pl?pl.id:null, player: g.player, teamId: scTeam.id, minute: String(g.minute) };
+    });
+    DB.fixtures.push({
+      id: seed.id, stage:"amistoso", friendly:true, group:"", matchday:null,
+      teamA: mex.id, teamB: opp.id, played: !!seed.played,
+      scoreA: seed.scoreA, scoreB: seed.scoreB,
+      date: seed.date, time: seed.time,
+      venue: st ? st.officialName : seed.stadium.name,
+      city: (seed.stadium.city||"") + (seed.stadium.country ? ", "+seed.stadium.country : ""),
+      stadiumId: st?st.id:null, refereeId: ref?ref.id:null,
+      attendance: (seed.attendance!=null) ? seed.attendance : null,
+      goals: goals, matchNo:null
+    });
+    added++;
+  });
+  return added;
+}
+// Self-heal de goleadores de amistosos: un import/mover jugadores puede reemplazar registros y dejar
+// un playerId que ya no existe (p. ej. Richard Ledezma en México vs Islandia), rompiendo el enlace del
+// nombre. Se vuelve a ligar por nombre en cada carga; el teamId del gol no cambia con los imports.
+function healFriendlyGoals(fixture){
+  if(!fixture || !Array.isArray(fixture.goals)) return;
+  const teamById = id => (DB.teams||[]).find(t=>t.id===id);
+  fixture.goals.forEach(g=>{
+    const team = teamById(g.teamId);
+    if(!team) return;
+    const linked = g.playerId && Array.isArray(team.players) && team.players.some(p=>p.id===g.playerId);
+    if(linked) return; // sigue ligado correctamente
+    if(!g.player) return;
+    const pl = friendlyFindPlayer(team, g.player);
+    if(pl) g.playerId = pl.id; // re-liga; si no aparece, se deja el nombre como texto (sin enlace)
+  });
 }
 
 // Resuelve un nombre de país de la semilla de árbitros contra el catálogo, con alias para los que

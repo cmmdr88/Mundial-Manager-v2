@@ -262,5 +262,7 @@ let DB = null;
 function getTeam(id){
   // El contenedor de uniformes de árbitros se comporta como un equipo más para el editor de kits.
   if(id===REFEREE_KIT_TEAM_ID && typeof refereeKitsTeam==="function") return refereeKitsTeam();
+  // Uniformes de árbitro por entidad (torneo / federación / confederación): envoltorio con forma de equipo.
+  if(typeof isRefKitsWrapId==="function" && isRefKitsWrapId(id) && typeof refKitsTeamFor==="function"){ const w=refKitsTeamFor(id); if(w) return w; }
   return DB.teams.find(t=>t.id===id) || (DB.clubsData && DB.clubsData.find(c=>c.id===id));
 }
