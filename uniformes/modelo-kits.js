@@ -164,6 +164,9 @@ function normalizeKitFields(k){
     });
     if(!Array.isArray(k.layers)) k.layers = [];
     if(!Array.isArray(k.backLayers)) k.backLayers = [];
+    if(!Array.isArray(k.badgeLayers)) k.badgeLayers = [];   // capas adicionales del cuadro de número+nombre
+    if(!Array.isArray(k.images)) k.images = [];          // escudo, marca, patrocinadores y parches (frente)
+    if(!Array.isArray(k.backImages)) k.backImages = [];  // … (dorso)
     if(k.backNumberFontId===undefined) k.backNumberFontId = DB.numberFonts[0] ? DB.numberFonts[0].id : null;
     if(k.backNumberColor===undefined) k.backNumberColor = "#FFFFFF";
     if(k.backNumberOutline===undefined) k.backNumberOutline = false;
