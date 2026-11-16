@@ -61,7 +61,7 @@
       let m=line.match(/^(\d{1,3})\s*,\s*(.+?)\s+-\s+(.+?)\s+-\s+(.+)$/);
       if(m){ flush(); cur={type:"replacement", dorsal:parseInt(m[1],10), outName:m[2].trim(), inName:m[3].trim(), date:parseDate(m[4]), _team:curTeam, _need:"desc"}; return; }
       // Lesión:  "Nombre - fecha de lesión"  (un solo " - ", termina en fecha)
-      m=line.match(/^([^-]+?)\s+-\s+(.+)$/);
+      m=line.match(/^(.+?)\s+-\s+(.+)$/);   // el guion SEPARADOR lleva espacios: "Heung-min Son - 2 de junio…" funciona
       if(m && hasDate(m[2])){ const d=parseDate(m[2]); if(d){ flush(); cur={type:"injury", player:m[1].trim(), date:d, _team:curTeam, _need:"desc"}; return; } }
       // Dentro de una entrada: descripción o línea de fecha/lugar de la lesión (club / selección).
       if(cur && cur._need==="injdate"){

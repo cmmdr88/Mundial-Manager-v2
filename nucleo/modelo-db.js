@@ -87,7 +87,7 @@ function buildVisualPack(db){
   const pack = { __type:"copa-manager-visual-pack", version:(src&&src.version)||2,
     teams:{}, playerPhotos:{}, clubs:{}, media:{}, confederations:{}, event:{}, fifa:{}, numberFonts:[] };
   if(!src) return pack;
-  const TEAM_VISUAL = ["logoImg","kits","color1","color2","color3","kitSponsor"];
+  const TEAM_VISUAL = ["logoImg","logoAlts","kits","color1","color2","color3","kitSponsor"];
   const CLUB_VISUAL = TEAM_VISUAL;
   const has = v => !(v===null || v===undefined || v==="" || (Array.isArray(v)&&v.length===0));
   const pick = (obj, fields)=>{ const out={}; fields.forEach(f=>{ if(has(obj[f])) out[f]=obj[f]; }); return out; };

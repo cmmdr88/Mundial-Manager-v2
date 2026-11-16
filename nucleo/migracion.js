@@ -86,6 +86,10 @@ function migrateDB(){
     Object.keys(def).forEach(k=>{ if(DB.event[k]===undefined) DB.event[k] = def[k]; });
     if(!DB.event.conductPoints) DB.event.conductPoints = def.conductPoints;
     if(!Array.isArray(DB.event.rounds) || !DB.event.rounds.length) DB.event.rounds = def.rounds;
+    // Premio Jugador del partido (key "potm"): se agrega a los premios si aún no está.
+    if(Array.isArray(DB.event.awards) && !DB.event.awards.some(a=>a && a.key==="potm")){
+      const pd=(def.awards||[]).find(a=>a && a.key==="potm"); if(pd) DB.event.awards.push(Object.assign({}, pd));
+    }
   }
   repairDuplicateTeamIds();
   if(!DB.clubs){
@@ -152,10 +156,14 @@ function migrateDB(){
     if(!Array.isArray(s.teams)) s.teams = [];
     if(s.nickname===undefined) s.nickname = "";
     if(s.showNickname===undefined) s.showNickname = false;
+    if(s.nicknamePopular===undefined) s.nicknamePopular = false;   // apodo solo coloquial (no sale en la ficha)
     // Artículos de cada nombre (oficial / FIFA / apodo). Por defecto "El" hasta que se ajusten a mano.
     if(s.articleOfficial===undefined) s.articleOfficial = "El";
     if(s.articleTournament===undefined) s.articleTournament = "El";
     if(s.articleNickname===undefined) s.articleNickname = "El";
+    // Nombre corto (coloquial) y su artículo: vacío hasta que se capture en el editor.
+    if(s.shortName===undefined) s.shortName = "";
+    if(s.articleShort===undefined) s.articleShort = "El";
     // Clasificación: los que coinciden con las 16 sedes de la semilla son del Mundial 2026;
     // el resto (creados a mano o desde clubes) son "Otros estadios".
     if(s.worldCup===undefined) s.worldCup = STADIUMS_SEED.some(x=>normLoose(x.tournamentName)===normLoose(s.tournamentName));
@@ -519,6 +527,7 @@ function migrateDB(){
   if(typeof ensureMexicoFriendlies==="function") ensureMexicoFriendlies();
   // Numeración oficial de los partidos (M1–M104): se sella en cada partido para poder ligar árbitros.
   if(typeof assignMatchNumbers==="function") assignMatchNumbers();
+  if(typeof fixKnockoutScheduleWC26==="function") fixKnockoutScheduleWC26();
 }
 
 /* ============================================================
@@ -868,6 +877,28 @@ function splitCommaCountries(){
 // Sella el número oficial (1–104) en cada partido. Los de eliminación directa ya traen su código
 // ("M73"…), los de grupos se identifican por grupo + local + visitante contra WC26_MATCH_NUMBERS.
 // Idempotente y self-healing: solo escribe donde falta o donde cambió.
+// Corrige en bases ya guardadas los partidos de eliminación que se cargaron con el calendario oficial
+// anterior (casillas de M82/M84 y M86/M88 intercambiadas; sede y hora de M89/M90 intercambiadas).
+// Solo toca lo que sigue igual al dato viejo, así respeta lo importado o editado a mano. Idempotente.
+function fixKnockoutScheduleWC26(){
+  if(!Array.isArray(DB.fixtures)) return 0;
+  const by={}; DB.fixtures.forEach(f=>{ if(f && f.stage==="eliminatoria" && f.code) by[String(f.code).toUpperCase()]=f; });
+  let n=0;
+  const slot=(code, oldA, oldB, a, b)=>{ const f=by[code]; if(f && f.slotA===oldA && f.slotB===oldB){ f.slotA=a; f.slotB=b; n++; } };
+  slot("M82","1H","3:AEHIJ","1G","3:AEHIJ");
+  slot("M84","1G","2J","1H","2J");
+  slot("M86","1J","2G","1J","2H");
+  slot("M88","2D","2H","2D","2G");
+  const sede=(code, oldVenue, oldTime, venue, city, time)=>{ const f=by[code]; if(f && f.venue===oldVenue && f.time===oldTime){ f.venue=venue; f.city=city; f.time=time; n++; } };
+  sede("M89","Estadio Houston","13:00","Estadio Filadelfia","Philadelphia, PA","17:00");
+  sede("M90","Estadio Filadelfia","17:00","Estadio Houston","Houston, TX","13:00");
+  // Horas corregidas según el calendario oficial de la FIFA (hora del Este).
+  const hora=(f, oldT, newT)=>{ if(f && f.time===oldT){ f.time=newT; n++; } };
+  hora(by["M79"], "21:00", "22:00");
+  hora(by["M92"], "20:00", "21:00");
+  DB.fixtures.forEach(f=>{ if(f && f.matchNo && (f.matchNo===69 || f.matchNo===70) && f.date==="2026-06-27") hora(f, "23:00", "22:00"); });
+  return n;
+}
 function assignMatchNumbers(){
   if(!Array.isArray(DB.fixtures) || typeof matchNumberFor!=="function") return 0;
   let n = 0;
