@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Copa Manager 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Open+Sans:wght@700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0F1117;
@@ -395,6 +395,20 @@ tr:hover td{background:var(--surface-2);}
 .badge .logo-ic{margin-right:1px;}
 /* Tipografía del año en el badge de árbitro (Frutiger LT Com Bold, subconjunto de dígitos ~2 KB).
    Va incrustada porque los navegadores bloquean cargar fuentes desde archivos locales (file://). */
+/* Fondo de tarjeta de partido v2 (ver cardBgV2Style en funciones/clubes.js): el sólido (degradado de 1 o 2
+   colores, o color sólido) va sobre la imagen con el MISMO margen en los 4 lados y la misma curva. */
+.nm-v2{isolation:isolate;}
+.nm-v2::before{content:"";position:absolute;inset:var(--nm-gi,0px);border-radius:var(--nm-gr,16px);background:var(--nm-grad);z-index:-1;pointer-events:none;}
+.nm-v2.nm-sing::before{display:none;}
+/* Imagen de fondo: mismo % del ANCHO de la tarjeta, con su proporción real (no se estira); X/Y como background-position. */
+.nm-v2.nm-img::after{content:"";position:absolute;left:var(--nm-ix,50%);top:var(--nm-iy,50%);width:var(--nm-iw,100%);aspect-ratio:var(--nm-ir,1.7778);transform:translate(calc(-1 * var(--nm-ix,50%)),calc(-1 * var(--nm-iy,50%)));background:var(--nm-img) center/100% 100% no-repeat;z-index:-2;pointer-events:none;}
+.cbg-ratios{display:flex;gap:6px;}
+.cbg-ratio.on{background:var(--indigo);color:#fff;border-color:var(--indigo);}
+.cbg-prev{position:relative;overflow:hidden;border-radius:16px;aspect-ratio:6/1;min-height:0;padding:14px 20px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;color:#171826;box-shadow:var(--shadow);}
+.cbg-prev.cbg-dark{color:#fff;}
+.cbg-prev-t{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;opacity:.85;}
+.cbg-prev-m{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;}
+.cbg-prev-s{font-size:11px;opacity:.8;}
 @font-face{
   font-family:'FIFABadgeYear';
   src:url(data:font/woff2;base64,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) format('woff2');
@@ -443,6 +457,9 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 /* Fila 1: tarjeta de detalle (centro). Fila 2: cancha local | (incidencias + tiempo + estadísticas) | cancha visitante. */
 .mr-grid{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,660px) minmax(230px,1fr);grid-template-rows:auto auto;gap:18px;align-items:start;}
 .mr-topcard{grid-column:2;grid-row:1;}
+/* Rectángulo del informe y del en vivo: logos y textos centrados a la mitad (mismo aire arriba y abajo). */
+.mr-topcard .jg-nextmatch{padding:18px 22px;justify-content:center;}
+.mr-topcard .jg-nm-main{margin:auto 0;}
 .mr-side-l{grid-column:1;grid-row:2;}
 .mr-center{grid-column:2;grid-row:2;}
 .mr-side-r{grid-column:3;grid-row:2;}
@@ -477,17 +494,28 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 .mr-nm{font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);text-align:center;white-space:nowrap;max-width:74px;overflow:hidden;text-overflow:ellipsis;}
 /* Línea de tiempo */
 .mr-tl{display:flex;flex-direction:column;gap:8px;}
-.mr-tl-team{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12.5px;color:var(--muted);}
+.mr-tl-team{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--ink);}
 .mr-tl-team img{height:18px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.25);}
 .mr-tl-track{position:relative;height:132px;background:var(--surface-2);border-radius:10px;}
-.mr-tl-line{position:absolute;left:0;right:0;top:50%;height:4px;transform:translateY(-50%);background:#3aa76a;}
-.mr-tl-half{position:absolute;left:50%;top:8px;bottom:22px;width:0;border-left:1px dashed color-mix(in srgb,var(--muted) 45%,transparent);}
+/* Línea redondeada en morado (misma que la del partido en vivo) con la marca del medio tiempo al centro. */
+.mr-tl-line{position:absolute;left:1.5%;right:1.5%;top:50%;height:6px;transform:translateY(-50%);border-radius:4px;background:var(--indigo);}
+.mr-tl-line::after{content:"";position:absolute;left:var(--mt,50%);top:-4px;width:2px;height:14px;margin-left:-1px;border-radius:1px;background:var(--muted);opacity:.7;z-index:2;}
+.mr-tl-half{display:none;}
+.mr-clima-ic{display:inline-flex;align-items:center;vertical-align:-0.18em;margin-left:3px;cursor:default;}
+.mr-clima-ic svg{width:1.15em;height:1.15em;display:block;}
+.mr-tl-tick{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;border-radius:1px;background:var(--muted);opacity:.7;z-index:2;}
 .mr-tl-top,.mr-tl-bot{position:absolute;left:0;right:0;height:50%;}
 .mr-tl-top{top:0;} .mr-tl-bot{bottom:0;}
 /* Iconos SIN círculo blanco: balón, tarjetas y cambio, en los tonos del simulador. */
 .mr-ev{position:absolute;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;cursor:default;pointer-events:none;z-index:3;}
 .mr-tl-top .mr-ev{bottom:9px;} .mr-tl-bot .mr-ev{top:9px;}
-.mr-ball{display:inline-block;width:9px;height:9px;}
+.mr-ball{display:inline-block;flex-shrink:0;}
+/* Iconos de sucesos (SVG de events.svg): sin fondo ni máscara; el tamaño lo da evIcon(). */
+svg.evi{display:inline-block;flex-shrink:0;overflow:visible;vertical-align:middle;}
+.evi-box{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;vertical-align:middle;}
+.evi-box svg.evi{display:block;}
+svg.evi.mr-cardic{box-shadow:none;border-radius:0;background:none;}
+svg.evi.inc-card{background:none;border-radius:0;}
 .mr-cardic{display:inline-block;width:6px;height:8px;border-radius:1.5px;box-shadow:0 1px 2px rgba(0,0,0,.5);}
 .mr-subsvg{width:9px;height:9px;}
 .mr-cardic.yellow{background:#F5C518;} .mr-cardic.red{background:#E0413A;}
@@ -499,8 +527,10 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 /* Columna sensible de ALTO COMPLETO por minuto: al pasar el cursor (arriba o abajo de la línea) muestra
    su guía punteada y el tooltip. */
 .mr-col{position:absolute;top:0;bottom:0;width:2.6%;transform:translateX(-50%);cursor:default;z-index:4;}
-.mr-guide{position:absolute;left:50%;top:6px;bottom:20px;width:0;border-left:1.5px dashed color-mix(in srgb,var(--ink) 60%,transparent);transform:translateX(-50%);opacity:0;transition:opacity .1s;pointer-events:none;}
-.mr-col:hover .mr-guide{opacity:1;}
+/* Guía punteada: capa propia DEBAJO de los iconos (z 2 < 3), anclada en la misma X que el icono. */
+.mr-gl{position:absolute;top:0;bottom:0;width:0;z-index:2;pointer-events:none;}
+.mr-guide{position:absolute;left:0;top:6px;bottom:20px;width:0;border-left:1.5px dashed color-mix(in srgb,var(--ink) 60%,transparent);transform:translateX(-0.75px);opacity:0;transition:opacity .1s;pointer-events:none;}
+.mr-col:hover + .mr-gl .mr-guide{opacity:1;}
 .mr-guide-min{position:absolute;left:50%;bottom:-17px;transform:translateX(-50%);font-size:11px;font-weight:700;color:var(--ink);}
 /* Tooltip en los tonos del simulador (índigo), multilínea, por ENCIMA de la línea. */
 .mr-col[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);background:var(--indigo);color:#fff;font-size:11.5px;font-weight:600;line-height:1.5;white-space:pre;text-align:center;padding:7px 12px;border-radius:9px;box-shadow:0 8px 20px rgba(0,0,0,.5);z-index:60;pointer-events:none;}
@@ -515,11 +545,14 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 .mr-st-v{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;color:var(--ink);min-width:44px;}
 .mr-st-top .mr-st-v:last-child{text-align:right;}
 .mr-st-l{font-size:12.5px;color:var(--muted);font-weight:600;text-align:center;flex:1;}
-.mr-st-bar{display:flex;height:8px;border-radius:5px;overflow:hidden;background:var(--surface-2);gap:2px;}
-.mr-st-h{background:#35b06f;border-radius:5px 0 0 5px;min-width:2px;}
-.mr-st-a{background:var(--coral);border-radius:0 5px 5px 0;min-width:2px;}
+/* Barras redondeadas: morado (local) y verde (visitante). */
+.mr-st-bar{display:flex;height:6px;border-radius:4px;background:transparent;gap:3px;}
+.mr-st-h{background:var(--indigo);border-radius:4px;min-width:2px;transition:width .7s ease;}
+.mr-st-a{background:var(--lime);border-radius:4px;min-width:2px;transition:width .7s ease;}
 /* Lista de alineación bajo la cancha (titulares + suplentes). */
 .mr-lu{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:2px;}
+.mr-lu-int{color:var(--muted);font-weight:600;}
+.mr-lu-num.mr-lu-dt{letter-spacing:.03em;}   /* icono del entrenador: morado como el dorsal */
 .mr-lu-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:8px 0 4px;}
 .mr-lu-h:first-child{margin-top:0;}
 .mr-lu-row{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink);padding:2px 0;}
@@ -528,7 +561,7 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 .mr-lu-nm{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .mr-lu-pos.mr-lu-pos{font-size:7.5px;min-width:18px;padding:1px 4px;text-align:center;flex-shrink:0;}
 /* Etiqueta de capitán (icono C) junto a la posición, como en Plantilla. */
-.mr-lu-cap{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:4px;background:#eeca5c;flex-shrink:0;}
+.mr-lu-cap{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:4px;background:#FFA94D;flex-shrink:0;}
 .mr-lu-cap img{width:10px;height:10px;object-fit:contain;display:block;}
 /* Hover en titulares/suplentes: NO se pinta de morado; solo se atenúa un poco (como el cuadro de detalles). */
 .mr-lu-row[data-action]{transition:opacity .12s;}
@@ -559,6 +592,50 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 .mr-kit-prev{display:flex;gap:6px;align-items:center;justify-content:center;}
 .mr-kit-gar{display:flex;flex-direction:column;gap:5px;}
 .mr-kit-lbl{font-size:10.5px;color:var(--muted);font-weight:700;text-align:center;}
+/* Cuerpo arbitral (debajo de los uniformes): nombres del mismo tamaño que la alineación. */
+/* Editor de uniformes (como el de press walls): izquierda vistas previas + combinaciones, derecha pestañas.
+   Cada columna se recorre por separado. */
+.modal-box.kit-ed-box{max-width:min(1280px,96vw);width:min(1280px,96vw);height:min(880px,92vh);max-height:none;display:flex;flex-direction:column;overflow:hidden;}
+.kit-ed-box .modal-head{flex-shrink:0;}
+.kit-ed-box .modal-foot{flex-shrink:0;}
+.kit-ed-body{flex:1 1 auto;min-height:0;overflow:hidden;padding:16px 20px;}
+.kit-ed{display:grid;grid-template-columns:minmax(320px,0.9fr) minmax(0,1.1fr);gap:22px;height:100%;min-height:0;}
+.kit-ed-izq,.kit-ed-der{min-height:0;overflow-y:auto;padding-right:6px;}
+.kit-ed-prevs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.kit-ed-cap{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}
+.kit-ed-prev{width:100%;aspect-ratio:1/1;background:var(--surface-2);border-radius:10px;}
+.kit-ed-tabs{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:0;z-index:2;background:var(--surface);padding-bottom:10px;margin-bottom:6px;border-bottom:1px solid var(--line);}
+.kit-ed-tab.on{background:var(--indigo);color:#fff;border-color:var(--indigo);}
+.kit-ed-pane > .subhead:first-child{margin-top:0;}
+.kit-ed-pane-cuadro [data-action="toggle-kit-badge-panel"]{display:none !important;}
+.kit-ed-pane-cuadro #kit-badge-panel-body{display:block !important;margin-top:0 !important;}
+.kit-ed-pane-cuadro > div{background:transparent !important;padding:0 !important;margin-top:0 !important;}
+@media (max-width:900px){ .kit-ed{grid-template-columns:1fr;height:auto;} .kit-ed-body{overflow-y:auto;} .kit-ed-izq,.kit-ed-der{overflow:visible;} }
+/* Recolorear (escudos, logos y parches): botones, muestras con los colores del uniforme y color hex. */
+.kit-img-colores{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+.kit-img-sw-btn{padding:2px 7px !important;font-size:11px !important;}
+.kit-img-sw-btn.on{background:var(--indigo);color:#fff;border-color:var(--indigo);}
+.kit-img-sw{width:20px;height:20px;border-radius:5px;border:1px solid var(--line);cursor:pointer;padding:0;}
+.kit-img-sw.on,.kit-img-hex.on .kit-img-hex-picker{outline:2px solid var(--indigo);outline-offset:1px;}
+.kit-img-hex-picker{width:22px;height:22px;padding:0;border:none;background:none;cursor:pointer;}
+/* Editor de uniformes: escudos, logos y parches en DOS COLUMNAS (izquierda / derecha), plegados o desplegados. */
+.kit-img-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:10px;align-items:start;}
+.kit-img-grid:empty{display:none;}
+.kit-img-body select{width:auto;max-width:100%;}
+.kit-img-body > select, .kit-img-body > input{align-self:flex-start;}
+.kit-img-body input[type=file]{width:auto;}
+.mr-of-grid{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);column-gap:0;row-gap:12px;align-items:start;}
+.mr-of-full{grid-column:1 / -1;justify-self:center;}
+.mr-of-c1{grid-column:1;justify-self:start;} .mr-of-c2{grid-column:2;justify-self:center;} .mr-of-c3{grid-column:3;justify-self:end;}
+.mr-of-hueco{justify-self:stretch;display:flex;align-items:flex-start;}
+.mr-of-centro{flex:1;min-width:0;display:flex;justify-content:center;}   /* centrado en el hueco (si no cabe, se sale parejo a los dos lados) */
+.mr-of-centro > .mr-of{flex:0 0 auto;}
+.mr-of-fantasma{visibility:hidden;height:0;overflow:hidden;flex:0 0 auto;}
+.mr-of-lnk{cursor:pointer;} .mr-of-lnk:hover{opacity:.72;}
+.mr-of{text-align:center;min-width:0;}
+.mr-of-nm{font-size:11.5px;color:var(--ink);white-space:nowrap;}
+.mr-of-cod{color:var(--muted);}
+.mr-of-rol{font-size:10.5px;color:var(--muted);font-weight:700;margin-top:2px;}
 .mr-kit-prev img{width:100%;height:100%;object-fit:contain;}
 @media (max-width:1040px){ .mr-grid{grid-template-columns:1fr;} .mr-kits{gap:20px;} .mr-kit{min-width:90px;} }
 /* Estadísticas del jugador (tabla partido por partido) */
@@ -619,6 +696,7 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 <script src="datos/constantes.js"></script>
 <script src="datos/presswall.js"></script>
 <script src="datos/noticias-backs.js"></script>
+<script src="funciones/jugador-partido.js"></script>
 <script src="datos/paises-iso.js"></script>
 <script src="datos/gentilicios.js"></script>
 <script src="datos/entrenadores-seed.js"></script>
@@ -644,8 +722,11 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 <script src="funciones/entrenadores.js"></script>
 <script src="funciones/arbitros.js"></script>
 <script src="funciones/selecciones.js"></script>
+<script src="funciones/duplicados.js"></script>
 <script src="funciones/editor.js"></script>
+<script src="funciones/importar-excel.js"></script>
 <script src="uniformes/ui-kits.js"></script>
+<script src="uniformes/badges-arbitro.js"></script>
 <script src="datos/base-datos-seed.js"></script>
 <script src="nucleo/modelo-db.js"></script>
 <script src="nucleo/migracion.js"></script>
@@ -653,8 +734,10 @@ textarea.json-area{font-family:'JetBrains Mono',monospace;font-size:11.5px;min-h
 <script src="persistencia/historial.js"></script>
 <script src="app/router.js"></script>
 <script src="app/acciones.js"></script>
+<script src="nucleo/calificaciones-v2.js"></script>
 <script src="nucleo/importar-partidos.js"></script>
 <script src="partidos.js"></script>
+<script src="partidos-mundial.js"></script>
 <script src="nucleo/importar-lesiones.js"></script>
 <script src="lesiones.js"></script>
 <script>
@@ -723,10 +806,14 @@ document.addEventListener("input", (e)=>{
 document.addEventListener("change", (e)=>{
   if(e.target && e.target.id==="f-cl-article") refreshClubArticleExamples();
 });
-function layerRowHTML(layer){
-  layer = layer || {img:"", recolorable:true};
+function layerRowHTML(layer, opts){
+  // Por default la capa NO se recolorea; al marcar "Recolorear" aparecen sus tres colores (para el rojo, el
+  // verde y el azul de la imagen, igual que las bases de los uniformes), en la misma fila, junto a la ✕.
+  layer = layer || {img:"", recolorable:false};
+  const cols = layer.colors || null;
+  const pick = (cls, label, val) => `<span style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;font-size:9px;color:var(--muted);font-weight:700;">${label}${colorPickerHTML(cls+" color-square-sm", val||"#888888")}</span>`;
   return `
-  <div class="layer-row" data-img="${layer.img||''}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;border:1px solid var(--line);border-radius:8px;">
+  <div class="layer-row" data-img="${layer.img||''}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;padding:8px;border:1px solid var(--line);border-radius:8px;">
     <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;">
       <button type="button" class="btn ghost sm" data-action="move-layer-row" data-dir="up" style="padding:2px 7px;line-height:1;">↑</button>
       <button type="button" class="btn ghost sm" data-action="move-layer-row" data-dir="down" style="padding:2px 7px;line-height:1;">↓</button>
@@ -734,13 +821,52 @@ function layerRowHTML(layer){
     <div class="layer-thumb" style="width:40px;height:40px;background:var(--surface-2);border-radius:6px;overflow:hidden;flex-shrink:0;">
       ${layer.img?`<img src="${layer.img}" style="width:100%;height:100%;object-fit:contain;">`:''}
     </div>
-    <input type="file" class="layer-file-input" accept="image/png" data-layerfile style="flex:1;font-size:11px;">
+    <input type="file" class="layer-file-input" accept="image/png" data-layerfile style="flex:1;font-size:11px;min-width:120px;">
     <label style="display:flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap;flex-shrink:0;">
-      <input type="checkbox" class="layer-recolorable kit-modal-control" style="width:auto;" ${layer.recolorable?'checked':''}> 3 colores
+      <input type="checkbox" class="layer-recolorable kit-modal-control" style="width:auto;" ${layer.recolorable?'checked':''}> Recolorear
     </label>
+    <div class="layer-cols" style="display:${layer.recolorable?'flex':'none'};gap:6px;align-items:flex-end;flex-shrink:0;">
+      ${pick("layer-col-r","Rojo", cols&&cols.r)}${pick("layer-col-g","Verde", cols&&cols.g)}${pick("layer-col-b","Azul", cols&&cols.b)}
+    </div>
+    ${(opts && opts.transform) ? `<div class="layer-tf" style="display:flex;gap:8px;align-items:flex-end;flex-basis:100%;padding-left:46px;">
+      <label style="display:flex;flex-direction:column;gap:2px;font-size:9px;color:var(--muted);font-weight:700;">Tamaño (%)<input type="number" class="layer-scale kit-modal-control" min="10" max="400" step="1" value="${layer.scale!=null?layer.scale:100}" style="width:70px;font-size:11px;padding:2px 4px;"></label>
+      <label style="display:flex;flex-direction:column;gap:2px;font-size:9px;color:var(--muted);font-weight:700;">Posición X (%)<input type="number" class="layer-x kit-modal-control" min="-100" max="100" step="0.5" value="${layer.x!=null?layer.x:0}" style="width:70px;font-size:11px;padding:2px 4px;"></label>
+      <label style="display:flex;flex-direction:column;gap:2px;font-size:9px;color:var(--muted);font-weight:700;">Posición Y (%)<input type="number" class="layer-y kit-modal-control" min="-100" max="100" step="0.5" value="${layer.y!=null?layer.y:0}" style="width:70px;font-size:11px;padding:2px 4px;"></label>
+    </div>` : ""}
     <button type="button" class="btn danger sm" data-action="remove-layer-row" style="flex-shrink:0;">✕</button>
   </div>`;
 }
+// Colores por default de una capa al marcar "3 colores": los de la prenda (uniforme o short/calcetas de la
+// combinación). Rojo → color 1, azul → color 2, verde → color 3 (igual que las bases).
+function layerDefaultColors(row){
+  const block=row.closest(".combo-block"), cont=row.parentElement;
+  let c1, c2, c3;
+  const m = cont && /combo-layer-rows-(\w+)/.exec(cont.className||"");
+  if(block && m){ const t=m[1]; c1=(block.querySelector(".combo-color1-"+t)||{}).value; c2=(block.querySelector(".combo-color2-"+t)||{}).value; c3=(block.querySelector(".combo-color3-"+t)||{}).value; }
+  else { c1=(document.getElementById("f-kit-color1")||{}).value; c2=(document.getElementById("f-kit-color2")||{}).value; c3=(document.getElementById("f-kit-color3")||{}).value; }
+  return { r:c1||"#ff0000", g:c3||"#00ff00", b:c2||"#0000ff" };
+}
+document.addEventListener("change", (e)=>{
+  const t=e.target; if(!t || !t.matches) return;
+  const row=t.closest && t.closest(".layer-row"); if(!row) return;
+  if(t.matches(".layer-recolorable")){
+    const box=row.querySelector(".layer-cols"); if(box) box.style.display = t.checked ? "flex" : "none";
+    if(t.checked && !row.dataset.colsInit){
+      row.dataset.colsInit="1";
+      const d=layerDefaultColors(row);
+      [["r",".layer-col-r"],["g",".layer-col-g"],["b",".layer-col-b"]].forEach(([k,c])=>{ const inp=row.querySelector(c); if(inp){ inp.value=d[k]; const hx=inp.parentElement && inp.parentElement.querySelector(".color-hex-text"); if(hx) hx.value=d[k].toUpperCase(); } });
+    }
+  }
+  if(t.matches(".layer-recolorable, .layer-col-r, .layer-col-g, .layer-col-b")){
+    const block=row.closest(".combo-block");
+    if(block && typeof refreshComboBlockPreview==="function") refreshComboBlockPreview(block); else if(typeof refreshKitModalPreview==="function") refreshKitModalPreview();
+  }
+});
+document.addEventListener("input", (e)=>{
+  const t=e.target; if(!t || !t.matches || !t.matches(".layer-col-r, .layer-col-g, .layer-col-b")) return;
+  const row=t.closest(".layer-row"); const block=row && row.closest(".combo-block");
+  if(block && typeof refreshComboBlockPreview==="function") refreshComboBlockPreview(block); else if(typeof refreshKitModalPreview==="function") refreshKitModalPreview();
+});
 function colorPickerHTML(classes, value, id){
   value = value || "#000000";
   return `<span class="color-field" style="display:inline-flex;flex-direction:column;align-items:center;gap:3px;">
@@ -919,6 +1045,7 @@ let clipboardCombo = null;
 let clipboardNumberStyle = null;
 let clipboardNameStyle = null;
 let clipboardBothStyle = null;
+let clipboardKitImgs = null;   // escudos, logos, parches y número al frente copiados (editor de uniformes)
 let dragKitInfo = null;
 let draggedComboBlock = null;
 let garmentsParentExpanded = false;
@@ -956,17 +1083,18 @@ let sponsorSort = {key:"name", dir:"asc"}; // ordenamiento de la tabla de Patroc
 // desvincula y deja de seguir los cambios (igual lógica que ya usábamos para Nombre/Número del kit).
 document.addEventListener("input", (e)=>{
   const id = e.target.id;
-  if(id==="f-pfirstname" || id==="f-plastname"){
+  if(id==="f-pfirstname" || id==="f-plastname" || id==="f-plastfirst"){
     const linked = document.getElementById("f-pfullname-linked");
     const full = document.getElementById("f-pfullname");
     if(linked && linked.value==="1" && full){
       const fn = document.getElementById("f-pfirstname").value;
       const ln = document.getElementById("f-plastname").value;
-      full.value = `${fn} ${ln}`.trim();
+      const lf = !!(document.getElementById("f-plastfirst")||{}).checked;   // «Apellido primero»
+      full.value = (lf ? `${ln} ${fn}` : `${fn} ${ln}`).trim();
     }
   } else if(id==="f-pfullname"){
     const linked = document.getElementById("f-pfullname-linked");
-    if(linked) linked.value = "0";
+    if(linked) linked.value = e.target.value.trim() ? "0" : "1";   // vacío → vuelve a formarse solo
   }
   if(id==="f-pcommonname" || id==="f-plastname"){
     const common = document.getElementById("f-pcommonname").value.trim();
@@ -984,6 +1112,15 @@ document.addEventListener("input", (e)=>{
     const linked = document.getElementById("f-pshirtname-club-linked");
     if(linked) linked.value = "0";
   }
+  // Árbitro: el nombre completo sigue a Nombre + Apellido (o Apellido + Nombre) hasta que se escriba a mano.
+  if(id==="f-rfirstname" || id==="f-rlastname" || id==="f-rlastfirst"){
+    const linked = document.getElementById("f-rfullname-linked"), full = document.getElementById("f-rfullname");
+    if(linked && linked.value==="1" && full){
+      const fn=(document.getElementById("f-rfirstname")||{}).value||"", ln=(document.getElementById("f-rlastname")||{}).value||"";
+      const lf=!!(document.getElementById("f-rlastfirst")||{}).checked;
+      full.value=(lf ? `${ln} ${fn}` : `${fn} ${ln}`).trim();
+    }
+  } else if(id==="f-rfullname"){ const linked=document.getElementById("f-rfullname-linked"); if(linked) linked.value = e.target.value.trim() ? "0" : "1"; }
   // Árbitro: el nombre en camiseta sigue al apellido hasta que se escriba a mano.
   if(id==="f-rlastname" || id==="f-rcommonname"){
     const linked = document.getElementById("f-r-shirtname-linked");
@@ -1010,17 +1147,18 @@ document.addEventListener("input", (e)=>{
 // vinculado (linked=1) se recalcula con Nombre + Apellido; se desvincula en cuanto se edita a mano.
 document.addEventListener("input", (e)=>{
   const id = e.target.id;
-  if(id==="f-cfirstname" || id==="f-clastname"){
+  if(id==="f-cfirstname" || id==="f-clastname" || id==="f-clastfirst"){
     const linked = document.getElementById("f-cfullname-linked");
     const full = document.getElementById("f-cfullname");
     if(linked && linked.value==="1" && full){
       const fn = document.getElementById("f-cfirstname").value;
       const ln = document.getElementById("f-clastname").value;
-      full.value = `${fn} ${ln}`.trim();
+      const lf = !!(document.getElementById("f-clastfirst")||{}).checked;   // «Apellido primero»
+      full.value = (lf ? `${ln} ${fn}` : `${fn} ${ln}`).trim();
     }
   } else if(id==="f-cfullname"){
     const linked = document.getElementById("f-cfullname-linked");
-    if(linked) linked.value = "0";
+    if(linked) linked.value = e.target.value.trim() ? "0" : "1";   // vacío → vuelve a formarse solo
   }
   if(id==="f-cbirth"){
     const hint = document.getElementById("f-cage-hint");
@@ -1200,6 +1338,16 @@ document.addEventListener("change", (e)=>{
     }).catch(()=>{ showToast("No se pudo procesar esa imagen"); });
     return;
   }
+  // Imagen sobre la playera (escudo, marca, patrocinador o parche): PNG con transparencia.
+  if(input.matches && input.matches('input[type=file][data-kitimgfile]')){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    resizeImageToDataURL(file, 600).then(dataUrl=>{
+      const row = input.closest(".kit-img-row");
+      if(row) kitImgUploaded(row, dataUrl);   // escudo/marca/patrocinador → también a sus alternativos
+    }).catch(()=>{ showToast("No se pudo procesar esa imagen"); });
+    return;
+  }
   if(input.matches && input.matches('input[type=file][data-layerfile]')){
     const file = input.files && input.files[0];
     if(!file) return;
@@ -1229,7 +1377,10 @@ document.addEventListener("change", (e)=>{
   // Las FOTOS (data-imgformat="jpeg", p. ej. estadios) se guardan como JPEG: pesan mucho
   // menos que un PNG y evitan que la pestaña se vuelva lenta. Los logos siguen en PNG.
   const _fmt = input.dataset.imgformat === "jpeg" ? "image/jpeg" : "image/png";
-  resizeImageToDataURL(file, parseInt(input.dataset.maxdim)||300, _fmt).then(dataUrl=>{
+  // Campos que aceptan vectores (fondo de tarjeta de partido): un SVG se guarda TAL CUAL, sin convertirlo
+  // a mapa de bits, para que se vea nítido a cualquier tamaño.
+  const _esSvg = input.dataset.keepvector==="1" && (/svg/i.test(file.type||"") || /\.svg$/i.test(file.name||""));
+  (_esSvg ? readFileAsDataURL(file).then(u=> u.replace(/^data:[^;,]*/, "data:image/svg+xml")) : resizeImageToDataURL(file, parseInt(input.dataset.maxdim)||300, _fmt)).then(dataUrl=>{
     const hidden = document.getElementById(input.dataset.target);
     // Avisa a quien escuche (p. ej. el avatar de redes) que este logo/imagen cambió, para regenerarse en vivo.
     if(hidden){ hidden.value = dataUrl; hidden.dispatchEvent(new Event("input", {bubbles:true})); }
@@ -1428,7 +1579,10 @@ document.addEventListener("change", (e)=>{
   if(e.target.matches(".kit-season-name")){
     const {s}=seasonOf(e.target); if(s){ s.name=(e.target.value||"").trim().slice(0,40); persist(); }
   } else if(e.target.matches(".kit-season-brand")){
-    const {s}=seasonOf(e.target); if(s){ s.brand=(e.target.value||"").trim()||null; if(s.brand && typeof addBrand==="function") addBrand(s.brand); persist(); }
+    const {team,s}=seasonOf(e.target); if(s){ s.brand=(e.target.value||"").trim()||null; if(s.brand && typeof addBrand==="function") addBrand(s.brand);
+      // Los logos de marca que ya tienen los uniformes de esa temporada pasan a la nueva marca.
+      const n = (team && typeof kitSeasonApplyBrand==="function") ? kitSeasonApplyBrand(team, s.id) : 0;
+      persist(); if(n){ showToast(`${n} logo(s) de marca actualizado(s) a ${s.brand||team.kitSponsor||""}`); render(); if(typeof modalManageKits==="function") modalManageKits(team); } }
   } else if(e.target.matches(".kit-season-date")){
     const {team,s}=seasonOf(e.target); if(team && s){
       const nd=e.target.value||"";
@@ -1453,6 +1607,7 @@ document.addEventListener("change", (e)=>{
 </script>
 <script src="app/datalist-autocomplete.js"></script>
 <script src="app/juego.js"></script>
+<script src="app/motor-partido.js"></script>
 <script src="app/tiempo.js"></script>
 <script src="app/onboarding.js"></script>
 <script src="app/init.js"></script>
