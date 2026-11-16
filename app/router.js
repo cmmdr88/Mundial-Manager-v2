@@ -39,6 +39,7 @@ function restoreScroll(y){ requestAnimationFrame(()=>{ window.scrollTo(0, y||0);
 function navigateTo(tab, teamId){
   saveScrollToCurrent();
   if(typeof regionEditorReset==="function") regionEditorReset();   // el orden "reciente" del editor de regiones se reinicia al cambiar de ventana
+  if(tab==="evento" && typeof eventoReiniciarDia==="function") eventoReiniciarDia();   // al abrir el torneo, la lista vuelve al día actual
   activeTab = tab;
   activeTeamId = teamId || null;
   activePlayerId = null;

@@ -249,9 +249,14 @@
     fxs.forEach(f=>{
       let ms=null; try{ if(typeof matchDateTimeMs==="function") ms=matchDateTimeMs(f); }catch(e){}
       if(ms==null) return;
-      if(ms < from.getTime() || ms >= until.getTime()) return;
       const hasResult = !!(f.played && f.scoreA!=null && f.scoreB!=null);
       if(!hasResult) return;   // sin resultado cargado no se anuncia (se jugará/simulará más adelante)
+      // Dos momentos: al SAQUE INICIAL aparece el partido sin marcador ("Comienza") y al TERMINAR (inicio +
+      // duración real: añadidos, descanso, prórroga, penales o retraso) aparece con el marcador.
+      let endMs=ms; try{ if(typeof matchEndMs==="function") endMs=matchEndMs(f)||ms; }catch(e){}
+      const startIn = ms >= from.getTime() && ms < until.getTime();
+      const endIn = endMs >= from.getTime() && endMs < until.getTime();
+      if(!startIn && !endIn) return;
       let A=null,B=null; try{ A=getTeam(f.teamA); B=getTeam(f.teamB); }catch(e){}
       if(!A||!B) return;
       const an=(A.commonName||A.name||"?"), bn=(B.commonName||B.name||"?");
@@ -261,9 +266,17 @@
       else { try{ if(typeof eventFieldText==="function") tour=eventFieldText(DB.event,'shortName')||eventFieldText(DB.event,'name')||tour; }catch(e){} }
       const line = `${an} ${f.scoreA} - ${f.scoreB} ${bn}`;
       const involvesUser = userTeam && (f.teamA===userTeam || f.teamB===userTeam);
-      out.push(involvesUser
-        ? { time:new Date(ms), kind:"match", title:tour, detail:line, body:"Tu selección jugó. Puedes ver el partido en el calendario.", screen:"calendario", requiresUser:true }
-        : { time:new Date(ms), kind:"match", title:tour, detail:line, requiresUser:false });
+      // Sede en tono informal: formal ≈75% o corto ≈25% (85/15 si el apodo es el principal), fijo por partido para que no cambie al redibujar.
+      let sede=""; try{
+        if(typeof fixtureStadiumCasualName==="function"){
+          let h=0; String(f.id||an+bn).split("").forEach(c=>{ h=(h*31+c.charCodeAt(0))>>>0; });
+          sede=fixtureStadiumCasualName(f, {prep:"en", rnd:(h%1000)/1000});
+        }
+      }catch(e){}
+      if(startIn) out.push({ time:new Date(ms), kind:"match", title:tour, detail:`${an} - ${bn} · Comienza el partido${sede?" "+sede:""}`, requiresUser:false });
+      if(endIn) out.push(involvesUser
+        ? { time:new Date(endMs), kind:"match", title:tour, detail:line, body:"Tu selección jugó. Puedes ver el partido en el calendario.", screen:"calendario", requiresUser:true }
+        : { time:new Date(endMs), kind:"match", title:tour, detail:line, requiresUser:false });
     });
     return out;
   }

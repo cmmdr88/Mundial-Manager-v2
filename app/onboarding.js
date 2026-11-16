@@ -252,6 +252,8 @@ const ONB_CSS2 = [
 "#cm-onb .ap-sbtn.ap-dir{font-family:'JetBrains Mono',monospace;font-weight:700;padding:4px 8px;min-width:26px;}",
 "#cm-onb .pos-spec{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-left:5px;}",
 "#cm-onb .cv-menu-tools{padding:2px 8px 6px;border-bottom:1px solid var(--line);margin-bottom:4px;}",
+"#cm-onb .ap-filters.add-pos{display:flex;gap:4px;margin-top:6px;}",
+"#cm-onb .nz-fav{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--muted);margin-left:2px;white-space:nowrap;}",
 "#cm-onb .dpp-dot{width:14px;height:14px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 1px rgba(255,255,255,.15), 0 1px 3px rgba(0,0,0,.4);}",
 "#cm-onb .dpp-dot.unknown{background:var(--line);}",
 "#cm-onb .ap-list{display:flex;flex-direction:column;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px;max-height:calc(100vh - 300px);min-height:200px;overflow-y:auto;}",
@@ -581,7 +583,9 @@ function warmImages(){
     if(t.coach && typeof t.coach.photo==="string" && t.coach.photo.indexOf("data:")===0) srcs.push(t.coach.photo);
   });
   const list = srcs.filter((s,i)=> srcs.indexOf(s)===i && !_imgCache[s]);
-  let i=0, busy=0; const MAX=2, MAXDIM=180;
+  // Tamaño de la miniatura: el escudo del rectángulo mide 140 px; se guarda al doble de la densidad de la
+  // pantalla (retina) para que se vea nítido, como en las demás pantallas del juego.
+  let i=0, busy=0; const MAX=2, MAXDIM=Math.round(140*Math.max(2, (typeof window!=="undefined" && window.devicePixelRatio)||1));
   const pump=()=>{
     while(busy<MAX && i<list.length){
       const src=list[i++]; busy++;
@@ -589,10 +593,22 @@ function warmImages(){
       im.onload=function(){
         try{
           let w=im.naturalWidth||im.width, h=im.naturalHeight||im.height;
-          const r=Math.min(1, MAXDIM/Math.max(w,h)); w=Math.max(1,Math.round(w*r)); h=Math.max(1,Math.round(h*r));
-          const c=document.createElement("canvas"); c.width=w; c.height=h;
-          c.getContext("2d").drawImage(im,0,0,w,h);
-          _imgCache[src]=c.toDataURL("image/png");
+          const r=Math.min(1, MAXDIM/Math.max(w,h));
+          if(r>=1){ _imgCache[src]=src; }   // ya es pequeño: se usa el original, sin perder calidad
+          else {
+            // Reducción por PASOS (a la mitad cada vez) con suavizado alto: evita el dentado de bajar de golpe.
+            const tw=Math.max(1,Math.round(w*r)), th=Math.max(1,Math.round(h*r));
+            let cur=im, cw=w, ch=h;
+            while(cw/2 > tw && ch/2 > th){
+              const nw=Math.round(cw/2), nh=Math.round(ch/2);
+              const c2=document.createElement("canvas"); c2.width=nw; c2.height=nh;
+              const g2=c2.getContext("2d"); g2.imageSmoothingEnabled=true; g2.imageSmoothingQuality="high"; g2.drawImage(cur,0,0,nw,nh);
+              cur=c2; cw=nw; ch=nh;
+            }
+            const c=document.createElement("canvas"); c.width=tw; c.height=th;
+            const g=c.getContext("2d"); g.imageSmoothingEnabled=true; g.imageSmoothingQuality="high"; g.drawImage(cur,0,0,tw,th);
+            _imgCache[src]=c.toDataURL("image/png");
+          }
         }catch(e){ _imgCache[src]=src; }
         busy--; pump();
       };
@@ -728,7 +744,7 @@ function pInitialLast(p){
   if(common) return common;
   const first = (p.firstName||"").trim();
   const last  = (p.lastName||"").trim();
-  if(first && last) return first.charAt(0).toUpperCase()+". "+last;
+  if(first && last) return (typeof personInitialName==="function") ? personInitialName(p) : first.charAt(0).toUpperCase()+". "+last;
   const disp = pName(p);
   const parts = disp.split(/\s+/).filter(Boolean);
   if(parts.length>=2) return parts[0].charAt(0).toUpperCase()+". "+parts.slice(1).join(" ");
@@ -970,18 +986,45 @@ function currentKitTeam(){
 const NZ_BADGE_SIZE = 300;   // más chico que 420 → canvas más rápido; nítido a ~104px de display
 // Ajusta el nombre bajo cada dorsal: intenta el nombre completo; si no cabe, inicial + apellido; si
 // aún no cabe, el CSS lo corta con "…" y se agrega el tooltip (nombre común o nombre y apellido).
+// Se vuelve a medir cuando terminan de cargar las tipografías (con la de respaldo, más angosta, un
+// nombre parecía caber y se quedaba completo y cortado con "…"), en el siguiente cuadro (la pantalla
+// puede estar entrando con animación) y al cambiar el tamaño de la ventana.
+let _fitDorsalHooks=false;
 function fitDorsalNames(){
+  fitDorsalNamesNow();
+  try{ requestAnimationFrame(()=>requestAnimationFrame(fitDorsalNamesNow)); }catch(e){}
+  try{ if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitDorsalNamesNow); }catch(e){}
+  if(!_fitDorsalHooks){ _fitDorsalHooks=true;
+    try{ window.addEventListener("resize", ()=>{ if(state.screen==="numbers") fitDorsalNamesNow(); }); }catch(e){}
+    try{ if(document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", ()=>{ if(state.screen==="numbers") fitDorsalNamesNow(); }); }catch(e){} }
+}
+// ¿El texto cabe sin "…"? Se mide con precisión de subpíxel: scrollWidth redondea y un nombre que
+// se pasaba por menos de un píxel parecía caber, pero el navegador ya lo cortaba con "…".
+function dorsalNameFits(el){
+  try{
+    const r=document.createRange(); r.selectNodeContents(el);
+    const cs=getComputedStyle(el);
+    const disp=el.getBoundingClientRect().width - (parseFloat(cs.paddingLeft)||0) - (parseFloat(cs.paddingRight)||0) - (parseFloat(cs.borderLeftWidth)||0) - (parseFloat(cs.borderRightWidth)||0);
+    return r.getBoundingClientRect().width <= disp + 0.01;
+  }catch(e){ return el.scrollWidth <= el.clientWidth; }
+}
+function fitDorsalNamesNow(){
   try{
     const els = document.querySelectorAll('#cm-onb .nz2-name[data-nm]');
     els.forEach(el=>{
       const common=(el.dataset.nmCommon||"").trim(), first=(el.dataset.nmFirst||"").trim(), last=(el.dataset.nmLast||"").trim();
       const b = s=>`<b>${esc(s)}</b>`;
-      const fullHTML = common ? b(common) : (first&&last ? `${esc(first)} ${b(last)}` : b(last||first||common||""));
-      const midHTML  = common ? b(common) : (first&&last ? `${esc(first.charAt(0))}. ${b(last)}` : b(last||first||common||""));
-      const title = common || `${first} ${last}`.trim();
+      const lf = el.dataset.nmLf==="1";   // «Apellido primero»
+      const fullHTML = common ? b(common) : (first&&last ? (lf ? `${b(last)} ${esc(first)}` : `${esc(first)} ${b(last)}`) : b(last||first||common||""));
+      const cw = common.split(/\s+/);
+      const midHTML  = common ? (cw.length>1 && !/\.$/.test(cw[0]) ? `${esc(cw[0].charAt(0))}. ${b(cw.slice(1).join(" "))}` : b(common)) : (first&&last ? (lf ? `${b(last)} ${esc(firstInitials(first))}` : `${esc(first.charAt(0))}. ${b(last)}`) : b(last||first||common||""));
+      const title = common || (lf ? `${last} ${first}` : `${first} ${last}`).trim();
+      if(!el.clientWidth) return;   // aún sin dibujar: se mide en el siguiente intento
       el.innerHTML = fullHTML; el.removeAttribute('title');
-      if(el.scrollWidth <= el.clientWidth+1) return;   // el completo cabe
-      el.innerHTML = midHTML; el.setAttribute('title', title);   // inicial + apellido (+ "…" por CSS)
+      if(dorsalNameFits(el)) return;   // el completo cabe
+      el.innerHTML = midHTML; el.setAttribute('title', title);   // inicial + apellido
+      if(dorsalNameFits(el)) return;
+      if(!common && last) el.innerHTML = b(last);   // solo el apellido (si ni así cabe, "…" por CSS)
     });
   }catch(e){}
 }
@@ -1778,7 +1821,7 @@ function luNameHTML(p){
   const cn = (p.commonName||"").trim();
   if(cn) return `<b>${esc(cn)}</b>`;
   const fn = (p.firstName||"").trim(), ln = (p.lastName||"").trim();
-  if(fn && ln) return `${esc(fn.charAt(0).toUpperCase())}. <b>${esc(ln)}</b>`;
+  if(fn && ln) return (typeof personInitialHTML==="function") ? personInitialHTML(p, esc) : `${esc(fn.charAt(0).toUpperCase())}. <b>${esc(ln)}</b>`;
   if(ln) return `<b>${esc(ln)}</b>`;
   return `<b>${esc(pName(p))}</b>`;
 }
@@ -1787,7 +1830,7 @@ function luNameFull(p){
   const cn = (p.commonName||"").trim();
   if(cn) return cn;
   const fn = (p.firstName||"").trim(), ln = (p.lastName||"").trim();
-  return (fn && ln) ? `${fn} ${ln}` : (ln || pName(p));
+  return (fn && ln) ? ((typeof personFirstLast==="function") ? personFirstLast(p) : `${fn} ${ln}`) : (ln || pName(p));
 }
 function lineupHTML(fid){
   const f = FORMATIONS[fid] || FORMATIONS["4-4-2"];
@@ -2167,8 +2210,15 @@ function positions4Text(p){
 }
 // Línea de datos de un jugador (sin posiciones específicas; la posición general va como etiqueta tras
 // el nombre): 24 años · P: 25 / G: 0   (P = internacionalidades, G = goles)
+// Nombre CORTO del club del jugador (el del catálogo de clubes; si no hay, el nombre guardado).
+function clubShortOf(p){
+  const nm=String((p&&p.club)||"").trim(); if(!nm) return "";
+  let c=null; try{ if(typeof getClubByName==="function") c=getClubByName(nm); }catch(e){}
+  return String((c && (c.shortName||c.commonName)) || nm).trim();
+}
+function clubMetaHTML(p){ const c=clubShortOf(p); return c ? ` · ${esc(c)}` : ""; }
 function playerMetaLine(p){
-  return `${ageOf(p)} años · P: ${(()=>{const v=effectiveCaps(p);return v!=null?v:0;})()} / G: ${(()=>{const v=effectiveGoalsNational(p);return v!=null?v:0;})()}`;
+  return `${ageOf(p)} años${clubMetaHTML(p)} · P: ${(()=>{const v=effectiveCaps(p);return v!=null?v:0;})()} / G: ${(()=>{const v=effectiveGoalsNational(p);return v!=null?v:0;})()}`;
 }
 // Nombre + etiqueta general de posición (para las filas de ambas pantallas).
 function nameTagHTML(p){
@@ -2231,7 +2281,12 @@ function addPickerHTML(cat, rmap){
   const set = new Set(conv.roster);
   const full = conv.roster.length>=SQUAD_MAX;
   const sort = state.addSort || "ap", dir = state.addDir || "asc";
-  const list = sortPlayers(teamPlayersRaw().filter(p=>p.pos===cat && !set.has(p.id)), sort, dir);
+  // Filtro por posición específica de la línea (CB, LB, RB…): los aptos (valor ≥10) en esa posición.
+  // Un jugador sin perfil posicional cargado no aparece en los filtros específicos (solo en «Todas»).
+  const codes = ((typeof POSICIONES_DEF!=="undefined" ? POSICIONES_DEF : []).find(g=>g.cat===cat)||{items:[]}).items.map(x=>x[0]);
+  const posF = (state.addPos && codes.indexOf(state.addPos)>=0) ? state.addPos : null;
+  const list = sortPlayers(teamPlayersRaw().filter(p=>p.pos===cat && !set.has(p.id) && (!posF || (hasPositionData(p) && coverVal(p, posF)>=10))), sort, dir);
+  const posBar = codes.length>1 ? `<div class="ap-filters add-pos">${[["","Todas"]].concat(codes.map(c=>[c,c])).map(([k,l])=>`<button class="ap-fbtn ${(posF||"")===k?'on':''}" data-act="add-pos" data-p="${k}">${l}</button>`).join("")}</div>` : "";
   const items = list.map(p=>`<button class="cv-menu-item add" data-act="roster-add" data-id="${esc(p.id)}" ${full?'disabled':''}>
       <span class="cg-photo sm">${personPhotoHTML(p.photo, p.gender)}</span>
       <span class="cv-menu-name"><span class="cv-menu-nm">${nameTagSpecHTML(p)} ${onbInjBadge(p)}</span><span class="cv-menu-meta">${playerMetaLine(p)}</span></span>
@@ -2239,8 +2294,8 @@ function addPickerHTML(cat, rmap){
     </button>`).join("") || `<div class="cg-empty">No hay más jugadores en esta posición.</div>`;
   return `<div class="cv-menu add-menu">
     <div class="cv-menu-head">Agregar ${esc(labels[cat]||"")}${full?" · convocatoria llena (26)":""}</div>
-    <div class="cv-menu-tools">${sortBarHTML([["ap","Apellido"],["rating","Rating"]], sort, dir, "add-sort")}</div>
-    <div class="cv-menu-list">${items}</div>
+    <div class="cv-menu-tools">${sortBarHTML([["ap","Apellido"],["rating","Rating"]], sort, dir, "add-sort")}${posBar}</div>
+    <div class="cv-menu-list">${items.indexOf("cg-empty")>=0 && posF ? `<div class="cg-empty">Ningún jugador disponible como ${esc(posF)}.</div>` : items}</div>
   </div>`;
 }
 // Tarjeta de un grupo de posición (Porteros / Defensas / Mediocampistas / Delanteros).
@@ -2419,7 +2474,7 @@ function numbersMenuHTML(n, up, rmap){
     return `<button class="cv-menu-item num-item${sel}" data-act="num-pick" data-n="${n}" data-id="${esc(p.id)}" data-num="${num!=null?num:999}">
       <span class="num-badge nzr-badge${num!=null?'':' ghost'}">${num!=null?num:"–"}</span>
       <span class="cg-photo sm">${personPhotoHTML(p.photo, p.gender)}</span>
-      <span class="cv-menu-name"><span class="cv-menu-nm">${nameTagHTML(p)}</span><span class="cv-menu-meta">${ageOf(p)} años · P: ${(()=>{const v=effectiveCaps(p);return v!=null?v:0;})()} / G: ${(()=>{const v=effectiveGoalsNational(p);return v!=null?v:0;})()} · # Fav: ${esc(favTeamText(p))}</span></span>
+      <span class="cv-menu-name"><span class="cv-menu-nm">${nameTagHTML(p)} <span class="nz-fav"># Fav: ${esc(favTeamText(p))}</span></span><span class="cv-menu-meta">${ageOf(p)} años${clubMetaHTML(p)} · P: ${(()=>{const v=effectiveCaps(p);return v!=null?v:0;})()} / G: ${(()=>{const v=effectiveGoalsNational(p);return v!=null?v:0;})()}</span></span>
       <span class="cv-menu-num mono">${p.rating!=null?p.rating:"—"}</span>
     </button>`;
   }).join("") || `<div class="cg-empty">Convoca jugadores en el paso anterior.</div>`;
@@ -2442,7 +2497,7 @@ function numCellHTML(n, rmap){
   const jersey = p
     ? `<div class="nz2-badge" data-pending data-player-id="${esc(p.id)}" data-n="${n}"><span class="nz2-num">${n}</span></div>`
     : `<div class="nz2-badge" data-pending data-free="1" data-n="${n}"><span class="nz2-num">${n}</span></div>`;
-  const nmData = p ? `data-nm data-nm-common="${esc((p.commonName||'').trim())}" data-nm-first="${esc((p.firstName||'').trim())}" data-nm-last="${esc((p.lastName||'').trim())}"` : "";
+  const nmData = p ? `data-nm data-nm-common="${esc((p.commonName||'').trim())}" data-nm-first="${esc((p.firstName||'').trim())}" data-nm-last="${esc((p.lastName||'').trim())}" data-nm-lf="${p.lastNameFirst?1:0}"` : "";
   const cap = p ? `<div class="nz2-name" ${nmData}>${pNameHTML(p)}</div>` : `<div class="nz2-name empty">&nbsp;</div>`;
   return `<div class="nz2-cell${open?' open':''}" data-act="num-open" data-n="${n}" role="button" tabindex="0">
     <div class="nz2-jersey">${jersey}</div>
@@ -2462,8 +2517,8 @@ function numbersRosterList(rmap){
       <span class="num-badge nzr-badge${num!=null?'':' ghost'}">${num!=null?num:"–"}</span>
       <span class="cg-photo">${personPhotoHTML(p.photo, p.gender)}</span>
       <div class="cg-info">
-        <div class="cg-name">${nameTagHTML(p)}</div>
-        <div class="cg-meta">${ageOf(p)} años · P: ${(()=>{const v=effectiveCaps(p);return v!=null?v:0;})()} / G: ${(()=>{const v=effectiveGoalsNational(p);return v!=null?v:0;})()} · # Fav: ${esc(favTeamText(p))}</div>
+        <div class="cg-name">${nameTagHTML(p)} <span class="nz-fav"># Fav: ${esc(favTeamText(p))}</span></div>
+        <div class="cg-meta">${ageOf(p)} años${clubMetaHTML(p)} · P: ${(()=>{const v=effectiveCaps(p);return v!=null?v:0;})()} / G: ${(()=>{const v=effectiveGoalsNational(p);return v!=null?v:0;})()}</div>
       </div>
       <span class="cg-rt mono">${p.rating!=null?p.rating:"—"}</span>
     </div>`;
@@ -2814,8 +2869,10 @@ function handleAct(act, el, e){
     case "squad-real":  setRealSquad();    state.addOpen = null; render(); break;
     case "squad-auto":  autoPickRoster();  state.addOpen = null; render(); break;
     case "squad-clear": rosterClear();      state.addOpen = null; render(); break;
+    case "add-pos":          state.addPos = el.dataset.p || null; render(); break;
     case "add-open":
       state.addOpen = (state.addOpen===el.dataset.cat) ? null : el.dataset.cat;
+      state.addPos = null;   // el filtro de posición es por línea: se reinicia al abrir otra
       render(); break;
     case "add-close":
       state.addOpen = null; render(); break;

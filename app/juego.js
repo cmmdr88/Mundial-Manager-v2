@@ -99,9 +99,27 @@ function pname(p){ try{ return playerDisplayName(p); }catch(e){ return (p.common
 function lastName(p){ return (p.lastName || (p.commonName||pname(p)).split(" ").slice(-1)[0] || "").trim(); }
 
 /* Partidos de la selección elegida (fase de grupos del DB) */
+// Partidos de la selección según el reloj del juego. Los de grupos (y amistosos) siempre. Los de la
+// fase final aparecen solo cuando es SEGURO que la selección ocupa esa llave (su grupo terminó, se
+// definieron los mejores terceros o ganó el partido anterior); el rival se muestra hasta que también
+// se define (mientras, «Por definir»). Ya jugados: tal cual. Los no jugados se devuelven como COPIA
+// con los equipos ya resueltos (no se modifica DB.fixtures).
+function esPartidoLlave(f){
+  return !!(f && !f.group && f.stage!=="amistoso" && !f.friendly && (f.code||f.matchNo)
+    && (typeof matchIsWorldCup!=="function" || matchIsWorldCup(f)) && typeof eventoLadosPartido==="function" && typeof eventoLlaves==="function");
+}
 function teamFixtures(){
   const t=team(); if(!t || !Array.isArray(DB.fixtures)) return [];
-  return DB.fixtures.filter(f=>f.teamA===t.id || f.teamB===t.id);
+  let llaves=null; const out=[];
+  DB.fixtures.forEach(f=>{
+    if(!esPartidoLlave(f) || fxPlayed(f)){ if(f.teamA===t.id || f.teamB===t.id) out.push(f); return; }
+    if(!llaves){ try{ llaves=eventoLlaves(); }catch(e){ llaves=false; } }
+    if(!llaves){ if(f.teamA===t.id || f.teamB===t.id) out.push(f); return; }
+    let L=null; try{ L=eventoLadosPartido(f, false, llaves); }catch(e){}
+    if(!L || (L.a!==t.id && L.b!==t.id)) return;   // aún no es seguro que juegue esta llave
+    out.push(Object.assign({}, f, {teamA:L.a||null, teamB:L.b||null, _llave:true}));
+  });
+  return out;
 }
 function nextFixture(){
   const fx=teamFixtures().filter(f=>!fxPlayed(f));
@@ -236,7 +254,7 @@ span.jg-lnk2:hover,.jg-p-name.jg-lnk:hover,.jg-p-sub.jg-lnk:hover,.jg-wordmark.j
 
 /* --- Buzón --- */
 .jg-buztitle{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;letter-spacing:-.01em;color:var(--ink);margin:0 0 10px;}
-.jg-capbadge{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:18px;padding:0 3px;margin-left:8px;background:#eeca5c;border-radius:6px;vertical-align:middle;box-sizing:border-box;flex-shrink:0;}
+.jg-capbadge{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:18px;padding:0 3px;margin-left:8px;background:#FFA94D;border-radius:6px;vertical-align:middle;box-sizing:border-box;flex-shrink:0;}
 .jg-capbadge img{width:13px;height:13px;object-fit:contain;display:block;}
 /* Encabezado compacto (mitad de alto que el de Inicio) */
 .jg-phead-sm{padding:8px 14px;margin-bottom:14px;gap:12px;}
@@ -480,7 +498,7 @@ h2.np2-h{font-family:'Space Grotesk';font-weight:700;font-size:23px;line-height:
 /* Capitán: icono C sobre la esquina de la foto (el contenedor no recorta como .jgt-face). Mismo estilo
    que en Plantilla (.jg-capbadge): cuadro dorado SIN contorno. */
 .jgt-facewrap{position:relative;display:flex;flex:0 0 auto;}
-.jgt-cap{position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:5px;background:#eeca5c;display:flex;align-items:center;justify-content:center;z-index:4;}
+.jgt-cap{position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:5px;background:#FFA94D;display:flex;align-items:center;justify-content:center;z-index:4;}
 .jgt-cap img{width:12px;height:12px;object-fit:contain;display:block;}
 .mr-side .jgt-cap{width:11px;height:11px;border-radius:4px;top:-3px;right:-3px;}
 .mr-side .jgt-cap img{width:9px;height:9px;}
@@ -580,6 +598,12 @@ h2.np2-h{font-family:'Space Grotesk';font-weight:700;font-size:23px;line-height:
 .jg-incidents{display:flex;align-items:flex-start;background:var(--surface);border-radius:0 0 14px 14px;padding:14px 12px;margin-top:0;min-height:46px;}
 .jg-incidents .inc-col{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-start;gap:9px;}
 .jg-incidents .inc-div{width:1px;background:var(--line);margin:0 14px;flex-shrink:0;align-self:stretch;}
+.jg-incidents{flex-wrap:wrap;}
+.jg-incidents .inc-pens{flex:0 0 100%;margin-top:12px;}
+.jg-incidents .inc-pens-h{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;color:var(--ink);margin-bottom:10px;}
+.jg-incidents .inc-pens-h::before,.jg-incidents .inc-pens-h::after{content:"";flex:1;height:1px;background:var(--line);}
+.jg-incidents .inc-pens-h span{white-space:nowrap;}
+.jg-incidents .inc-pens-body{display:flex;align-items:flex-start;}
 .inc-row{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink);}
 .inc-row.left{justify-content:flex-end;text-align:right;}
 .inc-row.right{justify-content:flex-start;text-align:left;}
@@ -688,7 +712,7 @@ h2.np2-h{font-family:'Space Grotesk';font-weight:700;font-size:23px;line-height:
 .jg-nm-crest{width:100%;height:100%;border-radius:16%;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:800;color:#fff;font-size:38px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.22));}
 .jg-nm-center{flex:1;min-width:0;text-align:center;display:flex;flex-direction:column;justify-content:center;}
 .jg-nm-center .teams{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;line-height:1.12;color:#141522;letter-spacing:-.01em;}
-.jg-nm-center .tour{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11.5px;color:#20223a;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;}
+.jg-nm-center .tour{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11.5px;color:#20223a;margin:0 0 6px;display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;}
 .jg-nm-center .tour img{height:14px;width:auto;object-fit:contain;}
 .jg-nm-center .tour .jg-wordmark{height:14px;max-width:94%;width:auto;object-fit:contain;display:block;margin:0 auto;image-rendering:auto;}
 .jg-nm-center .tour .jg-tourtxt{white-space:nowrap;}
@@ -716,10 +740,13 @@ h2.np2-h{font-family:'Space Grotesk';font-weight:700;font-size:23px;line-height:
 .jg-nltour .jg-tourchip .logo-ic{width:13px;height:13px;}
 .jg-nlteams{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .jg-nlmeta{font-size:10.5px;color:var(--muted);line-height:1.3;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.jg-tbd{color:var(--muted);font-weight:500;}
+.jg-gev .jg-tbd{color:rgba(255,255,255,.78);font-style:italic;}
 .jg-grp{width:100%;border-collapse:collapse;font-size:13px;}
-.jg-grp th{padding:6px 8px;font-size:11px;color:var(--muted);border-bottom:2px solid var(--line);text-align:center;font-family:'Space Grotesk',sans-serif;font-weight:600;}
-.jg-grp th.l,.jg-grp td.l{text-align:left;}
-.jg-grp td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;font-variant-numeric:tabular-nums;}
+.jg-grp th{padding:6px 5px;font-size:11px;color:var(--muted);border-bottom:2px solid var(--line);text-align:center;font-family:'Space Grotesk',sans-serif;font-weight:600;}
+.jg-grp th.l,.jg-grp td.l{text-align:left;padding-left:8px;}
+.jg-grp td.l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;width:100%;}
+.jg-grp td{padding:6px 5px;border-bottom:1px solid var(--line);text-align:center;font-variant-numeric:tabular-nums;}
 .jg-grp tr:last-child td{border-bottom:none;}
 .jg-grp-row:hover td{background:var(--surface-2);}
 .jg-pe-note{font-size:12.5px;color:var(--muted);margin:-4px 0 14px;max-width:820px;line-height:1.5;}
@@ -1009,6 +1036,9 @@ function pushGameHistory(id){
 // Aplica la entrada actual del historial: pantalla del juego, o volver al editor.
 function applyNav(){
   const s = navHistory[navIndex]; if(!s) return;
+  // Partido EN VIVO (motor de partido): pantalla del historial, como el informe.
+  if(s.live){ if(window.MotorPartido) MotorPartido.show(s.live); if(typeof renderNavButtons==="function") renderNavButtons(); return; }
+  if(window.MotorPartido) MotorPartido.stop();   // al salir del partido en vivo, se detiene el reloj y el audio
   // Informe de partido: se muestra como una "pantalla" más del historial (← → y atrás lo recorren).
   if(s.report){ if(typeof mrShow==="function") mrShow(s.report); if(typeof renderNavButtons==="function") renderNavButtons(); return; }
   if(typeof mrHide==="function") mrHide();   // al salir del informe, ciérralo
@@ -1030,6 +1060,9 @@ function applyNav(){
 function onViewClick(e){
   // Cerrar el informe de partido (X) → atrás.
   if(e.target.closest("[data-mr-close]")){ if(typeof mrDismiss==="function") mrDismiss(); return; }
+  // Informe → "En vivo": abre el motor de partido.
+  const mlo=e.target.closest("[data-ml-open]");
+  if(mlo){ if(window.MotorPartido) MotorPartido.open(mlo.dataset.mlOpen); return; }
   const col=e.target.closest("[data-mnav]");
   if(col){ const nav=document.getElementById("jg-mnav"), mail=document.getElementById("jg-mail"); if(nav) nav.classList.toggle("collapsed"); if(mail) mail.classList.toggle("nav-collapsed"); return; }
   const mn=e.target.closest(".jg-mnitem");
@@ -1157,6 +1190,8 @@ function entityIconLogo(obj){
   if(!obj) return null;
   const isData=s=>typeof s==="string"&&s.indexOf("data:")===0;
   const v=(obj.iconLogo||"").toString();
+  // Logo alterno elegido ("aN").
+  if(/^a\d+$/.test(v)){ try{ const s=(typeof logoAltSrc==="function") ? logoAltSrc(obj, v) : null; if(isData(s)) return s; }catch(e){} }
   // Estilo medio/patrocinador (4 variantes hd/hl/vd/vl con logoSlot).
   if(v==="hd"||v==="hl"||v==="vd"||v==="vl"||obj.logoHDark||obj.logoVDark||obj.logoHLight||obj.logoVLight){
     try{ if(typeof mediaIconLogo==="function"){ const s=mediaIconLogo(obj); if(isData(s)) return s; } }catch(e){}
@@ -1187,6 +1222,7 @@ function federationEntity(t){
     logoImgLight: has(fed.logoImgLight)?fed.logoImgLight:t.logoImgLight,
     iconColor: (fed.iconColor!=null&&fed.iconColor!=="")?fed.iconColor:t.iconColor,
     iconLogo: fed.iconLogo||t.iconLogo,
+    logoAlts: t.logoAlts||[],   // logos alternos de la selección (por si el icono usa uno)
     iconLogoSize: (fed.iconLogoSize!=null&&fed.iconLogoSize!=="")?fed.iconLogoSize:t.iconLogoSize,
     // Perfil de redes: cada campo vacío usa el de la selección.
     socialProfileName: (fed.socialProfileName||"").toString().trim()||t.socialProfileName,
@@ -1355,6 +1391,7 @@ function convNameForms(p){
   const f=[]; const add=s=>{ s=convNl(s); if(s && f.indexOf(s)<0) f.push(s); };
   try{ add(pname(p)); }catch(e){}
   add(p&&p.commonName); add(((p&&p.firstName||"")+" "+(p&&p.lastName||"")).trim());
+  add(((p&&p.lastName||"")+" "+(p&&p.firstName||"")).trim());   // sin importar el orden (Zhou Fei = Fei Zhou)
   add(p&&p.fullName); add(p&&p.lastName); add(p&&p.name);
   return f;
 }
@@ -1799,10 +1836,24 @@ function daysUntil(iso){
 // "Amistoso" (mismo tamaño que la wordmark) para los amistosos.
 // Clase de fondo del rectángulo de partido: amistoso (morado), torneo propio no-Mundial (negro/gris),
 // o Mundial (por defecto). Así un torneo distinto al Mundial no se pinta como el Mundial.
-function matchCardBgCls(f){
+function matchBaseCls(f){
   if(f && (f.friendly || f.stage==="amistoso")) return " amistoso";
   if(f && f.competition && typeof matchIsWorldCup==="function" && !matchIsWorldCup(f)) return " torneo";
   return "";
+}
+// Registro con la configuración del fondo de la tarjeta: la competición (amistoso/torneo) o, en la Copa
+// del Mundo, el propio evento (DB.event).
+function matchBgRec(f){
+  const r=matchCompRecord(f); if(r) return r;
+  if(f && !(f.friendly || f.stage==="amistoso")) return DB.event||null;
+  return null;
+}
+// Fondo nuevo (editor "Fondo de tarjeta de partido"): base negra/blanca + imagen + degradado redondeado.
+function matchBgV2(f){ const r=matchBgRec(f); return (r && r.cardBgV2 && typeof cardBgV2Style==="function") ? r : null; }
+function matchCardBgCls(f){
+  const v=matchBgV2(f);
+  if(v){ const dark=matchLogoDark(f); return cardBgV2Style(v, dark, "").cls + (dark?" torneo":" claro"); }
+  return matchBaseCls(f);
 }
 // Registro de competición asociado a un partido (Amistoso / torneo propio); null para el Mundial.
 function matchCompRecord(f){
@@ -1814,9 +1865,9 @@ function matchCompRecord(f){
 // ¿Usar los logos para fondo OSCURO en el rectángulo de este partido? Configurable por competición
 // (matchLogoMode); por defecto oscuro para amistoso/torneos (fondo oscuro) y claro para el Mundial.
 function matchLogoDark(f){
-  const rec=matchCompRecord(f);
+  const rec=matchBgRec(f);
   if(rec && (rec.matchLogoMode==="dark"||rec.matchLogoMode==="light")) return rec.matchLogoMode==="dark";
-  return matchCardBgCls(f)!=="";
+  return matchBaseCls(f)!=="";
 }
 // Mezcla un color hex hacia blanco (target=255) o negro (target=0) en la proporción amt (0..1).
 function matchMixHex(hex, target, amt){
@@ -1836,6 +1887,8 @@ function matchGradientFromColor(hex){
 // Estilo de fondo del rectángulo del partido: imagen (back) o degradado propios de la competición.
 // Si no hay nada configurado, devuelve "" y manda el degradado por defecto de la clase (.amistoso/.torneo).
 function matchBackStyle(f){
+  const v2=matchBgV2(f);
+  if(v2){ const base=matchBaseCls(f); return cardBgV2Style(v2, matchLogoDark(f), base===" amistoso" ? "#6257e6" : "#24262d").style; }
   const rec=matchCompRecord(f);
   if(rec){
     if(typeof rec.matchBackImg==="string" && rec.matchBackImg.indexOf("data:")===0)
@@ -1881,8 +1934,20 @@ function matchTourHTML(f){
   const isFriendly=!!(f&&(f.friendly||f.stage==="amistoso"));
   const l1=tournamentName(f);
   const evLink=(typeof navigateTo==="function")?`onclick="navigateTo('evento')"`:"";
-  // Amistoso: primero el logo de la FIFA (izquierda) y luego el texto "Amistoso" (derecha), misma altura.
-  if(isFriendly) return `${fifaLogoImg(true,'jg-fifalogo')}<span class="jg-amistoso">Amistoso</span>`;
+  // Wordmark (texto-logo) del Amistoso o de cualquier torneo propio: si lo tiene, reemplaza logo + nombre,
+  // igual que en la Copa del Mundo. Versión oscura o clara según la configuración de su tarjeta.
+  const rec=matchCompRecord(f);
+  if(rec){
+    const dk=matchLogoDark(f);
+    const wm=dk?(rec.wordmarkImg||rec.wordmarkImgLight):(rec.wordmarkImgLight||rec.wordmarkImg);
+    if(typeof wm==="string" && wm.indexOf("data:")===0) return `<img class="jg-wordmark" src="${wm}" alt="${esc(l1)}">`;
+  }
+  // Amistoso: primero el logo (el de su editor si tiene; si no, el de la FIFA) y luego el texto "Amistoso".
+  if(isFriendly){
+    const lgA=rec && (matchLogoDark(f)?(rec.logoImg||rec.logoImgLight):(rec.logoImgLight||rec.logoImg));
+    const logoA=(typeof lgA==="string"&&lgA.indexOf("data:")===0)?`<img class="jg-fifalogo" src="${lgA}" alt="">`:fifaLogoImg(true,'jg-fifalogo');
+    return `${logoA}<span class="jg-amistoso">Amistoso</span>`;
+  }
   // Torneo propio (no Mundial): su logo (fondo OSCURO) + nombre, SIN enlace al evento. Si el nombre no
   // cabe en una línea junto al logo, se cambia por el nombre corto (ver jgFitTourNames, tras render).
   if(f && f.competition && typeof matchIsWorldCup==="function" && !matchIsWorldCup(f)){
@@ -1908,7 +1973,11 @@ function tournamentName(f){
 // Primer dato de la línea del partido: el GRUPO en fase de grupos, o el nombre de la ETAPA en eliminatoria.
 function stageOrGroup(f){
   if(!f || f.friendly || f.stage==="amistoso") return "";
-  if(f.stage==="eliminatoria" && f.matchNo && typeof knockoutRoundName==="function") return knockoutRoundName("M"+f.matchNo);
+  // En las fichas, las rondas van abreviadas: 16vos. / 8vos. / 4tos. de final (Semifinal, Tercer lugar y Final, completas).
+  if(f.stage==="eliminatoria" && f.matchNo && typeof knockoutRoundName==="function"){
+    const n=knockoutRoundName("M"+f.matchNo);
+    return ({"Dieciseisavos de final":"16vos. de final","Octavos de final":"8vos. de final","Cuartos de final":"4tos. de final"})[n] || n;
+  }
   if(f.group) return "Grupo "+f.group;
   return "";
 }
@@ -1960,7 +2029,7 @@ function formaResults(t){
 }
 
 /* ---- Expectativa de la prensa: hasta qué ronda espera la prensa que llegue cada selección ---- */
-const PE_STAGES=[["grupos","Fase de grupos"],["dieciseisavos","Dieciseisavos de final"],["octavos","Octavos de final"],["cuartos","Cuartos de final"],["semifinales","Semifinales"],["final","Final"]];
+const PE_STAGES=[["grupos","Fase de grupos"],["dieciseisavos","Dieciseisavos de final"],["octavos","Octavos de final"],["cuartos","Cuartos de final"],["semifinales","Semifinal"],["final","Final"]];
 const PE_LABEL=Object.fromEntries(PE_STAGES);
 function peNorm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim(); }
 const PE_SEED_NORM=(function(){
@@ -2036,7 +2105,7 @@ function homeGroupStandings(t){
   return ordered.map(tm=> byId[tm.id] || {team:tm,pj:0,g:0,pts:0});
 }
 function homeUpcoming(t, n){
-  const fx=(DB.fixtures||[]).filter(f=>(f.teamA===t.id||f.teamB===t.id)&&!fxPlayed(f)&&f.date);
+  const fx=teamFixtures().filter(f=>!fxPlayed(f)&&f.date);
   fx.sort((a,b)=>String((a.date||"")+(a.time||"")).localeCompare(String((b.date||"")+(b.time||""))));
   return fx.slice(0, n||4);
 }
@@ -2066,8 +2135,8 @@ function homeGroupCardHTML(){
   }
   const rows=homeGroupStandings(t);
   return `<div class="section-title" style="margin:0 0 6px;"><h2 style="font-size:15px;">Grupo ${esc(t.group||"")}</h2>${homeGrpDotsHTML()}</div>
-    <div class="jg-grp-scroll"><table class="jg-grp"><thead><tr><th class="l">Selección</th><th>PJ</th><th>G</th><th>Pts</th></tr></thead><tbody>
-    ${rows.map((r,i)=>`<tr class="jg-grp-row ${r.team.id===t.id?'me':''}" data-action="open-team" data-id="${r.team.id}" style="cursor:pointer;"><td class="l">${i+1}. ${esc(teamName(r.team))}</td><td>${r.pj||0}</td><td>${r.g||0}</td><td class="rating">${r.pts||0}</td></tr>`).join("")||`<tr><td colspan="4" style="color:var(--muted);">Grupo por definir</td></tr>`}
+    <div class="jg-grp-scroll"><table class="jg-grp"><thead><tr><th class="l">Selección</th><th>PJ</th><th>GF</th><th>GC</th><th>DIF</th><th>PTS</th></tr></thead><tbody>
+    ${rows.map((r,i)=>{ const d=(r.gf||0)-(r.gc||0); return `<tr class="jg-grp-row ${r.team.id===t.id?'me':''}" data-action="open-team" data-id="${r.team.id}" style="cursor:pointer;"><td class="l">${i+1}. ${esc(teamName(r.team))}</td><td>${r.pj||0}</td><td>${r.gf||0}</td><td>${r.gc||0}</td><td>${d>0?"+"+d:d}</td><td class="rating">${r.pts||0}</td></tr>`; }).join("")||`<tr><td colspan="6" style="color:var(--muted);">Grupo por definir</td></tr>`}
     </tbody></table></div>`;
 }
 
@@ -2110,8 +2179,8 @@ function scrInicio(){
       <div class="jg-nm-main">
         <div class="jg-nm-badge${A?' jg-lnk2':''}" ${A?tmLink(A.id):""}>${A?nmBadgeInner(A,matchLogoDark(f)):""}</div>
         <div class="jg-nm-center">
-          ${f?`<div class="teams">${aName} - ${bName}</div>
-          <div class="tour">${tourHTML}</div>
+          ${f?`<div class="tour">${tourHTML}</div>
+          <div class="teams">${aName} - ${bName}</div>
           <div class="meta">${l2a.join(" · ")}</div>
           ${vp?`<div class="venue">${vp.name?`<span>${esc(vp.name)}${vp.loc?",":""}</span>`:""}${vp.loc?`<span>${esc(vp.loc)}</span>`:""}</div>`:""}
           ${refHTML?`<div class="ref">Árbitro: ${refHTML}</div>`:""}`
@@ -2654,7 +2723,7 @@ function jgSortSquad(key){
 }
 try{ window.jgSortSquad=jgSortSquad; }catch(e){}
 // Distintivo de capitán: recuadro lila (color del juego) con el icono "C", del alto de la etiqueta de posición.
-function jgCapBadge(){ return `<span class="jg-capbadge" title="Capitán"><img src="${JG_CAP_ICON}" alt="C"></span>`; }
+function jgCapBadge(){ return `<span class="jg-capbadge" title="Capitán">${evIcon("cap", 9)}</span>`; }
 // ===== Estado físico/mental (condición, ritmo, moral): valores random por partida =====
 // Color de un valor 0–100 en la escala rojo(0)→amarillo(50)→verde(100).
 function statusColor(v){ v=(v==null)?50:Math.max(0,Math.min(100,v)); return `hsl(${Math.round(v*1.2)},68%,45%)`; }
@@ -2725,7 +2794,7 @@ function plJugadoresView(t){
   const rows=conv.map(p=>`
     <tr data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
       <td><span class="num-badge">${p.number!=null?p.number:"–"}</span></td>
-      <td style="min-width:150px;white-space:nowrap;">${personPhotoHTML(p,"width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:7px;")}${playerDisplayNameHTML(p)}${p.id===capId?jgCapBadge():""}${playerInjuryBadge(p,t.id)}</td>
+      <td style="min-width:150px;white-space:nowrap;">${personPhotoHTML(p,"width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:7px;")}${playerDisplayNameHTML(p)}${p.id===capId?jgCapBadge():""}${playerInjuryBadge(p,t.id)}</td>
       <td style="white-space:nowrap;"><span class="pos-chip pos-${p.pos}">${p.pos}</span>${positionsText(p)?` <span style="color:var(--muted);font-size:11.5px;">${positionsText(p)}</span>`:""}</td>
       <td class="mono">${playerAge(p)!=null?playerAge(p):"—"}</td>
       <td class="mono">${p.height!=null?p.height+" cm":"—"}</td>
@@ -2747,7 +2816,7 @@ function plDorsalesView(t){
   if(!conv.length) return `<div class="empty"><h3>Sin convocatoria</h3><p>Aún no hay dorsales asignados.</p></div>`;
   const cells=conv.map(p=>`<div class="pl-dorsal-cell" data-action="open-player" data-id="${p.id}">
     <div class="pl-dorsal"><div class="player-badge-render" data-pending data-player-id="${p.id}"></div></div>
-    <div class="pl-dorsal-cap"><span class="dn" data-nm data-nm-common="${escapeHtml((p.commonName||'').trim())}" data-nm-first="${escapeHtml((p.firstName||'').trim())}" data-nm-last="${escapeHtml((p.lastName||'').trim())}">${playerDisplayNameHTML(p)}</span></div>
+    <div class="pl-dorsal-cap"><span class="dn" data-nm data-nm-common="${escapeHtml((p.commonName||'').trim())}" data-nm-first="${escapeHtml((p.firstName||'').trim())}" data-nm-last="${escapeHtml((p.lastName||'').trim())}" data-nm-lf="${p.lastNameFirst?1:0}">${playerDisplayNameHTML(p)}</span></div>
   </div>`).join("");
   return `<div class="pl-dorsal-grid">${cells}</div>`;
 }
@@ -2757,9 +2826,10 @@ function jgtFitDorsalNames(){
     document.querySelectorAll('#jg-view .pl-dorsal-cap .dn[data-nm]').forEach(el=>{
       const common=(el.dataset.nmCommon||"").trim(), first=(el.dataset.nmFirst||"").trim(), last=(el.dataset.nmLast||"").trim();
       const b=s=>`<b>${escapeHtml(s)}</b>`;
-      const full = common? b(common) : (first&&last? `${escapeHtml(first)} ${b(last)}` : b(last||first||common||""));
-      const mid  = common? b(common) : (first&&last? `${escapeHtml(first.charAt(0))}. ${b(last)}` : b(last||first||common||""));
-      const title = common || `${first} ${last}`.trim();
+      const lf = el.dataset.nmLf==="1";   // «Apellido primero»
+      const full = common? b(common) : (first&&last? (lf ? `${b(last)} ${escapeHtml(first)}` : `${escapeHtml(first)} ${b(last)}`) : b(last||first||common||""));
+      const mid  = common? b(common) : (first&&last? (lf ? `${b(last)} ${escapeHtml(firstInitials(first))}` : `${escapeHtml(first.charAt(0))}. ${b(last)}`) : b(last||first||common||""));
+      const title = common || (lf ? `${last} ${first}` : `${first} ${last}`).trim();
       el.innerHTML=full; el.removeAttribute('title');
       if(el.scrollWidth<=el.clientWidth+1) return;
       el.innerHTML=mid; el.setAttribute('title', title);
@@ -2777,7 +2847,7 @@ function plCapitanesView(t){
     const p=byId(id); if(!p) return "";
     return `<div class="pl-caprow" data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
       <span class="pl-caprank ${i===0?"cap1":i===1?"cap2":""}">${i+1}</span>
-      <span style="flex:1;min-width:0;font-size:13px;">${personPhotoHTML(p,"width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(p)}<span class="pos-chip pos-${p.pos}" style="margin-left:6px;">${p.pos}</span></span>
+      <span style="flex:1;min-width:0;font-size:13px;">${personPhotoHTML(p,"width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(p)}<span class="pos-chip pos-${p.pos}" style="margin-left:6px;">${p.pos}</span></span>
       <span class="pl-captag">${roleLabel(i)}</span>
       <span style="display:flex;gap:4px;">
         <button class="btn ghost sm" data-action="cap-move" data-id="${p.id}" data-dir="up" ${i===0?"disabled":""}>↑</button>
@@ -2792,7 +2862,7 @@ function plCapitanesView(t){
     || playerDisplayName(a).localeCompare(playerDisplayName(b)));
   const rrows=all.map(p=>`
     <tr data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
-      <td style="min-width:150px;font-size:13px;">${personPhotoHTML(p,"width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:7px;")}${playerDisplayNameHTML(p)}</td>
+      <td style="min-width:150px;font-size:13px;">${personPhotoHTML(p,"width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:7px;")}${playerDisplayNameHTML(p)}</td>
       <td style="text-align:center;"><span class="pos-chip pos-${p.pos}">${p.pos}</span></td>
       <td class="mono" style="text-align:center;">${playerAge(p)!=null?playerAge(p):"—"}</td>
       <td class="mono" style="text-align:center;">${(()=>{const v=effectiveCaps(p);return v!=null?v:"—";})()}</td>
@@ -2828,7 +2898,7 @@ function plDisciplinaView(t){
     const estado=p.suspended?`<span class="badge conf" style="background:rgba(229,72,77,.18);color:#e5484d;">Suspendido</span>`:`<span style="color:var(--muted);">Disponible</span>`;
     return `<tr data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
       <td><span class="num-badge">${p.number}</span></td>
-      <td class="pl-disc-name">${personPhotoHTML(p,"width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:7px;")}${playerDisplayNameHTML(p)}</td>
+      <td class="pl-disc-name">${personPhotoHTML(p,"width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:7px;")}${playerDisplayNameHTML(p)}</td>
       <td style="text-align:center;"><span class="pos-chip pos-${p.pos}">${p.pos}</span></td>
       <td style="text-align:center;">${yc}</td>
       <td style="text-align:center;">${rc}</td>
@@ -2881,7 +2951,7 @@ function buildXI(){
 function jgtNameHTML(p){
   const cn=(p.commonName||"").trim(); if(cn) return `<b>${esc(cn)}</b>`;
   const fn=(p.firstName||"").trim(), ln=(p.lastName||"").trim();
-  if(fn&&ln) return `${esc(fn.charAt(0).toUpperCase())}. <b>${esc(ln)}</b>`;
+  if(fn&&ln) return (typeof personInitialHTML==="function") ? personInitialHTML(p, esc) : `${esc(fn.charAt(0).toUpperCase())}. <b>${esc(ln)}</b>`;
   if(ln) return `<b>${esc(ln)}</b>`;
   return `<b>${esc(pname(p))}</b>`;
 }
@@ -3007,7 +3077,7 @@ function cuerpoStaffHTML(t){
     const country = cf ? playerCountryName(c) : "";
     const paisHTML = country ? `${(typeof flagIconHTML==="function")?flagIconHTML(country):""}${esc(country)}` : "—";
     return `<tr data-action="open-coach" data-id="${c.id}" style="cursor:pointer;">
-      <td style="min-width:160px;white-space:nowrap;"><span class="num-badge coach-role-badge" style="display:inline-flex;width:auto;padding:0 8px;font-size:10px;letter-spacing:.05em;margin-right:8px;vertical-align:middle;">${coachRoleBadge(c.contractRole)}</span>${personPhotoHTML(c,"width:24px;height:24px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;")}${playerDisplayNameHTML(c)}</td>
+      <td style="min-width:160px;white-space:nowrap;"><span class="num-badge coach-role-badge" style="display:inline-flex;width:auto;padding:0 8px;font-size:10px;letter-spacing:.05em;margin-right:8px;vertical-align:middle;">${coachRoleBadge(c.contractRole)}</span>${personPhotoHTML(c,"width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;object-fit:cover;vertical-align:middle;margin-right:8px;")}${playerDisplayNameHTML(c)}</td>
       <td style="white-space:nowrap;">${paisHTML}</td>
       <td class="mono">${playerAge(c)!=null?playerAge(c):"—"}</td>
       <td style="white-space:nowrap;">${c.contractRole?esc(c.contractRole):"—"}</td>
@@ -3031,7 +3101,7 @@ function coachFaceImg(c){
 function personCoachName(c){
   if(!c) return "—";
   if(c.commonName) return c.commonName;
-  const fl=((c.firstName||"")+" "+(c.lastName||"")).trim();
+  const fl=(typeof personFirstLast==="function" ? personFirstLast(c) : ((c.firstName||"")+" "+(c.lastName||"")).trim());
   return fl || c.fullName || c.name || c.nombre || c.displayName || "Entrenador";
 }
 
@@ -3109,10 +3179,10 @@ function calIncidentName(e){
   if(p){
     const common=(p.commonName||"").trim();
     const fn=(p.firstName||"").trim(), ln=(p.lastName||"").trim();
-    const full = common || `${fn} ${ln}`.trim() || (e.player||"").trim() || "Jugador";
+    const full = common || ((typeof personFirstLast==="function") ? personFirstLast(p) : `${fn} ${ln}`.trim()) || (e.player||"").trim() || "Jugador";
     let short;
     if(common) short=common;
-    else if(fn && ln) short=`${fn.charAt(0)}. ${ln}`;
+    else if(fn && ln) short=(typeof personInitialName==="function") ? personInitialName(p) : `${fn.charAt(0)}. ${ln}`;
     else short = ln || fn || full;
     return { short: short||full, full };
   }
@@ -3130,7 +3200,7 @@ function calRefLinked(f){
   if(!refs.length) return "";
   const canLink=typeof navigateToReferee==="function";
   return refs.map(r=>{
-    const nm=(r.commonName||((r.firstName||"")+" "+(r.lastName||""))).trim();
+    const nm=(r.commonName||(typeof personFirstLast==="function" ? personFirstLast(r) : ((r.firstName||"")+" "+(r.lastName||"")).trim())).trim();
     const code=mrRefCountryCode(r);
     const nameHTML=(canLink&&r.id!=null)?`<span class="jg-lnk2" data-action="open-referee" data-id="${r.id}">${esc(nm)}</span>`:esc(nm);
     return code ? `${nameHTML} (${esc(code)})` : nameHTML;
@@ -3214,7 +3284,7 @@ function calTourChipHTML(f, dark){
   return `<span class="jg-tourchip jg-lnk2" ${evLink}>${inner}</span>`;
 }
 // Enlace de equipo (navega al perfil).
-function calTeamLink(x){ return x?`<span class="jg-lnk2" data-action="open-team" data-id="${x.id}">${esc(teamName(x))}</span>`:"—"; }
+function calTeamLink(x){ return x?`<span class="jg-lnk2" data-action="open-team" data-id="${x.id}">${esc(teamName(x))}</span>`:`<span class="jg-tbd">Por definir</span>`; }
 // Escudo mini de un equipo (para la cuadrícula), enlazable. dark = logo para fondo oscuro.
 function calMiniCrest(x, dark){
   if(!x) return "";
@@ -3223,13 +3293,74 @@ function calMiniCrest(x, dark){
     :((typeof DEFAULT_CREST_SRC==="string"&&DEFAULT_CREST_SRC)?`<img src="${DEFAULT_CREST_SRC}" alt="" onerror="this.style.display='none'">`:`<span class="ge-code">${esc(teamCode(x))}</span>`);
   return `<span class="ge-crest jg-lnk2" data-action="open-team" data-id="${x.id}">${inner}</span>`;
 }
-// Icono de una incidencia: balón (gol, blanco), o tarjeta amarilla/roja (rectángulo).
-function calIncidentIcon(kind, og, title){
-  if(kind==="red") return `<span class="inc-card red" title="Tarjeta roja"></span>`;
-  if(kind==="yellow") return `<span class="inc-card yellow" title="Tarjeta amarilla"></span>`;
-  // Gol en contra: balón ROJO (mismo dibujo, teñido con el PNG como máscara).
-  if(og) return `<span class="inc-ball og-ball" title="Gol en contra" style="display:inline-block;background:var(--coral,#E1473A);-webkit-mask:url('${JG_BALL_ICON}') center/contain no-repeat;mask:url('${JG_BALL_ICON}') center/contain no-repeat;"></span>`;
-  return `<img class="inc-ball" src="${JG_BALL_ICON}" alt="gol" title="${esc(title||'Gol')}">`;
+// ICONOS DE SUCESOS (events.svg del usuario): entra/sale, cambio, tarjetas, doble amarilla, gol, gol en
+// contra, penal anotado/fallado, silbato, capitán, asistencia y VAR. Cada uno con su viewBox ajustado; se
+// dibuja al ANCHO indicado (el alto sale de la proporción del icono).
+const EV_ICONS={"in": {"vb": "13.42 1.89 9.87 7.75", "w": 9.87, "h": 7.75, "b": "<path d=\"M19.06,2.46l3.88,5.65c.39.56-.02,1.33-.7,1.33h-7.77c-.68,0-1.09-.77-.7-1.33l3.88-5.65c.34-.49,1.06-.49,1.4,0Z\" fill=\"#34d399\" fill-rule=\"evenodd\"></path>"}, "out": {"vb": "13.43 15.24 9.87 7.75", "w": 9.87, "h": 7.75, "b": "<path d=\"M17.66,22.42l-3.88-5.65c-.39-.56.02-1.33.7-1.33h7.77c.68,0,1.09.77.7,1.33l-3.88,5.65c-.34.49-1.06.49-1.4,0Z\" fill=\"#ff6b4d\" fill-rule=\"evenodd\"></path>"}, "sub": {"vb": "13.42 27.30 9.88 16.58", "w": 9.88, "h": 16.58, "b": "<path d=\"M19.06,27.87l3.88,5.65c.39.56-.02,1.33-.7,1.33h-7.77c-.68,0-1.09-.77-.7-1.33l3.88-5.65c.34-.49,1.06-.49,1.4,0Z\" fill=\"#34d399\" fill-rule=\"evenodd\"></path><path d=\"M17.66,43.31l-3.88-5.65c-.39-.56.02-1.33.7-1.33h7.77c.68,0,1.09.77.7,1.33l-3.88,5.65c-.34.49-1.06.49-1.4,0Z\" fill=\"#ff6b4d\" fill-rule=\"evenodd\"></path>"}, "red": {"vb": "12.70 48.03 12.07 16.40", "w": 12.07, "h": 16.4, "b": "<rect x=\"12.9\" y=\"48.23\" width=\"11.67\" height=\"16\" rx=\"2.12\" ry=\"2.12\" fill=\"#ff6b4d\"></rect>"}, "yellow": {"vb": "12.70 68.20 12.07 16.40", "w": 12.07, "h": 16.4, "b": "<rect x=\"12.9\" y=\"68.4\" width=\"11.67\" height=\"16\" rx=\"2.12\" ry=\"2.12\" fill=\"#f5c842\"></rect>"}, "double": {"vb": "12.08 89.05 14.35 19.03", "w": 14.35, "h": 19.03, "b": "<rect x=\"12.28\" y=\"89.25\" width=\"11.67\" height=\"16\" rx=\"2.12\" ry=\"2.12\" fill=\"#f5c842\"></rect><rect x=\"14.56\" y=\"91.88\" width=\"11.67\" height=\"16\" rx=\"2.12\" ry=\"2.12\" fill=\"#ff6b4d\"></rect>"}, "goal": {"vb": "12.03 111.45 13.40 13.40", "w": 13.4, "h": 13.4, "b": "<path d=\"M18.73,111.65c-3.59,0-6.5,2.91-6.5,6.5s2.91,6.5,6.5,6.5,6.5-2.91,6.5-6.5-2.91-6.5-6.5-6.5ZM22.97,120.39l-1.69.32c-.22.04-.41.25-.48.44l-.56,1.52c-.1.28-.05.55.17.8-.53.17-1.09.26-1.68.26-.48,0-.94-.06-1.38-.17-.02,0-.03,0-.05-.01-.01,0-.03,0-.04-.01-.06-.02-.13-.04-.19-.06.21-.22.29-.49.19-.75l-.58-1.58c-.09-.24-.28-.39-.52-.44l-1.56-.3c-.33-.06-.62.04-.84.31-.4-.77-.62-1.63-.63-2.55.25.07.51.07.71-.1l1.29-1.04c.18-.14.25-.39.21-.6l-.24-1.61c-.03-.23-.2-.4-.4-.54.53-.55,1.18-1,1.9-1.29.06.28.2.48.42.6l1.36.76c.22.12.47.13.69,0l1.38-.77c.22-.12.34-.34.41-.58.71.3,1.35.74,1.88,1.29-.19.13-.34.29-.38.52l-.25,1.67c-.03.2.06.45.22.57l1.27,1.02c.2.16.44.19.7.11,0,.91-.23,1.78-.62,2.54-.2-.23-.45-.37-.73-.31Z\" fill=\"#fff\"></path><path d=\"M20.74,116.96l-1.55-1.12c-.26-.19-.57-.21-.84-.02l-1.63,1.17c-.23.16-.32.47-.24.73l.62,1.93c.09.27.35.47.64.47h2.06c.25,0,.5-.19.57-.42l.63-1.91c.11-.32,0-.63-.27-.82Z\" fill=\"#fff\"></path>"}, "og": {"vb": "12.03 129.44 13.40 13.40", "w": 13.4, "h": 13.4, "b": "<path d=\"M18.73,129.64c-3.59,0-6.5,2.91-6.5,6.5s2.91,6.5,6.5,6.5,6.5-2.91,6.5-6.5-2.91-6.5-6.5-6.5ZM22.97,138.38l-1.69.32c-.22.04-.41.25-.48.44l-.56,1.52c-.1.28-.05.55.17.8-.53.17-1.09.26-1.68.26-.48,0-.94-.06-1.38-.17-.02,0-.03,0-.05-.01-.01,0-.03,0-.04-.01-.06-.02-.13-.04-.19-.06.21-.22.29-.49.19-.75l-.58-1.58c-.09-.24-.28-.39-.52-.44l-1.56-.3c-.33-.06-.62.04-.84.31-.4-.77-.62-1.63-.63-2.55.25.07.51.07.71-.1l1.29-1.04c.18-.14.25-.39.21-.6l-.24-1.61c-.03-.23-.2-.4-.4-.54.53-.55,1.18-1,1.9-1.29.06.28.2.48.42.6l1.36.76c.22.12.47.13.69,0l1.38-.77c.22-.12.34-.34.41-.58.71.3,1.35.74,1.88,1.29-.19.13-.34.29-.38.52l-.25,1.67c-.03.2.06.45.22.57l1.27,1.02c.2.16.44.19.7.11,0,.91-.23,1.78-.62,2.54-.2-.23-.45-.37-.73-.31Z\" fill=\"#ff6b4d\"></path><path d=\"M20.74,134.96l-1.55-1.12c-.26-.19-.57-.21-.84-.02l-1.63,1.17c-.23.16-.32.47-.24.73l.62,1.93c.09.27.35.47.64.47h2.06c.25,0,.5-.19.57-.42l.63-1.91c.11-.32,0-.63-.27-.82Z\" fill=\"#ff6b4d\"></path>"}, "penok": {"vb": "12.04 148.81 13.40 13.45", "w": 13.4, "h": 13.45, "b": "<path d=\"M18.74,149.01c-3.59,0-6.5,2.91-6.5,6.5s2.91,6.5,6.5,6.5,6.5-2.91,6.5-6.5-2.91-6.5-6.5-6.5ZM22.98,157.75l-1.69.32c-.22.04-.41.25-.48.44l-.56,1.52c-.1.28-.05.55.17.8-.53.17-1.09.26-1.68.26-.48,0-.94-.06-1.38-.17-.02,0-.03,0-.05-.01-.01,0-.03,0-.04-.01-.06-.02-.13-.04-.19-.06.21-.22.29-.49.19-.75l-.58-1.58c-.09-.24-.28-.39-.52-.44l-1.56-.3c-.33-.06-.62.04-.84.31-.4-.77-.62-1.63-.63-2.55.25.07.51.07.71-.1l1.29-1.04c.18-.14.25-.39.21-.6l-.24-1.61c-.03-.23-.2-.4-.4-.54.53-.55,1.18-1,1.9-1.29.06.28.2.48.42.6l1.36.76c.22.12.47.13.69,0l1.38-.77c.22-.12.34-.34.41-.58.71.3,1.35.74,1.88,1.29-.19.13-.34.29-.38.52l-.25,1.67c-.03.2.06.45.22.57l1.27,1.02c.2.16.44.19.7.11,0,.91-.23,1.78-.62,2.54-.2-.23-.45-.37-.73-.31Z\" fill=\"#fff\"></path><path d=\"M20.75,154.33l-1.55-1.12c-.26-.19-.57-.21-.84-.02l-1.63,1.17c-.23.16-.32.47-.24.73l.62,1.93c.09.27.35.47.64.47h2.06c.25,0,.5-.19.57-.42l.63-1.91c.11-.32,0-.63-.27-.82Z\" fill=\"#fff\"></path><circle cx=\"22.59\" cy=\"159.41\" r=\"2.65\" fill=\"#34d399\"></circle><path d=\"M21.64,160.46l2.34-2.34.47.47-2.34,2.34-.47-.47ZM21.64,160.46l-.7-.7.47-.47.7.7-.47.47Z\" fill=\"#fff\" fill-rule=\"evenodd\"></path>"}, "penmiss": {"vb": "12.06 166.41 13.40 13.45", "w": 13.4, "h": 13.45, "b": "<path d=\"M18.76,166.61c-3.59,0-6.5,2.91-6.5,6.5s2.91,6.5,6.5,6.5,6.5-2.91,6.5-6.5-2.91-6.5-6.5-6.5ZM22.99,175.36l-1.69.32c-.22.04-.41.25-.48.44l-.56,1.52c-.1.28-.05.55.17.8-.53.17-1.09.26-1.68.26-.48,0-.94-.06-1.38-.17-.02,0-.03,0-.05-.01-.01,0-.03,0-.04-.01-.06-.02-.13-.04-.19-.06.21-.22.29-.49.19-.75l-.58-1.58c-.09-.24-.28-.39-.52-.44l-1.56-.3c-.33-.06-.62.04-.84.31-.4-.77-.62-1.63-.63-2.55.25.07.51.07.71-.1l1.29-1.04c.18-.14.25-.39.21-.6l-.24-1.61c-.03-.23-.2-.4-.4-.54.53-.55,1.18-1,1.9-1.29.06.28.2.48.42.6l1.36.76c.22.12.47.13.69,0l1.38-.77c.22-.12.34-.34.41-.58.71.3,1.35.74,1.88,1.29-.19.13-.34.29-.38.52l-.25,1.67c-.03.2.06.45.22.57l1.27,1.02c.2.16.44.19.7.11,0,.91-.23,1.78-.62,2.54-.2-.23-.45-.37-.73-.31Z\" fill=\"#fff\"></path><path d=\"M20.76,171.93l-1.55-1.12c-.26-.19-.57-.21-.84-.02l-1.63,1.17c-.23.16-.32.47-.24.73l.62,1.93c.09.27.35.47.64.47h2.06c.25,0,.5-.19.57-.42l.63-1.91c.11-.32,0-.63-.27-.82Z\" fill=\"#fff\"></path><circle cx=\"22.59\" cy=\"177.01\" r=\"2.65\" fill=\"#ff6b4d\"></circle><path d=\"M22.23,177.11l-.96.96.47.47.96-.96.92.92.47-.47-.92-.92.92-.92-.47-.47-.92.92-.96-.96-.47.47.96.96Z\" fill=\"#fff\" fill-rule=\"evenodd\"></path>"}, "whistle": {"vb": "12.03 185.85 14.41 11.97", "w": 14.41, "h": 11.97, "b": "<path d=\"M26.23,188.32c0-.14-.16-.25-.29-.25h-3.88s.02.16.02.16v.52c0,.28-.24.52-.53.52h-1.02c-.28,0-.52-.24-.53-.52v-.52s.02-.16.02-.16h-2.95s-.03,0-.04,0c0,0-.01,0-.02,0-.02,0-.04,0-.06,0-.1,0-.21,0-.31.02-.14.01-.28.03-.42.05,0,0,0,0,0,0-1.47.25-2.71,1.15-3.4,2.41-.11.2-.2.4-.28.61-.2.52-.31,1.09-.31,1.68,0,.52.09,1.02.24,1.49.07.21.16.42.25.62.78,1.58,2.4,2.67,4.28,2.67,2.64,0,4.78-2.14,4.78-4.78,0-.11,0-.22-.02-.34l4.3-1.68c.1-.04.15-.12.18-.22v-2.29Z\" fill=\"#fff\"></path><path d=\"M19.86,187.36c.12.12.3.1.41,0,.11-.1.15-.29.03-.41-.23-.25-.46-.48-.7-.7-.12-.11-.31-.06-.41.04-.1.11-.11.3,0,.41l.67.66Z\" fill=\"#fff\"></path><path d=\"M22.32,187.34l.62-.62c.12-.12.12-.3.02-.42-.1-.12-.3-.16-.42-.04l-.68.68c-.12.12-.09.33.03.43.13.11.3.1.43-.03Z\" fill=\"#fff\"></path><path d=\"M21.08,187.44c.15,0,.3-.11.3-.29v-.78c0-.18-.13-.32-.3-.32-.16,0-.31.13-.31.3v.8c0,.17.16.28.31.28Z\" fill=\"#fff\"></path>"}, "cap": {"vb": "12.80 203.37 11.51 12.28", "w": 11.51, "h": 12.28, "b": "<path d=\"M18.94,212.94c-1.89,0-3.43-1.54-3.43-3.43s1.54-3.43,3.43-3.43c1.28,0,2.4.71,2.98,1.75l2.19-1.23c-1.02-1.81-2.96-3.03-5.17-3.03-3.28,0-5.94,2.67-5.94,5.94s2.67,5.94,5.94,5.94c2.22,0,4.15-1.22,5.17-3.03l-2.19-1.23c-.59,1.04-1.7,1.75-2.98,1.75Z\" fill=\"#fff\"></path>"}, "assist": {"vb": "11.17 219.18 14.67 13.77", "w": 14.67, "h": 13.77, "b": "<path d=\"M15.24,230.11l.62-.57.1-.09c0-.06-.01-.12-.04-.18l-.52-1.41c-.08-.21-.25-.35-.46-.39l-1.39-.27c-.29-.06-.55.04-.75.28-.35-.68-.56-1.46-.56-2.28.22.07.45.06.63-.09l1.15-.93c.16-.13.22-.35.19-.54l-.22-1.44c-.03-.21-.18-.36-.36-.48.48-.49,1.05-.89,1.7-1.15.05.25.18.43.37.54l1.21.68c.19.11.42.12.61,0l1.23-.69c.2-.11.31-.3.37-.52.63.27,1.2.66,1.67,1.15-.17.11-.31.26-.34.46l-.22,1.49c-.03.18.06.4.2.51l1.13.91c.18.14.39.17.62.1,0,.27-.03.53-.08.78h.06s0,.01,0,.01c.02,0,.04,0,.06,0h.07s.07,0,.1,0c.02,0,.04-.01.06-.02l.09-.03c.13-.05.23-.1.29-.15.05-.04.09-.09.12-.14.01-.16.02-.31.02-.47,0-3.2-2.6-5.8-5.8-5.8s-5.8,2.6-5.8,5.8c0,2.39,1.45,4.43,3.51,5.32.04-.07.09-.15.14-.22.05-.07.1-.13.16-.19Z\" fill=\"#fff\"></path><path d=\"M19.01,224.14l-1.38-1c-.23-.17-.51-.19-.75-.02l-1.45,1.05c-.2.15-.29.41-.21.65l.56,1.72c.08.24.31.42.57.42h1.84c.23,0,.45-.17.51-.37l.56-1.71c.1-.29,0-.56-.24-.73Z\" fill=\"#fff\"></path><path d=\"M25.52,227.18c-.04-.1-.08-.2-.12-.3l-.09-.22c-.24-.48-.57-.9-.99-1.23-.04-.03-.1-.05-.16-.05,0,0,0,0,0,0-.05,0-.11.01-.14.03-.05.02-.08.06-.11.09-.03.04-.05.08-.07.14-.05.14-.11.28-.19.4-.08.12-.17.23-.28.33-.15.14-.34.23-.55.3-.08.03-.16.06-.25.08-.08.01-.16.02-.24.02-.04,0-.07,0-.11,0-.05,0-.09,0-.13-.01-.04,0-.09-.02-.13-.03-.04,0-.07-.01-.11-.02-.04-.01-.09-.03-.13-.04-.08-.03-.16-.07-.24-.12-.04-.02-.07-.04-.11-.06-.11-.07-.21-.16-.3-.26-.03-.03-.07-.06-.11-.08-.01,0-.03,0-.04-.01-.02,0-.05-.02-.07-.02-.01,0-.03,0-.04,0h-.08s-.05.03-.05.03l-.08.06-.7.64.32.34c.07.07.1.16.1.25,0,.04-.01.09-.03.13-.02.04-.04.08-.08.11-.03.03-.07.06-.11.07-.03.01-.06.01-.09.01,0,0,0,0,0,0-.02,0-.04,0-.06,0-.08,0-.16-.03-.23-.1l-.33-.35-.63.58.33.35c.07.07.1.16.1.25s-.04.18-.11.24c-.03.03-.07.06-.11.07,0,0,0,0,0,0-.03.01-.06.01-.09.01,0,0,0,0,0,0-.02,0-.04,0-.06,0-.08,0-.16-.03-.23-.1l-.34-.36-.62.57.32.34c.07.07.1.16.1.25,0,.04-.01.09-.03.13-.02.04-.04.08-.08.11-.03.03-.07.06-.11.07-.03.01-.06.01-.09.01,0,0,0,0,0,0-.02,0-.04,0-.06,0-.08,0-.16-.03-.23-.1l-.33-.35-.75.68-.62.57s-.06.07-.09.11c-.14.18-.23.4-.23.63,0,.09.01.18.04.26l.04.15v.05s.08.13.08.13c.07.12.16.22.26.3.02.02.05.04.08.06.1.07.21.13.33.16,0,0,0,0,0,0,.09.02.19.04.29.04.03,0,.06,0,.09-.01.03,0,.06,0,.09-.01.06-.01.13-.02.19-.04s.13-.04.19-.08l.08-.03.07.18c.02.06.07.11.12.15.01,0,.02.02.03.02.05.03.11.05.17.05,0,0,0,0,0,0,.04,0,.09,0,.13-.02.18-.07.27-.28.2-.46l-.07-.18,1.17-.46.07.18c.02.06.07.11.12.15,0,0,.01,0,.02.01,0,0,.01,0,.02.01.05.03.11.05.17.05,0,0,0,0,0,0,.04,0,.09,0,.13-.02.09-.04.16-.11.2-.19.02-.04.03-.09.03-.13,0-.05,0-.09-.02-.14l-.07-.19,1.17-.46.07.19c.02.06.07.11.12.15.01,0,.02.02.03.02.05.03.11.05.17.05,0,0,0,0,0,0,.04,0,.09,0,.13-.02.18-.07.27-.28.2-.46l-.08-.19,1.02-.4.08.19c.02.06.07.11.12.15.01,0,.02.02.03.02.05.03.11.05.17.05,0,0,0,0,0,0,.04,0,.09,0,.13-.02.14-.05.22-.18.23-.32,0-.05,0-.09-.02-.14l-.08-.2,1.02-.4.08.2c.02.06.07.11.12.15.01,0,.02.02.03.02.05.03.11.05.17.05,0,0,0,0,0,0,.04,0,.09,0,.13-.02.18-.07.27-.28.2-.46l-.08-.2.54-.21c.28-.56.33-1.2.15-1.8l-.06-.14Z\" fill=\"#fff\"></path>"}, "var": {"vb": "10.36 236.51 16.39 13.39", "w": 16.39, "h": 13.39, "b": "<path d=\"M24.44,236.71h-11.76c-1.17,0-2.12.95-2.12,2.12v7.44c0,1.17.95,2.12,2.12,2.12h2.75c.09.74.72,1.31,1.48,1.31h3.29c.76,0,1.39-.57,1.48-1.31h2.75c1.17,0,2.12-.95,2.12-2.12v-7.44c0-1.17-.95-2.12-2.12-2.12ZM24.55,246.27c0,.06-.05.12-.12.12h-11.76c-.06,0-.12-.05-.12-.12v-7.44c0-.06.05-.12.12-.12h11.76c.06,0,.12.05.12.12v7.44Z\" fill=\"#fff\"></path><path d=\"M18.16,240.5c-.56-.32-1.26.08-1.26.73v2.64c0,.65.7,1.05,1.26.73l2.28-1.32c.56-.32.56-1.13,0-1.45l-2.28-1.32Z\" fill=\"#fff\"></path>"}, "offside": {"vb": "11.11 252.68 14.27 14.26", "w": 14.27, "h": 14.26, "b": "<path d=\"M24.97,254.42c-.13-.3-.31-.57-.54-.8-.34-.34-.78-.59-1.27-.69-.16-.03-.33-.05-.51-.05h-8.83c-1.39,0-2.51,1.13-2.51,2.51v8.83c0,1.04.63,1.94,1.54,2.32.3.13.63.2.98.2h8.83c.17,0,.34-.02.51-.05.49-.1.93-.34,1.27-.69.23-.23.41-.5.54-.8.13-.3.2-.63.2-.98v-8.83c0-.35-.07-.68-.2-.98ZM24.16,264.23c0,.84-.68,1.51-1.52,1.51h-4.42v-5.93h-5.93v-4.42c0-.84.68-1.51,1.51-1.51h4.42v5.93h5.93v4.42Z\" fill=\"#fff\"></path>"}};
+// box (opcional): caja CUADRADA fija donde el icono va centrado. Así todos los iconos guardan la misma
+// separación con el texto y con los demás elementos, aunque cada dibujo mida distinto.
+function evIcon(name, w, cls, title, box){
+  const d=EV_ICONS[name]; if(!d) return "";
+  const t = title ? `<title>${esc(title)}</title>` : "";
+  const svg = `<svg class="evi evi-${name}${cls&&!box?" "+cls:""}" viewBox="${d.vb}" style="width:${w}px;height:${(w*d.h/d.w).toFixed(2)}px;" aria-hidden="${title?"false":"true"}">${t}${d.b}</svg>`;
+  return box ? `<span class="evi-box${cls?" "+cls:""}" style="width:${box}px;height:${box}px;"${title?` title="${esc(title)}"`:""}>${svg}</span>` : svg;
+}
+// ---------- CLIMA del partido (línea "Clima:" de partidos-mundial.js / partidos.js) ----------
+// Iconos del usuario (iconos_clima.svg), sólidos y en línea: relleno currentColor, así toman el tamaño y el
+// color del texto y sirven en tema claro y oscuro. Cada condición trae [día, noche] con su viewBox; los
+// partidos de las 19:00 o más tarde (hora oficial) usan la versión de noche.
+const CLIMA_ICONOS = {"sol": [{"vb": "234.3 855.1 96 96", "svg": "<g><circle fill=\"currentColor\" cx=\"282.31\" cy=\"903.08\" r=\"18.64\"/><g><path fill=\"currentColor\" d=\"M282.31,880.62c-1.38,0-2.5-1.12-2.5-2.5v-10.93c0-1.38,1.12-2.5,2.5-2.5s2.5,1.12,2.5,2.5v10.93c0,1.38-1.12,2.5-2.5,2.5Z\"/><path fill=\"currentColor\" d=\"M282.31,941.48c-1.38,0-2.5-1.12-2.5-2.5v-10.93c0-1.38,1.12-2.5,2.5-2.5s2.5,1.12,2.5,2.5v10.93c0,1.38-1.12,2.5-2.5,2.5Z\"/><path fill=\"currentColor\" d=\"M318.2,905.58h-10.93c-1.38,0-2.5-1.12-2.5-2.5s1.12-2.5,2.5-2.5h10.93c1.38,0,2.5,1.12,2.5,2.5s-1.12,2.5-2.5,2.5Z\"/><path fill=\"currentColor\" d=\"M257.34,905.58h-10.93c-1.38,0-2.5-1.12-2.5-2.5s1.12-2.5,2.5-2.5h10.93c1.38,0,2.5,1.12,2.5,2.5s-1.12,2.5-2.5,2.5Z\"/><path fill=\"currentColor\" d=\"M299.96,887.93c-.64,0-1.28-.24-1.77-.73-.98-.98-.98-2.56,0-3.54l7.73-7.73c.98-.98,2.56-.98,3.54,0,.98.98.98,2.56,0,3.54l-7.73,7.73c-.49.49-1.13.73-1.77.73Z\"/><path fill=\"currentColor\" d=\"M256.93,930.96c-.64,0-1.28-.24-1.77-.73-.98-.98-.98-2.56,0-3.54l7.73-7.73c.98-.98,2.56-.98,3.54,0,.98.98.98,2.56,0,3.54l-7.73,7.73c-.49.49-1.13.73-1.77.73Z\"/><path fill=\"currentColor\" d=\"M264.66,887.93c-.64,0-1.28-.24-1.77-.73l-7.73-7.73c-.98-.98-.98-2.56,0-3.54.98-.98,2.56-.98,3.54,0l7.73,7.73c.98.98.98,2.56,0,3.54-.49.49-1.13.73-1.77.73Z\"/><path fill=\"currentColor\" d=\"M307.69,930.96c-.64,0-1.28-.24-1.77-.73l-7.73-7.73c-.98-.98-.98-2.56,0-3.54.98-.98,2.56-.98,3.54,0l7.73,7.73c.98.98.98,2.56,0,3.54-.49.49-1.13.73-1.77.73Z\"/></g></g>"}, {"vb": "233.8 963.5 96 96", "svg": "<path fill=\"currentColor\" d=\"M291.09,1028.28c-13.33,0-24.13-10.8-24.13-24.13,0-9.19,5.14-17.18,12.7-21.25-14.58,1.34-26,13.6-26,28.53,0,15.83,12.83,28.66,28.66,28.66,13.09,0,24.13-8.78,27.55-20.78-4.42,5.47-11.19,8.98-18.77,8.98Z\"/>"}], "msol": [{"vb": "367.7 852.6 96 96", "svg": "<g><path fill=\"currentColor\" d=\"M448.07,903.79c-2.18-7.27-8.92-12.57-16.9-12.57-5.28,0-10,2.33-13.23,6.01-.6.68-1.15,1.4-1.63,2.16-.88-.26-1.81-.4-2.78-.4-5.46,0-9.88,4.42-9.88,9.88,0,1,.15,1.97.43,2.88-.14,0-.28-.02-.43-.02-2.42,0-4.64.88-6.36,2.32-2.15,1.81-3.52,4.52-3.52,7.56,0,5.46,4.42,9.88,9.88,9.88h40.99c7.77,0,14.07-6.3,14.07-14.07,0-6.58-4.53-12.09-10.64-13.63Z\"/><path fill=\"currentColor\" d=\"M400.65,909.07c0-.07,0-.14,0-.21,0-7.1,5.78-12.88,12.88-12.88.49,0,.98.03,1.46.08.57-.73,1.19-1.4,1.85-2.04-2.4-5.04-7.52-8.52-13.47-8.52-8.24,0-14.92,6.68-14.92,14.92,0,4.95,2.42,9.33,6.14,12.04,1.65-1.64,3.73-2.84,6.06-3.4Z\"/><path fill=\"currentColor\" d=\"M403.38,882.43c1.11,0,2-.9,2-2v-8.75c0-1.11-.9-2-2-2s-2,.9-2,2v8.75c0,1.11.9,2,2,2Z\"/><path fill=\"currentColor\" d=\"M385.39,900.42c0-1.11-.9-2-2-2h-8.75c-1.11,0-2,.9-2,2s.9,2,2,2h8.75c1.11,0,2-.9,2-2Z\"/><path fill=\"currentColor\" d=\"M417.51,888.29c.51,0,1.02-.2,1.42-.59l6.19-6.19c.78-.78.78-2.05,0-2.83-.78-.78-2.05-.78-2.83,0l-6.19,6.19c-.78.78-.78,2.05,0,2.83.39.39.9.59,1.42.59Z\"/><path fill=\"currentColor\" d=\"M387.82,913.14l-6.19,6.19c-.78.78-.78,2.05,0,2.83.39.39.9.59,1.42.59s1.02-.2,1.42-.59l6.19-6.19c.78-.78.78-2.05,0-2.83-.78-.78-2.05-.78-2.83,0Z\"/><path fill=\"currentColor\" d=\"M387.82,887.7c.39.39.9.59,1.42.59s1.02-.2,1.42-.59c.78-.78.78-2.05,0-2.83l-6.19-6.19c-.78-.78-2.05-.78-2.83,0-.78.78-.78,2.05,0,2.83l6.19,6.19Z\"/></g>"}, {"vb": "372.6 963.0 96 96", "svg": "<g><path fill=\"currentColor\" d=\"M402.31,1009.28c-4.84-2.89-8.09-8.17-8.09-14.21s3.53-11.79,8.71-14.58c-10,.92-17.84,9.33-17.84,19.58,0,8.51,5.42,15.74,12.99,18.48.08-3.67,1.69-6.96,4.23-9.26Z\"/><path fill=\"currentColor\" d=\"M450.66,1016.25c-1.51-1.17-3.26-2.04-5.17-2.51-.14-.45-.29-.9-.46-1.34-.34-.88-.75-1.72-1.22-2.52-.24-.4-.49-.79-.75-1.17-.53-.76-1.12-1.48-1.76-2.14-.32-.33-.65-.65-1-.96-1.73-1.53-3.76-2.73-6-3.5-1.79-.61-3.7-.94-5.7-.94-5.28,0-10,2.33-13.23,6.01-.6.68-1.15,1.4-1.63,2.16-.47-.14-.96-.24-1.46-.31-.43-.06-.87-.1-1.32-.1-2.09,0-4.03.65-5.63,1.76-2.57,1.78-4.26,4.75-4.26,8.12,0,.19.01.38.02.56.05.8.18,1.58.41,2.32h0s-.01,0-.02,0c-.14,0-.27-.02-.41-.02-2.42,0-4.64.88-6.36,2.32-2.15,1.81-3.52,4.52-3.52,7.56,0,5.46,4.42,9.88,9.88,9.88h40.99c7.77,0,14.07-6.3,14.07-14.07,0-4.53-2.14-8.55-5.46-11.11Z\"/></g>"}], "psol": [{"vb": "500.0 854.4 96 96", "svg": "<g><path fill=\"currentColor\" d=\"M580.42,905.63c-2.18-7.27-8.92-12.57-16.9-12.57-5.28,0-10,2.33-13.23,6.01-.6.68-1.15,1.4-1.63,2.16-.88-.26-1.81-.4-2.78-.4-5.46,0-9.88,4.42-9.88,9.88,0,1,.15,1.97.43,2.88-.14,0-.28-.02-.43-.02-2.42,0-4.64.88-6.36,2.32-2.15,1.81-3.52,4.52-3.52,7.56,0,5.46,4.42,9.88,9.88,9.88h40.99c7.77,0,14.07-6.3,14.07-14.07,0-6.58-4.53-12.09-10.64-13.63Z\"/><path fill=\"currentColor\" d=\"M533,910.91c0-.07,0-.14,0-.21,0-7.1,5.78-12.88,12.88-12.88.49,0,.98.03,1.46.08.57-.73,1.19-1.4,1.85-2.04-2.4-5.04-7.52-8.52-13.47-8.52-8.24,0-14.92,6.68-14.92,14.92,0,4.95,2.42,9.33,6.14,12.04,1.65-1.64,3.73-2.84,6.06-3.4Z\"/><path fill=\"currentColor\" d=\"M535.72,884.28c1.11,0,2-.9,2-2v-8.75c0-1.11-.9-2-2-2s-2,.9-2,2v8.75c0,1.11.9,2,2,2Z\"/><path fill=\"currentColor\" d=\"M517.73,902.27c0-1.11-.9-2-2-2h-8.75c-1.11,0-2,.9-2,2s.9,2,2,2h8.75c1.11,0,2-.9,2-2Z\"/><path fill=\"currentColor\" d=\"M549.86,890.13c.51,0,1.02-.2,1.42-.59l6.19-6.19c.78-.78.78-2.05,0-2.83-.78-.78-2.05-.78-2.83,0l-6.19,6.19c-.78.78-.78,2.05,0,2.83.39.39.9.59,1.42.59Z\"/><path fill=\"currentColor\" d=\"M520.17,914.99l-6.19,6.19c-.78.78-.78,2.05,0,2.83.39.39.9.59,1.42.59s1.02-.2,1.42-.59l6.19-6.19c.78-.78.78-2.05,0-2.83-.78-.78-2.05-.78-2.83,0Z\"/><path fill=\"currentColor\" d=\"M520.17,889.55c.39.39.9.59,1.42.59s1.02-.2,1.42-.59c.78-.78.78-2.05,0-2.83l-6.19-6.19c-.78-.78-2.05-.78-2.83,0-.78.78-.78,2.05,0,2.83l6.19,6.19Z\"/></g>"}, {"vb": "505.1 963.5 96 96", "svg": "<g><path fill=\"currentColor\" d=\"M534.84,1009.81c-4.84-2.89-8.09-8.17-8.09-14.21s3.53-11.79,8.71-14.58c-10,.92-17.84,9.33-17.84,19.58,0,8.51,5.42,15.74,12.99,18.48.08-3.67,1.69-6.96,4.23-9.26Z\"/><path fill=\"currentColor\" d=\"M583.19,1016.78c-1.51-1.17-3.26-2.04-5.17-2.51-.14-.45-.29-.9-.46-1.34-.34-.88-.75-1.72-1.22-2.52-.24-.4-.49-.79-.75-1.17-.53-.76-1.12-1.48-1.76-2.14-.32-.33-.65-.65-1-.96-1.73-1.53-3.76-2.73-6-3.5-1.79-.61-3.7-.94-5.7-.94-5.28,0-10,2.33-13.23,6.01-.6.68-1.15,1.4-1.63,2.16-.47-.14-.96-.24-1.46-.31-.43-.06-.87-.1-1.32-.1-2.09,0-4.03.65-5.63,1.76-2.57,1.78-4.26,4.75-4.26,8.12,0,.19.01.38.02.56.05.8.18,1.58.41,2.32h0s-.01,0-.02,0c-.14,0-.27-.02-.41-.02-2.42,0-4.64.88-6.36,2.32-2.15,1.81-3.52,4.52-3.52,7.56,0,5.46,4.42,9.88,9.88,9.88h40.99c7.77,0,14.07-6.3,14.07-14.07,0-4.53-2.14-8.55-5.46-11.11Z\"/></g>"}], "nube": [{"vb": "646.1 854.4 96 96", "svg": "<path fill=\"currentColor\" d=\"M724.44,891.9c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h57.03c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/>"}, {"vb": "645.2 963.4 96 96", "svg": "<path fill=\"currentColor\" d=\"M723.55,1000.91c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h57.03c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/>"}], "llovizna": [{"vb": "779.5 863.3 96 96", "svg": "<path fill=\"currentColor\" d=\"M857.86,882.81c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h57.03c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/><g><circle fill=\"currentColor\" cx=\"805.94\" cy=\"935.53\" r=\"6.46\"/><circle fill=\"currentColor\" cx=\"827.48\" cy=\"935.53\" r=\"6.46\"/><circle fill=\"currentColor\" cx=\"849.02\" cy=\"935.53\" r=\"6.46\"/></g><g><circle fill=\"currentColor\" cx=\"816.71\" cy=\"950.92\" r=\"6.46\"/><circle fill=\"currentColor\" cx=\"838.25\" cy=\"950.92\" r=\"6.46\"/></g>"}, {"vb": "778.6 972.4 96 96", "svg": "<path fill=\"currentColor\" d=\"M856.96,991.82c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h57.03c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/><g><circle fill=\"currentColor\" cx=\"805.04\" cy=\"1044.53\" r=\"6.46\"/><circle fill=\"currentColor\" cx=\"826.58\" cy=\"1044.53\" r=\"6.46\"/><circle fill=\"currentColor\" cx=\"848.13\" cy=\"1044.53\" r=\"6.46\"/></g><g><circle fill=\"currentColor\" cx=\"815.81\" cy=\"1059.92\" r=\"6.46\"/><circle fill=\"currentColor\" cx=\"837.36\" cy=\"1059.92\" r=\"6.46\"/></g>"}], "lluvia": [{"vb": "912.9 854.3 96 96", "svg": "<path fill=\"currentColor\" d=\"M991.28,880.15c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h57.03c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/><g><path fill=\"currentColor\" d=\"M966.31,931.96l-5.42-8.09h0s0,0,0,0l-5.42,8.09c-.94,1.41-1.24,3.07-.92,4.67.63,3.17,3.33,5.24,6.34,5.24,3.01,0,5.7-2.07,6.34-5.24.32-1.6.02-3.26-.92-4.67Z\"/><path fill=\"currentColor\" d=\"M987.86,931.96l-5.42-8.09h0s0,0,0,0l-5.42,8.09c-.94,1.41-1.24,3.07-.92,4.67.63,3.17,3.33,5.24,6.34,5.24,3.01,0,5.7-2.07,6.34-5.24.32-1.6.02-3.26-.92-4.67Z\"/><path fill=\"currentColor\" d=\"M944.77,931.96l-5.42-8.09h0s0,0,0,0l-5.42,8.09c-.94,1.41-1.24,3.07-.92,4.67.63,3.17,3.33,5.24,6.34,5.24,3.01,0,5.7-2.07,6.34-5.24.32-1.6.02-3.26-.92-4.67Z\"/></g>"}, {"vb": "912.0 963.3 96 96", "svg": "<path fill=\"currentColor\" d=\"M990.38,989.16c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h57.03c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/><g><path fill=\"currentColor\" d=\"M965.42,1040.97l-5.42-8.09h0s0,0,0,0l-5.42,8.09c-.94,1.41-1.24,3.07-.92,4.67.63,3.17,3.33,5.24,6.34,5.24,3.01,0,5.7-2.07,6.34-5.24.32-1.6.02-3.26-.92-4.67Z\"/><path fill=\"currentColor\" d=\"M986.96,1040.97l-5.42-8.09h0s0,0,0,0l-5.42,8.09c-.94,1.41-1.24,3.07-.92,4.67.63,3.17,3.33,5.24,6.34,5.24,3.01,0,5.7-2.07,6.34-5.24.32-1.6.02-3.26-.92-4.67Z\"/><path fill=\"currentColor\" d=\"M943.87,1040.97l-5.42-8.09h0s0,0,0,0l-5.42,8.09c-.94,1.41-1.24,3.07-.92,4.67.63,3.17,3.33,5.24,6.34,5.24,3.01,0,5.7-2.07,6.34-5.24.32-1.6.02-3.26-.92-4.67Z\"/></g>"}], "intensa": [{"vb": "1046.3 849.9 96 96", "svg": "<path fill=\"currentColor\" d=\"M1124.69,876.55c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h57.03c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/><g><line stroke=\"currentColor\" stroke-width=\"8\" stroke-linecap=\"round\" x1=\"1068.26\" y1=\"923.05\" x2=\"1060.39\" y2=\"936.74\"/><line stroke=\"currentColor\" stroke-width=\"8\" stroke-linecap=\"round\" x1=\"1085.58\" y1=\"923.05\" x2=\"1077.72\" y2=\"936.74\"/><line stroke=\"currentColor\" stroke-width=\"8\" stroke-linecap=\"round\" x1=\"1102.91\" y1=\"923.05\" x2=\"1095.05\" y2=\"936.74\"/><line stroke=\"currentColor\" stroke-width=\"8\" stroke-linecap=\"round\" x1=\"1120.23\" y1=\"923.05\" x2=\"1112.37\" y2=\"936.74\"/></g>"}, {"vb": "1045.4 958.9 96 96", "svg": "<path fill=\"currentColor\" d=\"M1123.79,985.56c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h57.03c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/><g><line stroke=\"currentColor\" stroke-width=\"8\" stroke-linecap=\"round\" x1=\"1067.36\" y1=\"1032.06\" x2=\"1059.5\" y2=\"1045.74\"/><line stroke=\"currentColor\" stroke-width=\"8\" stroke-linecap=\"round\" x1=\"1084.68\" y1=\"1032.06\" x2=\"1076.82\" y2=\"1045.74\"/><line stroke=\"currentColor\" stroke-width=\"8\" stroke-linecap=\"round\" x1=\"1102.01\" y1=\"1032.06\" x2=\"1094.15\" y2=\"1045.74\"/><line stroke=\"currentColor\" stroke-width=\"8\" stroke-linecap=\"round\" x1=\"1119.34\" y1=\"1032.06\" x2=\"1111.47\" y2=\"1045.74\"/></g>"}], "tormenta": [{"vb": "1179.7 845.3 96 96", "svg": "<g><path fill=\"currentColor\" d=\"M1258.11,865.08c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h18.29l3.26-12.06c.53-1.96,2.32-3.33,4.34-3.33h13.98c1.54,0,2.96.78,3.79,2.08.83,1.3.94,2.91.3,4.31l-3.5,7.59h2.33c1.24,0,2.41.52,3.25,1.4h10.99c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/><path fill=\"currentColor\" d=\"M1240.38,905.95c-.27-.45-.76-.74-1.29-.74h-7.01l.74-1.6,4.73-10.25c.21-.47.18-1-.1-1.44-.28-.43-.75-.69-1.26-.69h-13.98c-.68,0-1.27.46-1.45,1.11l-3.05,11.27-2.78,10.28c-.12.45-.02.93.26,1.3.28.37.73.59,1.19.59h8.12l-3.77,21.54c-.13.73.29,1.43.98,1.67.69.24,1.47-.07,1.81-.7l16.89-30.86c.25-.46.24-1.03-.03-1.49h0Z\"/></g>"}, {"vb": "1178.8 954.3 96 96", "svg": "<g><path fill=\"currentColor\" d=\"M1257.21,974.09c-3.03-10.11-12.4-17.49-23.51-17.49-8.7,0-16.32,4.54-20.68,11.36-1.23-.36-2.52-.56-3.87-.56-7.59,0-13.75,6.16-13.75,13.75,0,1.39.21,2.74.6,4.01-.2,0-.4-.03-.6-.03-7.59,0-13.75,6.16-13.75,13.75s6.16,13.75,13.75,13.75h18.29l3.26-12.06c.53-1.96,2.32-3.33,4.34-3.33h13.98c1.54,0,2.96.78,3.79,2.08.83,1.3.94,2.91.3,4.31l-3.5,7.59h2.33c1.24,0,2.41.52,3.25,1.4h10.99c10.81,0,19.57-8.76,19.57-19.57,0-9.16-6.3-16.83-14.8-18.96Z\"/><path fill=\"currentColor\" d=\"M1239.48,1014.95c-.27-.45-.76-.74-1.29-.74h-7.01l.74-1.6,4.73-10.25c.21-.47.18-1-.1-1.44-.28-.43-.75-.69-1.26-.69h-13.98c-.68,0-1.27.46-1.45,1.11l-3.05,11.27-2.78,10.28c-.12.45-.02.93.26,1.3.28.37.73.59,1.19.59h8.12l-3.77,21.54c-.13.73.29,1.43.98,1.67.69.24,1.47-.07,1.81-.7l16.89-30.86c.25-.46.24-1.03-.03-1.49h0Z\"/></g>"}]};
+function climaClave(cond){
+  const c=String(cond||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  if(/tormenta|electric|rayo/.test(c)) return "tormenta";
+  if(/lluvia intensa|lluvia fuerte|aguacero|chubasco/.test(c)) return "intensa";
+  if(/llovizna/.test(c)) return "llovizna";
+  if(/lluvi/.test(c)) return "lluvia";
+  if(/parcial/.test(c)) return "psol";
+  if(/mayormente (soleado|despejado)/.test(c)) return "msol";
+  if(/soleado|despejado/.test(c)) return "sol";
+  if(/nublado|nubes|cubierto/.test(c)) return "nube";
+  return null;
+}
+function climaIconHTML(ic, titulo){
+  return `<span class="mr-clima-ic" title="${esc(titulo)}"><svg viewBox="${ic.vb}" aria-label="${esc(titulo)}" role="img">${ic.svg}</svg></span>`;
+}
+// Línea "Asistencia: 68,239 · Clima: 30 °C [icono]" ("Clima: 23 °C (bajo techo) [icono]" con techo cerrado) (cada parte solo si existe).
+function mrAsistenciaClimaHTML(f){
+  if(!f) return "";
+  const partes=[];
+  if(f.closedDoors) partes.push("Jugado a puerta cerrada");
+  else if(f.attendance!=null) partes.push(`Asistencia: ${Number(f.attendance).toLocaleString("es-MX")}`);
+  const cl=f.clima;
+  if(cl && (cl.temperatura!=null || cl.condicion)){
+    const noche = String(f.time||"") >= "19:00";
+    const k=climaClave(cl.condicion), c0=String(cl.condicion||"").trim().toLowerCase(), cond=c0.charAt(0).toUpperCase()+c0.slice(1);   // tooltip: "Mayormente despejado"
+    let txt = "Clima:" + (cl.temperatura!=null ? ` ${String(cl.temperatura).replace(".",",")} °C` : "");
+    if(cl.techoCerrado) txt += " (bajo techo)";   // estadio con el techo cerrado
+    if(k) txt += " " + climaIconHTML(CLIMA_ICONOS[k][noche?1:0], cond);
+    else if(cond) txt += ` <span title="${esc(cond)}">${esc(cond)}</span>`;
+    partes.push(txt);
+  }
+  return partes.join(" · ");
+}
+// ¿La roja de este jugador fue por DOBLE amarilla? (tiene una amarilla antes en el mismo partido)
+function mrDobleAmarilla(f, c){
+  // Con marcador en el informe ("(DA)" / "(RD)") manda el marcador; sin él, se deduce por una amarilla previa.
+  if(c && c.doble===true) return true;
+  if(c && c.doble===false) return false;
+  const m=x=>parseInt(x)||0;
+  return (f.cards||[]).some(o=> (o.type||"yellow")==="yellow" && o!==c && ((c.playerId && o.playerId===c.playerId) || (!c.playerId && o.player===c.player)) && m(o.minute)<=m(c.minute));
+}
+// Icono de una incidencia: gol, gol en contra, penal anotado (palomita), penal fallado (X), roja (o
+// doble amarilla) o amarilla. Tooltip: "Penal anotado" / "Penal fallado".
+function calIncidentIcon(kind, og, title, pen, doble){
+  const B=15;
+  if(kind==="red") return evIcon(doble?"double":"red", doble?11:9, "", doble?"Expulsión por doble amarilla":"Tarjeta roja", B);
+  if(kind==="yellow") return evIcon("yellow", 9, "", "Tarjeta amarilla", B);
+  if(kind==="penmiss") return evIcon("penmiss", 12, "", title||"Penal fallado", B);
+  if(og) return evIcon("og", 12, "", "Gol en contra", B);
+  if(pen) return evIcon("penok", 12, "", title||"Gol - Penal anotado", B);
+  return evIcon("goal", 12, "", title||"Gol", B);
 }
 // Incidencias del partido DEBAJO del cuadro: dos columnas (local | visitante) separadas por una línea.
 // Iconos al centro (junto a la línea), datos del jugador hacia los extremos.
@@ -3237,27 +3368,61 @@ function calIncidentsHTML(f, t){
   const evAll=[];
   (f.goals||[]).forEach(g=>evAll.push({playerId:g.playerId, player:g.player, teamId:g.teamId, minute:g.minute, kind:"goal", og:!!g.og, penalty:!!g.penalty, assistPlayerId:g.assistPlayerId||null, assistPlayer:g.assistPlayer||null, min:parseInt(g.minute)||0}));
   // Solo goles y ROJAS aquí (las amarillas van únicamente en la línea de tiempo del informe).
-  (f.cards||[]).forEach(c=>{ if((c.type||"yellow")!=="red") return; evAll.push({playerId:c.playerId, player:c.player, teamId:c.teamId, minute:c.minute, kind:"red", min:parseInt(c.minute)||0}); });
-  const left=evAll.filter(e=>e.teamId===f.teamA).sort((a,b)=>a.min-b.min);
-  const right=evAll.filter(e=>e.teamId===f.teamB).sort((a,b)=>a.min-b.min);
+  (f.cards||[]).forEach(c=>{ if((c.type||"yellow")!=="red") return; evAll.push({playerId:c.playerId, player:c.player, teamId:c.teamId, minute:c.minute, kind:"red", doble:mrDobleAmarilla(f,c), min:parseInt(c.minute)||0}); });
+  // Penal FALLADO en tiempo de juego (PenF/PFa): del lado del equipo que lo cobró, con el balón y la X roja.
+  (f.missedPens||[]).forEach(g=>evAll.push({playerId:g.playerId, player:g.player, teamId:g.teamId, minute:g.minute, kind:"penmiss", min:parseInt(g.minute)||0}));
+  const mlin=e=>{ const s2=String(e.minute||""); const b=parseInt(s2)||0; const x=/\+(\d+)/.exec(s2); return b + (x?parseInt(x[1],10)/100:0); };   // 45+2 antes que 46
+  const left=evAll.filter(e=>e.teamId===f.teamA).sort((a,b)=>mlin(a)-mlin(b));
+  const right=evAll.filter(e=>e.teamId===f.teamB).sort((a,b)=>mlin(a)-mlin(b));
   const row=(e,side)=>{
     const info=calIncidentName(e);   // {short: "J. David" / nombre común, full: nombre completo}
     const nmH=e.playerId
       ? `<span class="jg-lnk2" data-action="open-player" data-id="${e.playerId}" title="${esc(info.full)}">${esc(info.short)}</span>`
       : `<span title="${esc(info.full)}">${esc(info.short)}</span>`;
     const tag=e.og?` <span class="inc-tag" title="Gol en contra">(GEC)</span>`:(e.penalty?` <span class="inc-tag" title="Penalti">(PEN)</span>`:"");
-    const txt=`<span class="inc-txt">${nmH} ${esc(e.minute)}'${tag}</span>`;
+    const txt=`<span class="inc-txt">${nmH} ${esc(e.minute)}’${tag}</span>`;
     // El balón muestra el detalle al pasar el cursor: "Gol" / "Gol de penal", y la asistencia si la hubo.
-    let goalTitle = e.penalty ? "Gol de penal" : "Gol";
+    let goalTitle = e.kind==="penmiss" ? "Penal fallado" : (e.penalty ? "Gol - Penal anotado" : "Gol");
     if(e.kind==="goal" && !e.og && e.assistPlayer) goalTitle += " - Asistencia de " + e.assistPlayer;
-    const ico=calIncidentIcon(e.kind, e.og, goalTitle);
+    const ico=calIncidentIcon(e.kind, e.og, goalTitle, e.penalty, e.doble);
     return side==="left"?`<div class="inc-row left">${txt}${ico}</div>`:`<div class="inc-row right">${ico}${txt}</div>`;
   };
   return `<div class="jg-incidents">
     <div class="inc-col left">${left.map(e=>row(e,"left")).join("")}</div>
     <div class="inc-div"></div>
     <div class="inc-col right">${right.map(e=>row(e,"right")).join("")}</div>
+    ${calShootoutHTML(f)}
   </div>`;
+}
+// TANDA DE PENALES dentro del rectángulo de incidencias: división con el título al centro
+// ("Suiza ganó 4-3 en penales") y debajo los tiros en su orden: los del local a la izquierda y los del
+// visitante a la derecha, con el balón y la palomita verde (anotado) o la X roja (fallado).
+function calShootoutHTML(f){
+  const shots=Array.isArray(f.penaltyShots)?f.penaltyShots:[];
+  let pa=null, pb=null;
+  if(f.penalties){ pa=f.penalties.a; pb=f.penalties.b; }
+  else if(shots.length){ pa=shots.filter(t=>t.teamId===f.teamA&&t.scored).length; pb=shots.filter(t=>t.teamId===f.teamB&&t.scored).length; }
+  if(pa==null || pb==null) return "";
+  const A=getTeam(f.teamA), B=getTeam(f.teamB);
+  const gana = pa>pb ? A : (pb>pa ? B : null);
+  // En vivo, mientras se cobra la tanda: solo el marcador parcial.
+  const titulo = (gana && !f._tandaEnCurso) ? `${teamName(gana)} ganó ${Math.max(pa,pb)}-${Math.min(pa,pb)} en penales` : `Penales: ${pa}-${pb}`;
+  const fila=(t, side)=>{
+    const info=calIncidentName({playerId:t.playerId, player:t.player});
+    const nmH=t.playerId
+      ? `<span class="jg-lnk2" data-action="open-player" data-id="${t.playerId}" title="${esc(info.full)}">${esc(info.short)}</span>`
+      : `<span title="${esc(info.full)}">${esc(info.short)}</span>`;
+    const ico=evIcon(t.scored?"penok":"penmiss", 12, "", t.scored?"Penal anotado":"Penal fallado", 15);
+    const txt=`<span class="inc-txt">${nmH}</span>`;
+    return side==="left"?`<div class="inc-row left">${txt}${ico}</div>`:`<div class="inc-row right">${ico}${txt}</div>`;
+  };
+  const L=shots.filter(t=>t.teamId===f.teamA), R=shots.filter(t=>t.teamId===f.teamB);
+  const cuerpo = shots.length ? `<div class="inc-pens-body">
+      <div class="inc-col left">${L.map(t=>fila(t,"left")).join("")}</div>
+      <div class="inc-div"></div>
+      <div class="inc-col right">${R.map(t=>fila(t,"right")).join("")}</div>
+    </div>` : "";
+  return `<div class="inc-pens"><div class="inc-pens-h"><span>${esc(titulo)}</span></div>${cuerpo}</div>`;
 }
 // Fila de un partido en la lista: Partido (con guion) arriba; hora · estadio · ciudad · país abajo.
 // El árbitro, el grupo y los goles NO van aquí (están en el cuadro de la derecha). Torneo a la derecha.
@@ -3282,8 +3447,8 @@ function calDetailCardHTML(f, t, opts){
   // El rival se toma del PROPIO partido respecto a t (no de oppOf, que usa la selección del usuario y
   // duplicaría el nombre cuando se ve un partido ajeno, p. ej. desde el informe).
   const home=(f.teamA===t.id); const o=getTeam(f.teamA===t.id?f.teamB:f.teamA); const A=home?t:o, B=home?o:t;
-  const aName=A?`<span class="jg-lnk2" data-action="open-team" data-id="${A.id}">${esc(teamName(A))}</span>`:"—";
-  const bName=B?`<span class="jg-lnk2" data-action="open-team" data-id="${B.id}">${esc(teamName(B))}</span>`:"—";
+  const aName=A?`<span class="jg-lnk2" data-action="open-team" data-id="${A.id}">${esc(teamName(A))}</span>`:`<span class="jg-tbd">Por definir</span>`;
+  const bName=B?`<span class="jg-lnk2" data-action="open-team" data-id="${B.id}">${esc(teamName(B))}</span>`:`<span class="jg-tbd">Por definir</span>`;
   const played=fxPlayed(f);
   // El partido jugado abre el INFORME al hacer clic (en el marcador o en el rectángulo). opts.clickable
   // desactiva el enlace cuando el propio informe reutiliza esta tarjeta (evita reabrirse a sí mismo).
@@ -3292,7 +3457,7 @@ function calDetailCardHTML(f, t, opts){
   const teamsLine=played?`${aName} <span class="jg-nm-sc" ${scoreAct}>${f.scoreA} - ${f.scoreB}</span> ${bName}`:`${aName} - ${bName}`;
   const l2=[]; const sg=stageOrGroup(f); if(sg) l2.push(sg); if(f.date) l2.push(fmtDateLong(f.date)); if(f.time) l2.push(f.time);
   const vp=venueParts(f); const ref=calRefLinked(f);
-  const att=played ? (f.closedDoors ? "Jugado a puerta cerrada" : (f.attendance!=null?`Asistencia: ${Number(f.attendance).toLocaleString("es-MX")}`:"")) : "";
+  const att=played ? mrAsistenciaClimaHTML(f) : "";   // asistencia · clima (con icono)
   // El rectángulo inferior (incidencias) solo si el partido YA se jugó (según el reloj). Sin jugar, no va.
   // opts.noIncidents: el informe lo dibuja aparte (columna central), así que aquí se omite.
   const incidents=(played && !(opts&&opts.noIncidents))?calIncidentsHTML(f,t):"";
@@ -3301,8 +3466,8 @@ function calDetailCardHTML(f, t, opts){
     <div class="jg-nm-main">
       <div class="jg-nm-badge${A?' jg-lnk2':''}" ${A?`data-action="open-team" data-id="${A.id}"`:""}>${A?nmBadgeInner(A,matchLogoDark(f)):""}</div>
       <div class="jg-nm-center">
-        <div class="teams">${teamsLine}</div>
         <div class="tour">${matchTourHTML(f)}</div>
+        <div class="teams">${teamsLine}</div>
         <div class="meta">${l2.join(" · ")}</div>
         ${vp?`<div class="venue">${vp.name?`<span>${esc(vp.name)}${vp.loc?",":""}</span>`:""}${vp.loc?`<span>${esc(vp.loc)}</span>`:""}</div>`:""}
         ${att?`<div class="ref">${att}</div>`:""}
@@ -3341,8 +3506,41 @@ function mrLinMin(minStr){
 //   · 90+X'    → añadido del segundo tiempo: franja angosta y pegada al final, de N90 hasta F.
 //   El tiempo regular (0–90) ocupa casi toda la línea; el añadido queda comprimido junto a F. ftL es el
 //   minuto lineal del final (FT): solo define cómo se reparte el añadido dentro de esa franja del final.
-function mrEventX(minStr, ftL){
+// TIEMPO EXTRA ("FT 90+5’, 120+1’"): la línea se REDISTRIBUYE en el mismo espacio. Los 90' (con su
+// añadido) ocupan 3/4 y los 30' del tiempo extra el 1/4 restante (un tercio de la línea original). Marcas:
+// MT (mitad de los 90), fin del tiempo reglamentario (R) y la división de los dos tiempos de 15' (M2).
+const MR_TE = { K:0.75 };
+MR_TE.R  = 3 + (97-3)*MR_TE.K;        // fin del tiempo reglamentario (73.5)
+MR_TE.M2 = MR_TE.R + (97-MR_TE.R)/2;  // medio tiempo del tiempo extra (85.25)
+MR_TE.MT = 3 + (50-3)*MR_TE.K;        // medio tiempo de los 90 (38.25)
+// ¿El partido tuvo tiempo extra? Devuelve {regExtra, etExtra} o null.
+function mrTiempoExtra(f, evs){
+  if(!f || f._te===false) return null;   // en vivo, antes del final del tiempo reglamentario: línea de 90'
+  const parte=m=>{ const s=String(m==null?"":m); const b=parseInt(s)||0; const e=/\+(\d+)/.exec(s); return {b, e:e?parseInt(e[1],10):0}; };
+  const ft=f.ftMin ? parte(f.ftMin) : null;
+  const hayEvTE=(evs||[]).some(e=>{ const p=parte(e.min); return p.b>90; });
+  if(!f.ftReg && !(ft && ft.b>=105) && !hayEvTE && f._te!==true) return null;   // _te: el en vivo ya sabe que hay tiempo extra
+  let regExtra;
+  if(f.ftReg) regExtra=parte(f.ftReg).e;
+  else { regExtra=0; (evs||[]).forEach(e=>{ const p=parte(e.min); if(p.b===90 && p.e>regExtra) regExtra=p.e; }); }
+  let etExtra = (ft && ft.b>=120) ? ft.e : 0;
+  (evs||[]).forEach(e=>{ const p=parte(e.min); if(p.b===120 && p.e>etExtra) etExtra=p.e; });
+  return { regExtra, etExtra };
+}
+function mrEventX(minStr, ftL, te){
   const s=String(minStr); const b=parseInt(s)||0; const em=/\+(\d+)/.exec(s); const extra=em?parseInt(em[1],10):0;
+  if(te){
+    // 0–90 (y su añadido): misma regla de siempre, comprimida a los primeros 3/4 de la línea.
+    if(b<=90) return 3 + (mrEventX(minStr, 90+te.regExtra, null)-3)*MR_TE.K;
+    const R=MR_TE.R, M2=MR_TE.M2, F=97;
+    const band2 = te.etExtra>0 ? 2 : 0, N120 = F - band2;
+    let x;
+    if(b<105) x = R + (b-90)/15*(M2-R);                                          // 91..104
+    else if(b===105) x = extra>0 ? (M2 - 1.2 + Math.min(extra,4)/4*0.9) : M2;   // 105+X antes de la división; 105' en ella
+    else if(b<120) x = M2 + (b-105)/15*(N120-M2);                                // 106..119
+    else x = extra>0 ? (N120 + Math.min(extra,te.etExtra)/Math.max(te.etExtra,1)*band2) : N120;   // 120 / 120+X
+    return Math.max(3, Math.min(F, x));
+  }
   const I=3, MT=50, F=97;
   const ftExtra = Math.max(((ftL && ftL>90) ? ftL : 95) - 90, 0);   // minutos de añadido del 2T (FT − 90)
   const band = ftExtra>0 ? 3 : 0;   // franja del añadido, angosta y pegada al final; sin añadido, el 90' va en F
@@ -3364,19 +3562,24 @@ function mrFullTimeLin(f, evs){
   return Math.max(95, maxL);
 }
 // Icono de sustitución: MISMO estilo que el balón (disco claro) con dos flechas gruesas (entra/sale).
-const MR_SUB_ICON = `<svg class="mr-subsvg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8.5 20 L8.5 5 M8.5 5 L4.7 9.4 M8.5 5 L12.3 9.4" stroke="#2fae66" stroke-width="3.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 4 L15.5 19 M15.5 19 L11.7 14.6 M15.5 19 L19.3 14.6" stroke="#e0574f" stroke-width="3.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-function mrEventIcon(e){
-  if(e.kind==="goal"){ const col = e.og ? "var(--coral,#E1473A)" : "#e9edf5"; return `<span class="mr-ball" style="background:${col};-webkit-mask:url('${JG_BALL_ICON}') center/contain no-repeat;mask:url('${JG_BALL_ICON}') center/contain no-repeat;"></span>`; }
-  if(e.kind==="yellow") return `<span class="mr-cardic yellow"></span>`;
-  if(e.kind==="red") return `<span class="mr-cardic red"></span>`;
-  if(e.kind==="sub") return MR_SUB_ICON;
+const MR_SUB_ICON = evIcon("sub", 9, "mr-subsvg");
+// box: tamaño de la caja cuadrada común (línea de tiempo 14 px, lista de jugadores 12 px).
+function mrEventIcon(e, box){
+  const B=box||14;
+  if(e.kind==="goal") return evIcon(e.og?"og":(e.pen?"penok":"goal"), 9, "", "", B);
+  if(e.kind==="penok") return evIcon("penok", 9, "", "", B);
+  if(e.kind==="penmiss") return evIcon("penmiss", 9, "", "", B);
+  if(e.kind==="yellow") return evIcon("yellow", 7, "", "", B);
+  if(e.kind==="red") return e.doble ? evIcon("double", 8.5, "", "", B) : evIcon("red", 7, "", "", B);
+  if(e.kind==="sub") return evIcon("sub", 7.5, "", "", B);
   return "";
 }
 function mrEventTip(e, code){
-  const m=`${esc(e.min)}'`;
+  const m=`${esc(e.min)}’`;
   if(e.kind==="goal") return e.og
     ? `${m} ${code}: ${esc(mrShort(e.who))} — Gol en contra`
-    : `${m} ${code}: ${esc(mrShort(e.who))} — Gol${e.pen?" (penal)":""}${e.assist?` · Asistencia de ${esc(mrShort(e.assist))}`:""}`;
+    : `${m} ${code}: ${esc(mrShort(e.who))} — ${e.pen?"Gol - Penal anotado":"Gol"}${e.assist?` · Asistencia de ${esc(mrShort(e.assist))}`:""}`;
+  if(e.kind==="penmiss") return `${m} ${code}: ${esc(mrShort(e.who))} — Penal fallado`;
   if(e.kind==="yellow") return `${m} ${code}: ${esc(mrShort(e.who))} — Amarilla`;
   if(e.kind==="red") return `${m} ${code}: ${esc(mrShort(e.who))} — Roja`;
   if(e.kind==="sub") return `${m} ${code}: entra ${esc(mrShort(e.inName))}, sale ${esc(mrShort(e.outName))}`;
@@ -3386,8 +3589,10 @@ function mrEventTip(e, code){
 function mrTimelineEvents(f){
   const evs=[];
   (f.goals||[]).forEach(g=>evs.push({teamId:g.teamId, min:g.minute, kind:"goal", og:!!g.og, pen:!!g.penalty, who:g.player, assist:g.assistPlayer||null}));
-  (f.cards||[]).forEach(c=>{ const k=(c.type||"yellow"); if(k!=="yellow"&&k!=="red") return; evs.push({teamId:c.teamId, min:c.minute, kind:k, who:c.player}); });
-  ["home","away"].forEach(side=>{ const lu=f.lineups&&f.lineups[side]; if(!lu) return; (lu.players||[]).forEach(pl=>{ if(pl.sub&&pl.sub.minute){ evs.push({teamId:lu.teamId, min:pl.sub.minute, kind:"sub", inName:pl.sub.name, outName:pl.name}); } }); });
+  (f.cards||[]).forEach(c=>{ const k=(c.type||"yellow"); if(k!=="yellow"&&k!=="red") return; evs.push({teamId:c.teamId, min:c.minute, kind:k, who:c.player, doble: k==="red" && mrDobleAmarilla(f,c)}); });
+  // Penal fallado en tiempo de juego (los de la tanda NO van en la línea de tiempo).
+  (f.missedPens||[]).forEach(g=>evs.push({teamId:g.teamId, min:g.minute, kind:"penmiss", who:g.player}));
+  ["home","away"].forEach(side=>{ const lu=f.lineups&&f.lineups[side]; if(!lu) return; (lu.players||[]).forEach(pl=>{ let r=pl; while(r && r.sub){ if(r.sub.minute) evs.push({teamId:lu.teamId, min:r.sub.minute, kind:"sub", inName:r.sub.name, outName:r.name}); r=r.sub; } }); });   // también cambios en cadena
   return evs;
 }
 // Categoría (GK/DF/MF/FW) de una posición del archivo.
@@ -3484,9 +3689,10 @@ function mrPitchHTML(entry){
     const name = `<div class="jgt-name mr-pname" title="${esc(obj?pname(obj):(lp.name||''))}">${numHTML}${nameHTML}</div>`;
     const clk = obj ? ` data-action="open-player" data-id="${esc(obj.id)}" style="left:${x}%;top:${y}%;cursor:pointer;"` : ` style="left:${x}%;top:${y}%;"`;
     // Capitán: icono C sobre la esquina de la foto (como en Plantilla).
-    const capBadge = lp.captain ? `<span class="jgt-cap" title="Capitán"><img src="${JG_CAP_ICON}" alt="C"></span>` : "";
+    const capBadge = lp.captain ? `<span class="jgt-cap" title="Capitán">${evIcon("cap", 6.5)}</span>` : "";
     const faceBox = `<div class="jgt-facewrap">${face}${capBadge}</div>`;
-    return `<div class="jgt-slot"${clk}>${faceBox}${name}<span class="pos-chip pos-${VALID4.has(cat)?cat:'MF'} jgt-pos">${esc(lp.pos||"")}</span></div>`;
+    // Expulsado (en vivo): se queda en su lugar, atenuado.
+    return `<div class="jgt-slot${lp.expelled?" mr-expulsado":""}"${clk}${lp.expelled?' title="Expulsado"':""}>${faceBox}${name}<span class="pos-chip pos-${VALID4.has(cat)?cat:'MF'} jgt-pos">${esc(lp.pos||"")}</span></div>`;
   };
   const key=mrFormationKey(entry.formation, entry.formationType);
   if(key && P.FORMATIONS[key]){
@@ -3511,6 +3717,7 @@ function mrTimelineHTML(f, A, B){
   const evs=mrTimelineEvents(f);
   const codeA=mrTeamCode(A), codeB=mrTeamCode(B);
   const ftL=mrFullTimeLin(f, evs);   // largo de la línea (minuto lineal del final)
+  const te=mrTiempoExtra(f, evs);    // tiempo extra: la línea se redistribuye (null = 90' de siempre)
   const minKey=(m)=>String(m).replace(/[^0-9+]/g,"");
   // Tooltip por MINUTO: lista TODOS los sucesos de ese minuto (local primero, luego visitante) en varias
   // líneas — como en la referencia (dos amarillas al 54’ muestran ambas).
@@ -3522,20 +3729,31 @@ function mrTimelineHTML(f, A, B){
   // Mapa ÚNICO minuto→posición: los iconos y la guía punteada de un minuto usan la MISMA X (así la línea
   // SIEMPRE cae sobre el icono). Si dos minutos quedan muy pegados, se separan el ancho de un icono.
   const ICON_GAP=2.2;
-  const mins=[...new Set(evs.map(e=>minKey(e.min)))].map(k=>({k, x:mrEventX(k, ftL)})).sort((a,b)=>a.x-b.x);
+  const mins=[...new Set(evs.map(e=>minKey(e.min)))].map(k=>({k, x:mrEventX(k, ftL, te)})).sort((a,b)=>a.x-b.x);
   for(let i=1;i<mins.length;i++){ if(mins[i].x - mins[i-1].x < ICON_GAP) mins[i].x = mins[i-1].x + ICON_GAP; }
   // El 45' (exacto) SIEMPRE cae en el MT, aunque haya sucesos pegados (ancla del descanso).
-  mins.forEach(o=>{ if(o.k==="45") o.x=mrEventX("45", ftL); });
+  // Con tiempo extra, el 105' (exacto) igual: siempre en la división de los dos tiempos de 15'.
+  const ANCLAS = te ? ["45","105"] : ["45"];
+  ANCLAS.forEach(a=>{
+    mins.forEach(o=>{ if(o.k===a) o.x=mrEventX(a, ftL, te); });
+    // Con el ancla fija, lo que queda pegado a ella se separa: lo de antes (45+X del 1T) hacia la
+    // izquierda y lo de después hacia la derecha, así ningún icono se encima con el del ancla.
+    const ia=mins.findIndex(o=>o.k===a);
+    if(ia>=0){
+      for(let i=ia-1;i>=0;i--){ if(mins[i+1].x - mins[i].x < ICON_GAP) mins[i].x = mins[i+1].x - ICON_GAP; }
+      for(let i=ia+1;i<mins.length;i++){ if(mins[i].x - mins[i-1].x < ICON_GAP) mins[i].x = mins[i-1].x + ICON_GAP; }
+    }
+  });
   const minX={}; mins.forEach(o=>{ minX[o.k]=Math.min(o.x, 97); });   // tope en F: nada se sale de la línea
   // Prioridad de apilado dentro de un mismo minuto: goles/autogoles arriba, tarjetas en medio, cambios abajo.
-  const EV_PRIO={goal:0, og:0, yellow:1, red:1, sub:2};
+  const EV_PRIO={goal:0, og:0, penmiss:0, yellow:1, red:1, sub:2};
   const mk=(list, band)=>{
     // Un icono por TIPO y MINUTO: dos cambios al mismo minuto → un solo icono de cambio. Cuando hay sucesos
     // de DISTINTO tipo en el mismo minuto, se apilan uno sobre otro (gol arriba, luego tarjeta, luego cambio).
     const groups=[]; const byKey={};
-    list.forEach(e=>{ const key=e.kind+"@"+minKey(e.min); if(!byKey[key]){ byKey[key]={kind:e.kind, min:e.min, teamId:e.teamId, items:[]}; groups.push(byKey[key]); } byKey[key].items.push(e); });
+    list.forEach(e=>{ const key=e.kind+(e.pen?"p":"")+"@"+minKey(e.min); if(!byKey[key]){ byKey[key]={kind:e.kind, min:e.min, teamId:e.teamId, items:[]}; groups.push(byKey[key]); } byKey[key].items.push(e); });
     const byMin={}; groups.forEach(g=>{ const k=minKey(g.min); (byMin[k]=byMin[k]||[]).push(g); });
-    const STEP=13, BASE=9;   // separación vertical entre iconos apilados
+    const STEP=17, BASE=7;   // separación vertical entre iconos apilados (caja de 14 px + 3 px de aire)
     const out=[];
     Object.keys(byMin).forEach(k=>{
       const gs=byMin[k].sort((a,b)=>((EV_PRIO[a.kind]!=null?EV_PRIO[a.kind]:9)-(EV_PRIO[b.kind]!=null?EV_PRIO[b.kind]:9)));
@@ -3553,18 +3771,28 @@ function mrTimelineHTML(f, A, B){
   const away=evs.filter(e=>e.teamId===f.teamB);
   // COLUMNA por minuto: zona sensible de ALTO COMPLETO en la X del evento. Al pasar el cursor por ella
   // —arriba o abajo de la línea— se muestra la guía punteada y el tooltip, sin importar el lado.
-  const cols=mins.map(o=>{ const k=o.k; const tip=(minTip[k]||[]).join("\n"); return `<div class="mr-col" style="left:${minX[k]}%;" data-tip="${esc(tip)}"><div class="mr-guide"><span class="mr-guide-min">${esc(String(k))}'</span></div></div>`; }).join("");
+  // El 45' cae justo en el MT: su guía va sin minuto abajo (se encimaría con "MT").
+  const cols=mins.map(o=>{ const k=o.k; const tip=(minTip[k]||[]).join("\n"); // La guía punteada va en su PROPIA capa (debajo de los iconos) y en la MISMA X que ellos; la columna
+    // sensible (encima, transparente) solo recibe el cursor y lleva el tooltip.
+    return `<div class="mr-col" style="left:${minX[k]}%;" data-tip="${esc(tip)}"></div><div class="mr-gl" style="left:${minX[k]}%;"><div class="mr-guide">${(k==="45"||(te&&k==="105"))?"":`<span class="mr-guide-min">${esc(String(k))}’</span>`}</div></div>`; }).join("");
+  // Marcas de la línea: MT siempre; con tiempo extra, también el fin de los 90 y la división de los dos
+  // tiempos extra. (% del recuadro → % de la línea, que va de 1.5% a 98.5%.)
+  const enLinea=x=>((x-1.5)/97*100).toFixed(3)+"%";
+  const mtX = te ? MR_TE.MT : 50;
+  const marcas = te ? `<i class="mr-tl-tick" style="left:${enLinea(MR_TE.R)}"></i><i class="mr-tl-tick" style="left:${enLinea(MR_TE.M2)}"></i>` : "";
+  const finTxt = te ? (ftL>120?('120+'+(ftL-120)):'120') : (ftL>90?('90+'+(ftL-90)):String(ftL));
+  const ejeTE = te ? `<span class="mr-ax m" style="left:${MR_TE.R}%;" title="Fin del tiempo reglamentario${te.regExtra?`: 90+${te.regExtra}’`:""}">FTR</span><span class="mr-ax m" style="left:${MR_TE.M2}%;" title="Medio tiempo de la prórroga">MTP</span>` : "";
   return `<div class="mr-section">
     <div class="mr-h">Línea de tiempo de juego</div>
     <div class="mr-tl">
       <div class="mr-tl-team">${flagImg(A,18)}<span>${esc(codeA)}</span></div>
       <div class="mr-tl-track">
         <div class="mr-tl-half"></div>
-        <div class="mr-tl-line"></div>
+        <div class="mr-tl-line${te?" mr-tl-te":""}" style="--mt:${enLinea(mtX)};">${marcas}</div>
         <div class="mr-tl-top">${mk(home,"top")}</div>
         <div class="mr-tl-bot">${mk(away,"bot")}</div>
         ${cols}
-        <div class="mr-tl-axis"><span class="mr-ax l" title="Inicio">I</span><span class="mr-ax m" title="Medio tiempo">MT</span><span class="mr-ax r" title="Final: ${esc(ftL>90?('90+'+(ftL-90)):String(ftL))}'">F</span></div>
+        <div class="mr-tl-axis"><span class="mr-ax l" title="Inicio">I</span><span class="mr-ax m" style="left:${mtX}%;" title="Medio tiempo">MT</span>${ejeTE}<span class="mr-ax r" title="Final: ${esc(finTxt)}’">F</span></div>
       </div>
       <div class="mr-tl-team">${flagImg(B,18)}<span>${esc(codeB)}</span></div>
     </div>
@@ -3591,22 +3819,22 @@ function mrStatsHTML(f, A, B){
   </div>`;
 }
 // Flechas de entrada (verde) y salida (roja) para la lista de alineación.
-const MR_IN_ARROW=`<svg class="mr-arw" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M6 10 L6 2 M6 2 L3 5 M6 2 L9 5" stroke="#2fae66" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const MR_OUT_ARROW=`<svg class="mr-arw" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M6 2 L6 10 M6 10 L3 7 M6 10 L9 7" stroke="#e0574f" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const MR_IN_ARROW=evIcon("in", 9, "", "", 12);
+const MR_OUT_ARROW=evIcon("out", 9, "", "", 12);
 // Icono de asistencia: zapato de fútbol (imagen aportada por el usuario). Se muestra al MISMO ancho que el balón.
 const JG_BOOT_ICON = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAAAtCAYAAABRXm6KAAAKt0lEQVR42u2bW6xcVRnHf2tmn0tvFrAeIoUSbC33ioAaEBA1GIJRQTRyfTHRhMRofPAFIzFGfCIGEqLxwcQQRQqK8UbwSTHEeqtAlZtBaA8FilDo7bQ958zsz4f5rznfWaw9s+ecOUUIa7KzZ9bsvfa3/t/9W2vDm60ZTYwi6duEcQvGTowZjPsx1mIEjAZvtUWDHjKgr8a4BuO3GAex7qet8+903VsMWAToTYxm0n8exu0YzzvQDaOFUbrvhnFOd5ylo7OBUbx5GB0nNL/veIwvY/w5A7oHPn5mdf6p7i+WjNZev9+A0t5wfWMYl2HcibHHgVsK4DLpS5nQ1vHBru8Yti/qnNdjXIGxqTuXN5i0pybmVIxvYjyekep20pcDPvUFj2OsGKpDNkZ0/qLzPyXGt///NSE6VC8pHYd6NcZ9GNMJiK0a0r4P4z/O9lviC37Zfd5iNKFDewT/8kQ4Ik0XLYnGLZFDfT/GbRjP1pR2/5lR2LkF4zcYd2M8lbk2+oN7MMa7PmFQU9GhPzLxSglK29EZmfB7rwXhdTcx0CDQcn3HAVcA1wDnu6vbOjf60P0q8BzwAnBA1xY6G/AhYJW+x3FauuavwBcIbEuk1Lpi4oWmc38DaBMwzefrwLfcfZ7WUtefT2ALRjO8LtLeIcIIlM5mfhS4Dvg4cJS7owU0+4DeArYDu4BXxKymDg9EC1gNXCDAPUDxnkPAbcD3CDyboZ15jJj771LgJuA8jZsT8MjonxC47sgywCS5oSvJYJwMfE7HaRlpb84bYa6FpL8E/g5MAiu6EvvaFoAZ4J3AB5xWhERCAfYAvwZ+BWwFXiBweJ5fgncDHwau1HiekWS0IH7fB6wn8HI4AtLe7Kpop28VcJmk/RJgzE3eEhNTJUlWoREPSRNGKxjgmXAccK7oS0EqExCnpV27JcXLgQkdzDNTcwysojEy6HoCPw5LaGJIpP1c2fUrgXWJWjYc4VUm5r/ADmCt7q+a4D/EhLEaTHg7cDawMsNsE1ghYUaOtpR+T9su4NjE3zSBuwlcFYZsYlKHOgFcLmm/cECHWgL7gWflUKechJ0NnJBhQvxdlwktactpwIk9NMybtPhfyFzjGXgQ+KcYcIm0xmvJJHB6GJK0e4faBC4GrgU+AazpIS1WYdMD8IyAbOr6ZiKZ/ZjwkDRmpA8TStE1AWwE3pExd/1aSMzVduBpaZmJ1nUZf3NBMQRpb6tvA/BZ4GrgzAqHWlQA7wmL53UKKXfovtL93xRzLDOxeH6vNOhVF/FQ4UtGgZeAl2WWjhdDltcM1Us57ecVAh/UM0fEkN2J2Y1+4H3FAqS9lLSXGCuAS4HrgY8ByzIONRcRxEntV9g3kZHkpiTHxISxxBREJpBhQvx+nCbff3Yog+1c/5Ket1rHKmBc1zQE4IyA3ivwD6i/cEFAxGBvhc86q6hBWtM51CjtZwFXAZ8B1g/gUIPGeBHYKYmbBs4CTqowJ5EJkxmbXiRMKJPQsj2QXs+NGaX0JTl/XNLlfYIXhoaLqLy/aACHxbCxREs3Fn1NTOiCvgb4pGz7xY4YL+29GDoLPCHwD7jJjgKP6P4TK8zJOerfmYSYwTHBnCMNYuykA2VQRgSnFfQJi+mTe8yKCWPJ/NYWWTPTAT061QsVxVyexL05h2o9iGs6W7k8kaJCTjP0MCfnOu0pkgkXwMOy9xMC/xlniw0W6O0G6+8VbU1n/ju6mAd+UIRhnKDs9CpJXy58LGpIhSciAO/RfU86dUzNSUiiG29SzpTZygHQFOjbHcMXA/5iWsh8b2X6lhfzwO/Y+5uAr8j5+LAvra2kDnVK8fqkUv1TK2z66Tr/O7HpIWHC8RkmLJMzPFjhZ0YXIakLBThngsoEo5mEAV2hK1wJ9W3Az5Q0pCamqIhi2nJSO+Wwpp3XbwAnZ2y6AWeIyKeS6CaGmFv1fW3CoCnZ0sYQTMNCwDYnkJbQFnEqXAhaOC1ckRu7cNnoL4CPyGEUFSYmErPXlXz3OzvuJfAxXb+xggmbdH7GJUvmJrNVTDpB9x0GtrlQ70hId6nnlc7MjUgTlwnU5TrGNf8RFxX1HT9K/zdUw57JqHFsM0qrd7qiVGqWcvWWM1Q1rMpYH9R4OVDbwNGiaa+YMGzw0yKcj+rGBLLPByLYgzrxnNk6GDDWAf/Sg0Lmwt0CfZdsb7rA0W9yM5L29RXRzdMKQ0crmNhyTrUxBPCrAG9KqlcDx2hNYlUmWOhn7kJNxgTguQL4vB7UTtRmRg5xV8bEWE0gTPds0wPflSlqtfvcXwz4zH4mpZUBfI00bVVFLpOT5FBxjdVgSpz7jkIrUDnJfFh2fnyRAKRMOCnRjh19kiVbBOAmwGOGPKZazxqdV2cA7wW29TArYUBMAB4pZJ/TeHuPHOz4kOxtlORtGntC4G9XZLMYu54C3nZaNSrJPkagH5Wx35bJV+r857VqRv5p2h0x9DwkzZ/IRJF/LKR2aTvgPP8wW1MSv2MRyVIvwAstrhztzMrKPuWGXjX99L/Dwma/jikBHMFuJ3OJgrcp6WtIEB8oxK1lmYRmqZYrRxbozMyZFHNjrXKO8xgB3uhTwwk1AJ8WyLHauU9gzyal8YZjpJ9bQ2Osd6WX4HztHwi8UMjOb0j8QJzIVJ8FjaXIKn2yUyalCh8WHqXzyh4OsZfpSJ89I6BfUU1pnwBsO6AbAwhQS+ZuQ4W/+FGc1AO6qHTOsFCJ+C99Ms/F+oVcvShGW+OSnBWS8pX6PlIjSqmjvYcl3bt17FNf6cBOS8ztipJCjqlx1c5XQOPYTwL3YYSAcb6SodyK/gFlqvuGFH8HN6mYVY7qGBPoYy6jXGiCU9VKgf6ypP2QMwkNZ05skVFYi85C/CnkN4BdS+BOjCJmwj8HPu0uoEdp+Ug2W0CS06+1k8WVI9ViQfNB4CI6e6TKoGLcWtXj12SYwBAZYQNI0Ru95fYazQLnEHgMo0GgjLvVdgKfknoWLnkZNhih5vFmaCFJBpvAlwR+M+4imduSHWjrJYIf0ll98qrj1z5zEccga69V+zxbixxjUDqqSg7tIdMRS+y3EPgaRjFv75S7Lb7RMYJxA8bfMvvp3/os7HN7F+Nk23tImNDobrDq/D5F9fwJOa2vyrOXzly8SGcVrY5KGnCDQlw/xh4627rrasGNdBbgS5f07AC+M4D036xcwm8feRj4fs1KLyrhH5uM8QTwXRd2PkbgTz13VidMqH5rsPN+bXyzJL548OiArmlz5iWLyQHH2JK8hGcYWwYcY9K9ZRNf0tg84BiPJm/qGMb9WUxr28HgbJh14+K4o2E0O0a9twybGje3mNHAWKlEKPQpT1hFjjAiOurcP14Rho5rjGZNX5Cb96jGaHTXGkL1WEUfo1G6gKrzus3cAkZMbNp5p/IaKTCNMUt+AXuaQMvtzsiN0TGRvehIzWgqiZ3NB9MuNPTljxmN0RM0N55f0LGEjmadMeomI1GF7mJu8TkmM/fMc+L9211J4aoB3EtgVkRbDTo2Jxl1Q329w+a48yMwC9zr5j+i+zbXND1xrve47DlK/V1Lk8vEVyuNmzH2Ykxh/ABjVH4jDDDGjRi7MQ5h3OFeE603RieauBVjv45bX/MecW8fF/TMO0TDbowb59FYb4xRYTAlTG6uPYba/wC0/LE/UYxlkwAAAABJRU5ErkJggg==";
 // Se pinta con máscara para heredar el MISMO color del balón (#e9edf5); el verde del PNG solo define la silueta.
-const MR_BOOT_ICON=`<span class="mr-boot" style="background:#e9edf5;-webkit-mask:url('${JG_BOOT_ICON}') center/contain no-repeat;mask:url('${JG_BOOT_ICON}') center/contain no-repeat;"></span>`;
+const MR_BOOT_ICON=evIcon("assist", 10.5, "", "", 12);
 // Agrupa los sucesos REPETIBLES del mismo tipo (goles, autogoles, asistencias, tarjetas) en un solo icono
 // con la lista de minutos en orden: (BALÓN) 23', 32', 78'. Entra/sale nunca se agrupan (son únicos).
 function mrGroupLuEvents(evs){
-  const GROUP=new Set(["goal","og","assist","yellow","red"]);
+  const GROUP=new Set(["goal","og","penok","penmiss","assist","yellow","red"]);
   const out=[], idx={};
   (evs||[]).forEach(e=>{
     if(GROUP.has(e.kind) && idx[e.kind]!=null){
       const g=out[idx[e.kind]]; g.mins.push(e.min); if(e.pen) g.anyPen=true;
     } else {
-      const g={kind:e.kind, mins:[e.min], other:e.other, anyPen:!!e.pen};
+      const g={kind:e.kind, mins:[e.min], other:e.other, anyPen:!!e.pen, doble:!!e.doble};
       if(GROUP.has(e.kind)) idx[e.kind]=out.length;
       out.push(g);
     }
@@ -3621,23 +3849,27 @@ function mrLuEvChip(e){
   const pen = (e.anyPen!=null) ? e.anyPen : e.pen;
   if(e.kind==="in"){ ic=MR_IN_ARROW; tip="Entra"+(e.other?" por "+e.other:""); }
   else if(e.kind==="out"){ ic=MR_OUT_ARROW; tip="Sale"+(e.other?" — entra "+e.other:""); }
-  else if(e.kind==="goal"){ ic=mrEventIcon({kind:"goal"}); tip=(mins.length>1?"Goles":"Gol")+(pen?" (penal)":""); }
-  else if(e.kind==="og"){ ic=mrEventIcon({kind:"goal",og:true}); tip="Gol en contra"; }
-  else if(e.kind==="yellow"){ ic=mrEventIcon({kind:"yellow"}); tip="Amarilla"; }
-  else if(e.kind==="red"){ ic=mrEventIcon({kind:"red"}); tip="Roja"; }
+  else if(e.kind==="goal"){ ic=mrEventIcon({kind:"goal"}, 12); tip=mins.length>1?"Goles":"Gol"; }
+  else if(e.kind==="og"){ ic=mrEventIcon({kind:"goal",og:true}, 12); tip="Gol en contra"; }
+  else if(e.kind==="penok"){ ic=mrEventIcon({kind:"penok"}, 12); tip=mins.length>1?"Goles - Penales anotados":"Gol - Penal anotado"; }
+  else if(e.kind==="penmiss"){ ic=mrEventIcon({kind:"penmiss"}, 12); tip=mins.length>1?"Penales fallados":"Penal fallado"; }
+  else if(e.kind==="yellow"){ ic=mrEventIcon({kind:"yellow"}, 12); tip="Amarilla"; }
+  else if(e.kind==="red"){ ic=mrEventIcon({kind:"red", doble:!!e.doble}, 12); tip=e.doble?"Doble amarilla":"Roja"; }
   else if(e.kind==="assist"){ ic=MR_BOOT_ICON; tip=mins.length>1?"Asistencias":"Asistencia"; }
-  const minTxt = mins.map(mn=>esc(String(mn))+"'").join(", ");
+  const minTxt = mins.map(mn=>esc(String(mn))+"’").join(", ");
   return `<span class="mr-lu-e${e.kind==="assist"?" mr-lu-e-boot":""}" title="${esc(tip)}">${ic}<span class="mr-lu-emin">${minTxt}</span></span>`;
 }
 // Sucesos de un jugador durante el partido (para la fila de la lista): entra/sale, goles, tarjetas.
 function mrPlayerLuEvents(f, playerId, playerName, sub){
   const evs=[];
-  if(sub && sub.min){ evs.push({kind:sub.kind, min:sub.min, other:sub.other}); }
+  // sub: un cambio {kind:"in"|"out", min, other} o varios (quien entró y luego volvió a salir).
+  (Array.isArray(sub) ? sub : [sub]).forEach(s=>{ if(s && s.min) evs.push({kind:s.kind, min:s.min, other:s.other}); });
   const match=(o)=> (o.playerId && playerId && o.playerId===playerId) || (!o.playerId||!playerId ? (o.player && playerName && o.player===playerName) : false);
-  (f.goals||[]).forEach(g=>{ if(match(g)) evs.push({kind:g.og?"og":"goal", min:g.minute, pen:!!g.penalty, m:parseInt(g.minute)||0}); });
+  (f.goals||[]).forEach(g=>{ if(match(g)) evs.push({kind:g.og?"og":(g.penalty?"penok":"goal"), min:g.minute, pen:!!g.penalty, m:parseInt(g.minute)||0}); });
   // Asistencias: quien dio el pase de gol lleva un icono de zapato con el minuto del gol.
   (f.goals||[]).forEach(g=>{ if(g.assistPlayerId && playerId && g.assistPlayerId===playerId) evs.push({kind:"assist", min:g.minute, m:parseInt(g.minute)||0}); });
-  (f.cards||[]).forEach(c=>{ if(match(c)) evs.push({kind:(c.type||"yellow"), min:c.minute, m:parseInt(c.minute)||0}); });
+  (f.cards||[]).forEach(c=>{ if(match(c)) evs.push({kind:(c.type||"yellow"), min:c.minute, m:parseInt(c.minute)||0, doble:(c.type==="red") && mrDobleAmarilla(f,c)}); });
+  (f.missedPens||[]).forEach(g=>{ if(match(g)) evs.push({kind:"penmiss", min:g.minute, m:parseInt(g.minute)||0}); });
   evs.forEach(e=>{ if(e.m==null) e.m=parseInt(e.min)||0; });
   return evs.sort((a,b)=>a.m-b.m);
 }
@@ -3663,31 +3895,38 @@ function mrLineupListHTML(entry, f, mirror){
   if(!entry || !(entry.players||[]).length) return "";
   const tm=getTeam(entry.teamId); const byId={}; ((tm&&tm.players)||[]).forEach(p=>byId[p.id]=p);
   const shortNm=(name)=>{ const q=String(name||"").trim().split(/\s+/); return q.length>1?(q[0].charAt(0)+". "+q.slice(1).join(" ")):(q[0]||""); };
+  // Jugador del partido: se calcula con el partido REAL (el minuto a minuto pasa una copia parcial y la oculta
+  // con _jdpOculto hasta el final, para no adelantarlo).
+  const JP=window.JugadorPartido;
+  const fReal=(f && (DB.fixtures||[]).find(x=>x.id===f.id)) || f;
+  const jdpTag=!!(JP && JP.esJDP && f && !f._jdpOculto && fxPlayed(fReal));
   const row=(pid, num, nameHtml, pos, evs, captain, didPlay)=>{
     const cat=mrCatOf(pos);
     const evHTML=mrGroupLuEvents(evs).map(mrLuEvChip).join("");
     // La posición se pega junto al nombre (solo si existe: los suplentes van sin posición).
     const posHTML=pos ? `<span class="pos-chip pos-${VALID4.has(cat)?cat:'MF'} mr-lu-pos">${esc(pos)}</span>` : "";
     // Etiqueta de capitán (icono C) junto a la posición, como en Plantilla.
-    const capHTML=captain ? `<span class="mr-lu-cap" title="Capitán"><img src="${JG_CAP_ICON}" alt="C"></span>` : "";
+    const capHTML=captain ? `<span class="mr-lu-cap" title="Capitán">${evIcon("cap", 7.5)}</span>` : "";
+    // Etiqueta JDP (Jugador del partido) junto a la posición / capitán.
+    const jdpHTML=(jdpTag && JP.esJDP(fReal, pid, nameHtml.replace(/<[^>]+>/g,""))) ? JP.potmTagHTML(fReal) : "";
     // Todos los jugadores con ficha son cliqueables (abren su perfil).
     const clk = pid ? ` data-action="open-player" data-id="${esc(pid)}" style="cursor:pointer;"` : "";
     // Recuadro de calificación en el EXTREMO de la fila (mismo tamaño siempre):
-    //  · jugó y tiene calificación → número coloreado · jugó <15' → "SC" · NO jugó (banca) → recuadro vacío.
+    //  · jugó y tiene calificación → número coloreado · jugó <10' → "SC" · NO jugó (banca) → recuadro vacío.
     let rateHTML;
     if(didPlay===false){
       rateHTML = `<span class="mr-lu-rate mr-lu-rate-empty" title="No jugó"></span>`;
     } else {
       const rv=(pid && typeof playerFixtureRating==="function") ? playerFixtureRating(pid, f) : null;
       rateHTML = (rv!=null)
-        ? `<span class="mr-lu-rate" style="background:${(typeof pmRendColor==="function")?pmRendColor(rv):"#6fae4e"};" title="Calificación del partido">${rv.toFixed(1)}</span>`
-        : `<span class="mr-lu-rate mr-lu-rate-sc" title="Sin calificación (menos de 15 minutos jugados)">SC</span>`;
+        ? `<span class="mr-lu-rate" style="background:${mrRateColor(rv)};" title="Calificación del partido">${rv.toFixed(1)}</span>`
+        : `<span class="mr-lu-rate mr-lu-rate-sc" title="Sin calificación (menos de 10 minutos jugados)">SC</span>`;
     }
     return `<div class="mr-lu-row"${clk}>
       <span class="mr-lu-l">
         <span class="mr-lu-num">${num!=null?esc(String(num)):""}</span>
         <span class="mr-lu-nm">${nameHtml}</span>
-        ${posHTML}${capHTML}
+        ${posHTML}${capHTML}${jdpHTML}
       </span>
       <span class="mr-lu-ev">${evHTML}</span>
       ${rateHTML}
@@ -3698,23 +3937,73 @@ function mrLineupListHTML(entry, f, mirror){
     const sub = p.sub&&p.sub.minute ? {kind:"out", min:p.sub.minute, other:shortNm(p.sub.name)} : null;
     return row(p.playerId, p.number, mrNameBoldHTML(obj,p.name), p.pos, mrPlayerLuEvents(f, p.playerId, p.name, sub), p.captain, true);
   }).join("");
-  // Suplentes ordenados alfabéticamente por apellido: los que ENTRARON (con sus incidencias) y los que NO
-  // jugaron (bloque "Sub CODE", sin incidencias). Solo los porteros muestran su icono de posición.
-  const subsPlayed=(entry.players||[]).filter(p=>p.sub).map(p=>{
-    const s=p.sub; const obj=s.playerId?byId[s.playerId]:null;
-    return { sortKey: mrSurnameOf(obj, s.name).toLocaleLowerCase("es"),
-             html: row(s.playerId, s.number, mrNameBoldHTML(obj,s.name), s.pos||"", mrPlayerLuEvents(f, s.playerId, s.name, {kind:"in", min:s.minute, other:shortNm(p.name)}), s.captain, true) };
+  // Suplentes: los que ENTRARON (con sus incidencias) y los que NO jugaron (bloque "Sub CODE"). Primero los
+  // PORTEROS suplentes y luego los demás; cada grupo por dorsal de menor a mayor. Solo los porteros
+  // muestran su icono de posición.
+  const esPortero=(pos,obj)=> String(pos||"").toUpperCase()==="GK" || (!pos && obj && obj.pos==="GK");
+  const dorsal=n=>{ const v=parseInt(n,10); return isNaN(v)?999:v; };
+  // Cada jugador que entró (también en cadena: entró y luego volvió a salir → ▲ entrada y ▼ salida).
+  const subsPlayed=[];
+  (entry.players||[]).forEach(p=>{
+    let prev=p, s=p.sub;
+    while(s){
+      const obj=s.playerId?byId[s.playerId]:null;
+      const mov=[{kind:"in", min:s.minute, other:shortNm(prev.name)}];
+      if(s.sub && s.sub.minute) mov.push({kind:"out", min:s.sub.minute, other:shortNm(s.sub.name)});
+      subsPlayed.push({ gk: esPortero(s.pos,obj), num: dorsal(s.number),
+             html: row(s.playerId, s.number, mrNameBoldHTML(obj,s.name), s.pos||"", mrPlayerLuEvents(f, s.playerId, s.name, mov), s.captain, true) });
+      prev=s; s=s.sub;
+    }
   });
   const subsBench=(entry.bench||[]).map(bp=>{
     const obj=bp.playerId?byId[bp.playerId]:null;
-    return { sortKey: mrSurnameOf(obj, bp.name).toLocaleLowerCase("es"),
+    return { gk: esPortero(bp.pos,obj), num: dorsal(bp.number),
              html: row(bp.playerId, bp.number, mrNameBoldHTML(obj,bp.name), bp.pos||"", [], bp.captain, false) };
   });
-  const subs=subsPlayed.concat(subsBench).sort((a,b)=>a.sortKey.localeCompare(b.sortKey,"es")).map(x=>x.html);
+  const subs=subsPlayed.concat(subsBench).sort((a,b)=>(b.gk-a.gk) || (a.num-b.num)).map(x=>x.html);
+  // ENTRENADOR: debajo de la cancha, mismo tamaño que los jugadores. No lleva calificación, pero sí su
+  // icono (MAN, el mismo del perfil del entrenador) y sus tarjetas (puede ser amonestado o expulsado).
+  // El DT del PARTIDO (línea "DT, Nombre" de la alineación); si el partido no lo trae, el actual del equipo.
+  let coach=null;
+  if(entry.coachId && typeof getCoachWithTeam==="function"){ try{ coach=getCoachWithTeam(entry.coachId).coach; }catch(e){} }
+  if(!coach && entry.coachName) coach={ id:null, commonName:entry.coachName };
+  if(!coach) coach=mrTeamHeadCoach(tm);
+  let coachBlock="";
+  if(coach){
+    const cName=personCoachName(coach);
+    const cEvs=(f.cards||[]).filter(c=> (c.coachId && c.coachId===coach.id) || (!c.playerId && c.player && normLoose(c.player)===normLoose(cName)))
+      .map(c=>({kind:(c.type||"yellow"), min:c.minute, m:parseInt(c.minute)||0})).sort((a,b)=>a.m-b.m);
+    const evHTML=mrGroupLuEvents(cEvs).map(mrLuEvChip).join("");
+    const clk=coach.id ? ` data-action="open-coach" data-id="${esc(coach.id)}" style="cursor:pointer;"` : "";
+    coachBlock=`<div class="mr-lu-h">Entrenador</div>
+    <div class="mr-lu-row mr-lu-coach"${clk}>
+      <span class="mr-lu-l">
+        <span class="mr-lu-num mr-lu-dt" title="Entrenador">MAN</span>
+        <span class="mr-lu-nm">${mrNameBoldHTML(coach, cName)}${entry.coachInterim?` <span class="mr-lu-int">(Interino)</span>`:""}</span>
+      </span>
+      <span class="mr-lu-ev">${evHTML}</span>
+    </div>`;   // sin recuadro de calificación: las tarjetas quedan pegadas al extremo (derecha / izquierda)
+  }
   return `<div class="mr-lu${mirror?" mr-lu-mirror":""}">
+    ${coachBlock}
     <div class="mr-lu-h">Titulares</div>${starters}
     <div class="mr-lu-h">Suplentes</div>${subs.length?subs.join(""):`<div class="mr-lu-empty">Sin cambios</div>`}
   </div>`;
+}
+// Entrenador principal de una selección (el del primer equipo; si no, el primero de su cuerpo técnico).
+function mrTeamHeadCoach(t){
+  const cs=(t&&t.coaches)||[]; if(!cs.length) return null;
+  return cs.find(c=>/primer equipo|^entrenador$/i.test((c.contractRole||"").trim())) || cs[0];
+}
+// Color de la calificación del partido: el 6 es el primer aprobatorio (amarillo con algo de verde); de ahí
+// sube poco a poco al verde más fuerte en el 10. Por debajo del 6 cae RÁPIDO al rojo (en 4.5 ya es rojo).
+// Lo comparten el informe y el partido en vivo (app/motor-partido.js).
+function mrRateColor(v){
+  v=Math.round((+v||0)*10)/10;   // mismo número que se muestra (un decimal) → mismo color
+  let h, sat, lum;
+  if(v>=6){ const k=Math.min(1,(v-6)/4); h=66+k*(142-66); sat=68-k*6; lum=44-k*10; }
+  else { const k=Math.min(1,(6-v)/1.5); h=Math.max(2, 50-k*48); sat=70; lum=46-k*2; }
+  return `hsl(${h.toFixed(0)},${sat.toFixed(0)}%,${lum.toFixed(0)}%)`;
 }
 // Elige un kit de una categoría por número (1-based) dentro del equipo; si no existe, el primero.
 function mrPickKit(team, category, num, dateISO){
@@ -3777,11 +4066,25 @@ function mrRenderRefKit(){
 }
 // Equipo (envoltorio) del que salen los uniformes de árbitro de un partido, según la fuente:
 //   1) Si el partido es de un TORNEO → uniformes de árbitro de ese torneo (automático).
+//   0) Partido de la COPA DEL MUNDO → uniformes de árbitro del Mundial (o si la línea dice TorFWC26/TorWC/TorMundial).
 //   2) La fuente indicada en la línea de uniformes: Con<CONF> (FIFA/CONCACAF/…) o Tor<TORNEO>.
 //   3) Por defecto (partido internacional) → uniformes de árbitro de la FIFA.
 //   4) Respaldo → uniformes de árbitro del evento global.
 function mrResolveRefTeam(f){
   const has=(w)=>w && (w.kits||[]).length;
+  const evWrap=()=>{ const w=(typeof REFEREE_KIT_TEAM_ID!=="undefined")?getTeam(REFEREE_KIT_TEAM_ID):null; return has(w)?w:null; };
+  // ¿El código de la línea es la Copa del Mundo? (código del evento, p. ej. FWC26, o WC / MUNDIAL)
+  const esCodigoMundial=(code)=>{
+    const c=String(code||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+    if(["WC","FWC","MUNDIAL","COPAMUNDIAL","COPADELMUNDO","WORLDCUP"].includes(c)) return true;
+    try{ const ec=(typeof eventFieldText==="function")?eventFieldText(DB.event,'code'):""; if(ec && String(ec).toUpperCase().replace(/[^A-Z0-9]/g,"")===c) return true; }catch(e){}
+    return false;
+  };
+  const sel0=f&&f.kitSel&&f.kitSel.ref;
+  // 0) Partido de la Copa del Mundo (sin otra fuente indicada) → uniformes de árbitro del Mundial.
+  if(f && !f.friendly && f.stage!=="amistoso" && typeof matchIsWorldCup==="function" && matchIsWorldCup(f) && !(sel0 && sel0.code && !(sel0.kind==="tour" && esCodigoMundial(sel0.code)))){
+    const w=evWrap(); if(w) return w;
+  }
   // 1) Torneo automático.
   if(f && !f.friendly && f.competition && typeof competitionByName==="function"){
     const comp=competitionByName(f.competition);
@@ -3792,6 +4095,8 @@ function mrResolveRefTeam(f){
   if(sel && sel.code){
     const code=String(sel.code).toUpperCase();
     if(sel.kind==="tour"){
+      // TorFWC26 / TorWC / TorMundial → uniformes de árbitro de la Copa del Mundo.
+      if(esCodigoMundial(code)){ const w=evWrap(); if(w) return w; }
       const comp=(DB.competitions||[]).find(c=>(c.code||"").toUpperCase()===code);
       if(comp && comp.id){ const w=getTeam(refKitsWrapId("comp",comp.id)); if(has(w)) return w; }
     } else if(sel.kind==="fed"){
@@ -3815,8 +4120,22 @@ function mrResolveRefKit(f){
   const kits=(team.kits||[]).filter(k=>k.category==="arbitro"); if(!kits.length) return null;
   const sel=f&&f.kitSel&&f.kitSel.ref; const num=sel?sel.num:null;
   const i=(num!=null && num>=1 && num<=kits.length)?(num-1):0;
-  const kit=kits[i]||kits[0];
-  return { team, kit, comboIndex:mrComboIndex(kit,null) };
+  let kit=kits[i]||kits[0];
+  // Particularidad: con el uniforme 1, el árbitro central de un país anfitrión (Estados Unidos, México o
+  // Canadá) viste la versión LOCAL de su país (los kits marcados "Kit local" con ese país, p. ej. 9, 10, 11).
+  if(kit===kits[0]){
+    try{
+      const ref=(typeof mrOfficialsList==="function") ? mrOfficialsList(f).ref : null;
+      const cid=ref && (ref.countryRepresentsId || (ref.nationalityIds||[])[0]);
+      const co=cid ? (DB.countries||[]).find(c=>c.id===cid) : null;
+      if(co){
+        const nombres=[co.commonName, co.name, co.officialName].filter(Boolean).map(normLoose);
+        const local=kits.find(k=>k.refLocalKit && k.refLocalCountry && nombres.includes(normLoose(k.refLocalCountry)));
+        if(local) kit=local;
+      }
+    }catch(e){}
+  }
+  return { team, kit, comboIndex:mrComboIndex(kit, sel?sel.combo:null) };   // C<n> de la línea Kit ARB
 }
 // Caja del árbitro: uniforme resuelto (FIFA/confederación/torneo). Si no hay ninguno, el negro por defecto.
 function mrRefKitBoxResolved(f){
@@ -3846,6 +4165,57 @@ function mrKitsHTML(f, A, B){
     </div>
   </div>`;
 }
+// Cuerpo arbitral del partido (debajo de los uniformes). Fila 1: árbitro central; fila 2: asistentes 1 y 2 y
+// cuarto árbitro; fila 3: VAR y AVAR (solo si el partido los tuvo). Sale de f.officials (línea ARB … del
+// informe); sin ella, solo el central (f.refereeId o, en el torneo, el central designado a su número).
+// Los nombres van del mismo tamaño que los de la alineación, completos en negritas y con el código del país.
+function mrOfficialsList(f){
+  const byId=id=>(DB.referees||[]).find(x=>x.id===id)||null;
+  const o=(f&&f.officials)||{};
+  const out={};
+  ["ref","aa1","aa2","fourth","var","avar"].forEach(k=>{ if(o[k]){ const r=byId(o[k]); if(r) out[k]=r; } });
+  if(!out.ref){
+    let r=f&&f.refereeId ? byId(f.refereeId) : null;
+    if(!r && f && f.matchNo && typeof refereesForMatch==="function"){ try{ r=(refereesForMatch(f.matchNo)||[]).find(x=>normLoose(x.role||"")==="arbitro central")||null; }catch(e){} }
+    if(r) out.ref=r;
+  }
+  return out;
+}
+function mrOfficialsHTML(f){
+  const L=mrOfficialsList(f);
+  if(!Object.keys(L).length) return "";
+  const canLink=typeof navigateToReferee==="function";
+  const cell=(k, rol)=>{
+    const r=L[k]; if(!r) return "";
+    const nm=(r.commonName||(typeof personFirstLast==="function" ? personFirstLast(r) : ((r.firstName||"")+" "+(r.lastName||"")).trim())||r.fullName||"").trim();
+    const code=mrRefCountryCode(r);
+    // Nombre completo en negritas; solo el NOMBRE es cliqueable (abre su ficha) y baja de opacidad al pasar el cursor.
+    const lnk=(canLink && r.id!=null) ? ` class="mr-of-lnk" data-action="open-referee" data-id="${esc(r.id)}"` : "";
+    const name=`<b${lnk}>${esc(nm)}</b>`;
+    return `<div class="mr-of"><div class="mr-of-nm">${name}${code?` <span class="mr-of-cod">(${esc(code)})</span>`:""}</div><div class="mr-of-rol">${esc(rol)}</div></div>`;
+  };
+  // Una sola cuadrícula de 3 columnas [1fr | auto | 1fr] sin separación entre columnas:
+  //   fila 1 → el árbitro central, centrado;
+  //   fila 2 → asistente 1 pegado al margen izquierdo, asistente 2 al centro y cuarto árbitro al margen derecho;
+  //   fila 3 → VAR a la mitad del hueco entre asistente 1 y asistente 2, y AVAR a la mitad del hueco entre
+  //            asistente 2 y cuarto árbitro. Para medir ese hueco, cada celda lleva una copia invisible (sin
+  //            alto) del de arriba en su extremo: el resto del espacio es justo el hueco y ahí se centra.
+  // Todos los textos van centrados.
+  const fantasma=k=>{ const h=cell(k,""); return h ? h.replace('<div class="mr-of"', '<div class="mr-of mr-of-fantasma" aria-hidden="true"').replace(/ class="mr-of-lnk" data-action="[^"]*" data-id="[^"]*"/,"") : ""; };
+  const hay=k=>!!L[k];
+  const fila2 = (hay("aa1")||hay("aa2")||hay("fourth"))
+    ? `<div class="mr-of-c1">${cell("aa1","Árbitro asistente 1")}</div><div class="mr-of-c2">${cell("aa2","Árbitro asistente 2")}</div><div class="mr-of-c3">${cell("fourth","Cuarto árbitro")}</div>` : "";
+  const fila3 = (hay("var")||hay("avar"))
+    ? `<div class="mr-of-c1 mr-of-hueco">${fantasma("aa1")}<div class="mr-of-centro">${cell("var","Árbitro de vídeo (VAR)")}</div></div><div class="mr-of-c2"></div><div class="mr-of-c3 mr-of-hueco"><div class="mr-of-centro">${cell("avar","Árbitro asistente de vídeo (AVAR)")}</div>${fantasma("fourth")}</div>` : "";
+  return `<div class="mr-section mr-officials">
+    <div class="mr-h">Cuerpo arbitral</div>
+    <div class="mr-of-grid">
+      ${hay("ref")?`<div class="mr-of-full">${cell("ref","Árbitro central")}</div>`:""}
+      ${fila2}
+      ${fila3}
+    </div>
+  </div>`;
+}
 // Contenido completo del informe. La tarjeta de detalle va ARRIBA (centro); debajo, en una fila alineada,
 // las canchas (local | visitante) flanquean el rectángulo secundario (goles/rojas) + línea de tiempo +
 // estadísticas + uniformes. Bajo cada cancha, la lista de alineación.
@@ -3866,7 +4236,10 @@ function matchReportHTML(f){
         ${incidents?`<div class="mr-incidents">${incidents}</div>`:""}
         ${mrTimelineHTML(f,A,B)}
         ${f.stats?mrStatsHTML(f,A,B):""}
+        ${(fxPlayed(f) && window.MotorPartido && MotorPartido.relatoInforme) ? `<div class="mr-section mr-relato" hidden><div class="mr-h">Minuto a minuto</div><div class="mr-relato-box"></div></div>` : ""}
         ${mrKitsHTML(f,A,B)}
+        ${mrOfficialsHTML(f)}
+        ${(window.JugadorPartido && fxPlayed(f)) ? JugadorPartido.potmCardHTML(f) : ""}
       </div>
       ${side(B, awayLu, "mr-side-r", true)}
     </div></div>`;
@@ -3895,12 +4268,25 @@ function mrShow(fxId){
   const gv=document.getElementById("jg-view"); if(!gv) return;
   gv.hidden=false; gv.classList.remove("jg-fixed");
   document.body.classList.add("mr-fs");   // el informe cubre también la barra lateral (pero sigue siendo pantalla normal)
-  gv.innerHTML=`<div class="mr-screen"><button class="mr-x" data-mr-close title="Cerrar">×</button>${matchReportHTML(f)}</div>`;
+  // Botón "En vivo": abre el motor de partido (app/motor-partido.js) con este mismo partido.
+  const liveBtn = (window.MotorPartido) ? `<button class="mr-live-btn" data-ml-open="${esc(f.id)}" title="Ver el partido en vivo, minuto a minuto"><span class="dot"></span>En vivo</button>` : "";
+  gv.innerHTML=`<div class="mr-screen">${liveBtn}<button class="mr-x" data-mr-close title="Cerrar">×</button>${matchReportHTML(f)}</div>`;
   try{ if(typeof clearTopTabActive==="function") clearTopTabActive(); }catch(e){}
   document.querySelectorAll("#jg-sidebar .jg-item").forEach(b=>b.classList.remove("on"));
   window.scrollTo(0,0);
   try{ if(typeof renderKitPreviews==="function") renderKitPreviews(); }catch(e){}   // previsualizaciones de uniformes
   try{ if(typeof mrRenderRefKit==="function") mrRenderRefKit(); }catch(e){}          // uniforme del árbitro (negro)
+  // Minuto a minuto (relato completo, del último al primero) arriba de los uniformes; sin relato no se muestra.
+  try{
+    const sec=gv.querySelector(".mr-relato");
+    if(sec && window.MotorPartido && MotorPartido.relatoInforme){
+      MotorPartido.relatoInforme(f.id, html=>{
+        if(!sec.isConnected || JUEGO.reportFx!==f.id) return;
+        if(!html){ sec.remove(); return; }
+        sec.querySelector(".mr-relato-box").innerHTML=html; sec.hidden=false;
+      });
+    }
+  }catch(e){}
 }
 // El informe ya no es una capa: al navegar a otra pantalla se reemplaza el contenido de #jg-view solo.
 function mrHide(){ JUEGO.reportFx=null; try{ document.body.classList.remove("mr-fs"); }catch(e){} }
@@ -3948,7 +4334,7 @@ function renderCalBody(){
     if(calMonthIdx<0) calMonthIdx=0; if(calMonthIdx>months.length-1) calMonthIdx=months.length-1;
     const cur=months[calMonthIdx];
     const ev={};
-    fx.forEach(f=>{ if(f.date && +f.date.slice(0,4)===cur.y && +f.date.slice(5,7)===cur.m){ const d=parseInt(f.date.slice(8,10),10); const o2=oppOf(f); const vpTip=(()=>{ try{ const vp=venueParts(f); return vp&&vp.name?` · ${vp.name}`:(f.venue?` · ${f.venue}`:""); }catch(e){ return f.venue?` · ${f.venue}`:""; } })(); const tip=(f.date?fmtDayMon(f.date)+" · ":"")+teamName(f.teamA===t.id?t:o2)+(fxPlayed(f)?` ${f.scoreA}-${f.scoreB} `:" - ")+teamName(f.teamB===t.id?t:o2)+vpTip; (ev[d]=ev[d]||[]).push(["match", calGridEventHTML(f,t), tip, "", true]); } });
+    fx.forEach(f=>{ if(f.date && +f.date.slice(0,4)===cur.y && +f.date.slice(5,7)===cur.m){ const d=parseInt(f.date.slice(8,10),10); const o2=oppOf(f); const vpTip=(()=>{ try{ const vp=venueParts(f); return vp&&vp.name?` · ${vp.name}`:(f.venue?` · ${f.venue}`:""); }catch(e){ return f.venue?` · ${f.venue}`:""; } })(); const tip=(f.date?fmtDayMon(f.date)+" · ":"")+(f.teamA===t.id?teamName(t):(o2?teamName(o2):"Por definir"))+(fxPlayed(f)?` ${f.scoreA}-${f.scoreB} `:" - ")+(f.teamB===t.id?teamName(t):(o2?teamName(o2):"Por definir"))+vpTip; (ev[d]=ev[d]||[]).push(["match", calGridEventHTML(f,t), tip, "", true]); } });
     const today=(cur.y===CAL_GAME_MONTH.y&&cur.m===CAL_GAME_MONTH.m)?1:null;
     const nav=`<div class="jg-calnav"><button class="jg-calnavb" data-calnav="prev" ${calMonthIdx<=0?"disabled":""}>‹</button><span class="jg-calmes">${CAL_MES_LARGO[cur.m-1]} ${cur.y}</span><button class="jg-calnavb" data-calnav="next" ${calMonthIdx>=months.length-1?"disabled":""}>›</button></div>`;
     b.innerHTML=nav+monthGridFor(cur.y, cur.m, ev, today)+`<div class="jg-legend"><span><i style="background:var(--indigo);"></i>Partido</span></div>`;
@@ -4008,5 +4394,29 @@ document.addEventListener("change", function(e){
    API pública
    ============================================================ */
 window.Juego = { enter, exit, goScreen, mount, isActive:()=>JUEGO.active, _state:JUEGO };
+
+/* Puente para app/motor-partido.js (pantalla del partido EN VIVO): prepara la pantalla completa
+   igual que el informe (mrShow) y comparte las piezas de dibujo del informe, para que ambas
+   pantallas se vean idénticas. Solo lectura: nada de esto toca el DB. */
+function mrOpenLiveScreen(fxId){
+  mount();
+  JUEGO.screen="partido-en-vivo"; JUEGO.active=true; JUEGO.reportFx=fxId;   // Esc / X cierran como el informe
+  const v=document.getElementById("view"); if(v) v.hidden=true;
+  const gv=document.getElementById("jg-view"); if(!gv) return null;
+  gv.hidden=false; gv.classList.remove("jg-fixed");
+  document.body.classList.add("mr-fs");
+  try{ if(typeof clearTopTabActive==="function") clearTopTabActive(); }catch(e){}
+  document.querySelectorAll("#jg-sidebar .jg-item").forEach(b=>b.classList.remove("on"));
+  window.scrollTo(0,0);
+  return gv;
+}
+window.Juego.informe = {
+  abrirPantalla: mrOpenLiveScreen,
+  abrirInforme: openMatchReport,   // informe completo (con «En vivo»), p. ej. desde la pestaña del torneo
+  calDetailCardHTML, calIncidentsHTML, mrTimelineHTML, mrPitchHTML, mrLineupListHTML,
+  mrStatsHTML, mrKitsHTML, mrOfficialsHTML, mrOfficialsList, mrRenderRefKit, mrTeamCode, mrShort, teamName, flagImg, esc, mrRateColor,
+  mrTeamHeadCoach, personCoachName, mrPickKit,
+  JG_BALL_ICON, MR_SUB_ICON, evIcon, mrDobleAmarilla, mrAsistenciaClimaHTML
+};
 
 })();
