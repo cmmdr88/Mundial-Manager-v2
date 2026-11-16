@@ -289,7 +289,9 @@ function pwBrandRowHTML(b, n){
   </div>`;
 }
 function pwEditorHTML(opts){
-  opts=opts||{}; const prefix=opts.prefix, live=opts.live?1:0, stacked=(opts.layout==="stacked");
+  // El editor vive en una VENTANA EMERGENTE (como la edición de kits): vista previa a la izquierda (fija) y
+  // patrocinadores a la derecha con su propio scroll. En la página queda solo un botón «Editar press wall».
+  opts=opts||{}; const prefix=opts.prefix, live=opts.live?1:0, stacked=false;
   const brands=opts.brands||[], back=opts.back||"", ref=opts.ref||"";
   const gpct=(typeof opts.graphicPct==="number"&&opts.graphicPct>=1&&opts.graphicPct<=200)?opts.graphicPct:100;
   const gx=(typeof opts.graphicX==="number")?opts.graphicX:0;
@@ -309,7 +311,7 @@ function pwEditorHTML(opts){
       </label>
     </div>`;
   const preview=`
-    <div class="pw-preview-col" style="display:flex;flex-direction:column;gap:10px;${stacked?'position:sticky;top:0;z-index:2;background:var(--surface,#1A1D27);padding-bottom:6px;':'flex:1 1 0;min-width:300px;'}">
+    <div class="pw-preview-col" style="display:flex;flex-direction:column;gap:10px;flex:1.35 1 0;min-width:320px;overflow-y:auto;padding-right:6px;">
       <div class="pw-modebar" style="display:flex;gap:6px;">
         <button type="button" class="btn ghost sm pw-mode-btn on" data-action="pw-mode" data-pw="${prefix}" data-mode="full">Gráfico completo</button>
         <button type="button" class="btn ghost sm pw-mode-btn" data-action="pw-mode" data-pw="${prefix}" data-mode="coach">Gráfico entrenador</button>
@@ -322,13 +324,58 @@ function pwEditorHTML(opts){
       ${graphicCtrls}
     </div>`;
   const list=`
-    <div class="pw-list-col" style="${stacked?'':'flex:1 1 0;min-width:300px;'}display:flex;flex-direction:column;gap:10px;">
+    <div class="pw-list-col" style="flex:1 1 0;min-width:300px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding-right:6px;">
       <div class="pw-brands" style="display:flex;flex-direction:column;gap:8px;${stacked?'max-height:340px;overflow-y:auto;padding-right:4px;':''}">${brands.map((b,i)=>pwBrandRowHTML(b,i+1)).join("")}</div>
       <button type="button" class="btn gold sm" data-action="pw-add-brand" style="width:fit-content;">+ Agregar marca</button>
       <datalist id="pw-sponsor-list">${(()=>{ try{ return (DB.sponsors||[]).map(sp=>`<option value="${(typeof escapeHtml==="function")?escapeHtml(sp.name):sp.name}">`).join(""); }catch(e){ return ""; } })()}</datalist>
     </div>`;
-  return `<div class="pw-editor" data-pw="${prefix}" data-live="${live}" data-pw-mode="full" style="display:flex;gap:20px;${stacked?'flex-direction:column;':'flex-wrap:wrap;align-items:flex-start;'}">${preview}${list}</div>`;
+  const editor=`<div class="pw-editor" data-pw="${prefix}" data-live="${live}" data-pw-mode="full" style="display:flex;gap:20px;align-items:stretch;height:100%;min-height:0;">${preview}${list}</div>`;
+  const esc=x=>(typeof escapeHtml==="function")?escapeHtml(String(x||"")):String(x||"");
+  const title=opts.title||"Press wall";
+  return `<div class="pw-launch" data-pw="${prefix}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button type="button" class="btn gold sm" data-action="pw-pop-open" data-pw="${prefix}">Editar ${esc(title.charAt(0).toLowerCase()+title.slice(1))}</button>
+      <span class="pw-launch-sum" style="font-size:12px;color:var(--muted);">${pwResumen(brands.length, back, ref)}</span>
+    </div>
+    <div class="pw-pop" data-pw-pop="${prefix}" style="display:none;position:fixed;inset:0;z-index:100005;background:rgba(4,5,9,0.72);align-items:center;justify-content:center;padding:16px;">
+      <div class="pw-pop-win" style="background:var(--surface);border-radius:18px;width:min(1280px,96vw);height:min(860px,90vh);display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);flex-shrink:0;">
+          <h2 style="font-size:16px;margin:0;">${esc(title)}</h2>
+          <button type="button" class="btn gold sm" data-action="pw-pop-close" data-pw="${prefix}">Listo</button>
+        </div>
+        <div style="flex:1 1 auto;min-height:0;padding:16px 20px;">${editor}</div>
+      </div>
+    </div>`;
 }
+function pwResumen(n, back, ref){ return `${n} marca${n===1?"":"s"} · back ${back?"✓":"—"} · referencia ${ref?"✓":"—"}`; }
+// Abrir / cerrar la ventana emergente del press wall (el editor no se mueve del DOM: los lectores de
+// cada formulario —pwEditorReadBrands, pwEditorBack…— siguen funcionando igual al guardar).
+function pwPopOpen(prefix){
+  const pop=document.querySelector('.pw-pop[data-pw-pop="'+prefix+'"]'); if(!pop) return;
+  pop.style.display="flex"; document.documentElement.classList.add("pw-pop-on");
+  try{ pwEditorRefresh(prefix); }catch(e){}
+}
+function pwPopClose(prefix){
+  const pop=document.querySelector('.pw-pop[data-pw-pop="'+prefix+'"]'); if(!pop) return;
+  pop.style.display="none";
+  if(!document.querySelector('.pw-pop[style*="display: flex"]')) document.documentElement.classList.remove("pw-pop-on");
+  try{ const sum=document.querySelector('.pw-launch[data-pw="'+prefix+'"] .pw-launch-sum'); if(sum) sum.textContent=pwResumen(pwEditorReadBrands(prefix).length, pwEditorBack(prefix), pwEditorRefImg(prefix)); }catch(e){}
+}
+try{
+  if(typeof document!=="undefined" && !window.__pwPopWired){
+    window.__pwPopWired=true;
+    document.addEventListener("click", e=>{
+      const b=e.target && e.target.closest && e.target.closest('[data-action="pw-pop-open"],[data-action="pw-pop-close"]');
+      if(!b) return; e.preventDefault(); e.stopPropagation();
+      if(b.dataset.action==="pw-pop-open") pwPopOpen(b.dataset.pw); else pwPopClose(b.dataset.pw);
+    }, true);
+    // Esc cierra solo la ventana del press wall (no el formulario de atrás).
+    document.addEventListener("keydown", e=>{
+      if(e.key!=="Escape") return;
+      const open=[...document.querySelectorAll('.pw-pop')].filter(p=>p.style.display==="flex").pop();
+      if(open){ e.preventDefault(); e.stopPropagation(); pwPopClose(open.getAttribute("data-pw-pop")); }
+    }, true);
+  }
+}catch(e){}
 function pwEditorGraphicPct(prefix){
   const ed=document.querySelector('.pw-editor[data-pw="'+prefix+'"]'); if(!ed) return 100;
   const i=ed.querySelector(".pw-graphicpct"); let v=parseInt(i&&i.value); if(isNaN(v)||v<1||v>200) v=100; return v;
@@ -511,7 +558,15 @@ function pwRenderWallInto(el, owner, keepSize){
 function pwFillWall(el){
   if(!el||el.__pwFilled) return; el.__pwFilled=true;
   let owner="event"; const ot=el.getAttribute("data-pw-owner");
-  if(ot&&ot!=="event"){ try{ owner=(DB.teams||[]).find(t=>t.id===ot)||"event"; }catch(e){ owner="event"; } }
+  if(ot==="potm" || ot==="potm-alt"){   // premio Jugador del partido (DB.event.awards, key "potm"); sin muro propio → el del torneo
+    try{ const a=(DB.event&&DB.event.awards||[]).find(x=>x&&x.key==="potm"); owner=(a&&pwOwnerHasWall(a))?a:"event";
+      // Versión ALTERNATIVA (JDP … ALT): mismas marcas y referencia, solo cambia el fondo.
+      if(ot==="potm-alt" && a && a.alt && pwOwnerHasWall(a.alt)) owner=a.alt;   // press wall ALTERNATIVO completo
+      else if(ot==="potm-alt" && a && a.pressWallBgImgAlt) owner=Object.assign({}, (owner==="event" ? {pressWall:DB.event.pressWall, pressWallColors:DB.event.pressWallColors, pressWallRefImg:DB.event.pressWallRefImg} : owner), {pressWallBgImg:a.pressWallBgImgAlt});
+    }catch(e){ owner="event"; }
+  } else if(ot && ot.indexOf("comp:")===0){   // press wall de una competición (DB.competitions)
+    try{ const c=(DB.competitions||[]).find(x=>x.id===ot.slice(5)); owner=(c&&pwOwnerHasWall(c))?c:"event"; }catch(e){ owner="event"; }
+  } else if(ot&&ot!=="event"){ try{ owner=(DB.teams||[]).find(t=>t.id===ot)||"event"; }catch(e){ owner="event"; } }
   try{ pwRenderWallInto(el, owner, el.getAttribute("data-pw-keepsize")==="1"); }catch(e){}
 }
 function pwFillAll(scope){ try{ (scope||document).querySelectorAll(".pw-fill").forEach(pwFillWall); }catch(e){} }
