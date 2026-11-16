@@ -23,6 +23,18 @@ function isoDate(y,mo,d){
   return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
 }
 
+// Todas las formas con las que se puede escribir el nombre de una persona (jugador, entrenador o
+// árbitro), ya normalizadas: nombre común, nombre completo, «Nombre Apellido» y TAMBIÉN «Apellido
+// Nombre» (Zhou Fei = Fei Zhou), más los alias de perfiles fusionados. Para emparejar importaciones
+// sin importar el orden en que vengan el nombre y el apellido.
+function personNameForms(x){
+  if(!x) return [];
+  const f=String(x.firstName||"").trim(), l=String(x.lastName||"").trim();
+  const out=[x.commonName, x.fullName, x.name, (f+" "+l).trim(), (l+" "+f).trim()].concat(x.mergedNames||[]);
+  // Nombre completo al revés también (p. ej. "Heung-min Son" ↔ "Son Heung-min" cuando solo hay dos palabras).
+  const fn=String(x.fullName||"").trim().split(/\s+/); if(fn.length===2) out.push(fn[1]+" "+fn[0]);
+  return [...new Set(out.map(s=>normLoose(s||"")).filter(Boolean))];
+}
 function normLoose(s){
   return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
     .replace(/[.\-_'`´]/g,"").replace(/\s+/g," ").trim();
@@ -71,12 +83,12 @@ function isRegistered(p){ return p.number!=null && !p.numberUnassigned; }
 function avgRating(players){ return players.length ? Math.round(players.reduce((s,p)=>s+(p.rating||0),0)/players.length) : null; }
 
 function compareGeneric(a,b,type,dir){
-  let cmp;
-  if(a==null && b==null) cmp = 0;
-  else if(a==null) cmp = 1;
-  else if(b==null) cmp = -1;
-  else if(type==="string") cmp = String(a).localeCompare(String(b));
-  else cmp = a-b;
+  // Sin valor (null o vacío) va SIEMPRE al final, en cualquier dirección: p. ej. por Rating, el más
+  // alto arriba y los que no tienen rating debajo del más bajo.
+  const vacio = v => v==null || v==="";
+  const va=vacio(a), vb=vacio(b);
+  if(va || vb) return va===vb ? 0 : (va ? 1 : -1);
+  const cmp = type==="string" ? String(a).localeCompare(String(b)) : a-b;
   return dir==="asc" ? cmp : -cmp;
 }
 
