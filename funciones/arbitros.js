@@ -253,7 +253,7 @@ function renderArbitros(){
         const cn = refereeMainCountryName(r);
         return `
         <tr data-action="open-referee" data-id="${r.id}" style="cursor:pointer;">
-          <td>${personPhotoHTML(r, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(r)}</td>
+          <td>${personPhotoHTML(r, "width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(r)}</td>
           <td>${cn?flagIconHTML(cn)+escapeHtml(cn):"—"}</td>
           <td>${playerAge(r)!=null?playerAge(r):'—'}</td>
           <td>${r.role?escapeHtml(r.role):"—"}</td>
@@ -296,6 +296,9 @@ function modalAddEditReferee(referee){
           ${imageUploadField("Foto del árbitro (opcional)", "rphoto", referee.photo, "Si no subes una, se usa una silueta genérica.")}
           <label class="field">Nombre<input id="f-rfirstname" value="${escapeHtml(referee.firstName||"")}"></label>
           <label class="field">Apellido<input id="f-rlastname" value="${escapeHtml(referee.lastName||"")}"></label>
+          <label class="field-check" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-top:-4px;cursor:pointer;" title="Para nombres que se escriben con el apellido antes del nombre (p. ej. coreanos: Son Heung-min)">
+            <input type="checkbox" id="f-rlastfirst" ${referee.lastNameFirst?"checked":""} style="width:15px;height:15px;"> Apellido primero <span style="opacity:.7;">(p. ej. Kim Pan-gon)</span>
+          </label>
           <label class="field" style="grid-column:1/-1;">Nombre común (opcional)
             <input id="f-rcommonname" value="${escapeHtml(referee.commonName||"")}" placeholder="Si lo dejas vacío, se usa Nombre + Apellido">
           </label>

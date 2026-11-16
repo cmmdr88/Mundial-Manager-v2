@@ -309,7 +309,7 @@ function renderTeamDetail(teamId){
     const row = p=>`
       <div class="player-row" data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
         <span class="num-badge">${p.number!=null?p.number:"–"}</span>
-        <span class="pname">${personPhotoHTML(p, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;flex-shrink:0;")}${playerDisplayNameHTML(p)}<span class="pos-chip pos-${p.pos}" style="margin-left:10px;">${p.pos}</span>${positionsText(p)?` <span style="color:var(--muted);font-size:12px;font-weight:400;">${positionsText(p)}</span>`:""}</span>
+        <span class="pname">${personPhotoHTML(p, "width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:6px;flex-shrink:0;")}${playerDisplayNameHTML(p)}<span class="pos-chip pos-${p.pos}" style="margin-left:10px;">${p.pos}</span>${positionsText(p)?` <span style="color:var(--muted);font-size:12px;font-weight:400;">${positionsText(p)}</span>`:""}</span>
         <span class="pmeta">${playerAgeText(p)} · ${p.club?`<span class="club-chip tag-clickable" data-action="open-club-by-name" data-name="${escapeHtml(p.club)}">${clubLogoIconHTML(getClubByName(p.club))}${escapeHtml(p.club)}</span>`:`<span class="club-chip">Sin club</span>`}</span>
         <span class="prating">${p.rating}</span>
         <button class="btn ghost sm" data-action="edit-player" data-team="${t.id}" data-id="${p.id}">Editar</button>
@@ -429,8 +429,9 @@ function modalAddEditTeam(team){
 
           ${(typeof iconEditorSectionHTML==="function") ? iconEditorSectionHTML("ticon", team, {
             title:"Icono de la selección",
-            logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]],
-            logoInputs:{ dark:"f-logo-data", light:"f-logo-l-data" },
+            logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]].concat(((typeof entityLogoAlts==="function")?entityLogoAlts(team):(team.logoAlts||[])).map((a,i)=>(a&&a.img)?["a"+i,"Alt "+(i+1)]:null).filter(Boolean)),
+            logoInputs:(()=>{ const m={ dark:"f-logo-data", light:"f-logo-l-data" }; ((typeof entityLogoAlts==="function")?entityLogoAlts(team):(team.logoAlts||[])).forEach((a,i)=>{ if(a&&a.img) m["a"+i]="f-talt-"+i+"-data"; }); return m; })(),
+            altPrefix:"talt",
             colors:[team.color1||"#4F46E5", team.color2||"#15161D", team.color3||"#FFFFFF"],
             colorInputs:["f-color1","f-color2","f-color3"]
           }) : ""}
@@ -468,7 +469,7 @@ function modalAddEditTeam(team){
             <summary style="cursor:pointer;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;list-style:none;background:var(--surface-2);white-space:nowrap;">Press Wall</summary>
             <div style="padding:14px;">
               <span style="display:block;font-size:11px;color:var(--muted);margin-bottom:10px;">Arriba el muro y la carga del back y la referencia; abajo las marcas. Agrega marcas para ir rellenando cada color de la referencia; cada marca tiene su color de referencia, el tipo de logo y su color de fondo (por defecto el del patrocinador).</span>
-              ${pwEditorHTML({prefix:"spw", brands:pwBrandsFor(team), back:team.pressWallBgImg||"", ref:team.pressWallRefImg||"", graphicPct:team.pressWallGraphicPct||100, graphicX:team.pressWallGraphicX||0, graphicY:team.pressWallGraphicY||0, live:false, layout:"stacked"})}
+              ${pwEditorHTML({prefix:"spw", title:"Press wall de la selección", brands:pwBrandsFor(team), back:team.pressWallBgImg||"", ref:team.pressWallRefImg||"", graphicPct:team.pressWallGraphicPct||100, graphicX:team.pressWallGraphicX||0, graphicY:team.pressWallGraphicY||0, live:false, layout:"stacked"})}
             </div>
           </details>
 
@@ -535,6 +536,7 @@ function modalAddEditTeam(team){
               }) : ""}
             </div>
           </details>`; })()}
+          ${(typeof logoAltsSectionHTML==="function") ? logoAltsSectionHTML("talt", (typeof entityLogoAlts==="function") ? entityLogoAlts(team) : (team.logoAlts||[])) : ""}
         </div>
       </div>
       <div class="modal-foot">

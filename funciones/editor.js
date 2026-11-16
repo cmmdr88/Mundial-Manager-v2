@@ -80,35 +80,9 @@ function renderEditor(){
     </div>
   </div>
 
-  <div class="section-title"><h2>Importar jugadores desde Excel</h2><span class="hint">Copia celdas de Excel/Sheets y pégalas aquí</span></div>
-  <div class="card">
-    <p style="font-size:12.5px;color:var(--muted);margin-top:0;">
-      ${T('general.bulk.instructions')}
-    </p>
-    <div class="form-grid" style="margin-bottom:10px;">
-      <label class="field" style="grid-column:1/-1;">Selección destino
-        <select id="bulk-team-select">
-          <option value="">— Elige una selección —</option>
-          ${DB.teams.slice().filter(t=>!t.hidden).sort((a,b)=>a.commonName.localeCompare(b.commonName)).map(t=>`<option value="${t.id}" ${bulkImportTeamId===t.id?"selected":""}>${t.commonName}</option>`).join("")}
-        </select>
-      </label>
-    </div>
-    <label class="field">Pega aquí las filas
-      <textarea class="json-area" id="bulk-import-area" placeholder="Columnas (tabuladas, en este orden): Dorsal, Pos, Nombre, Apellido, Nombre común, Nombre completo, Fecha nac., Estatura, Internacionalidades, Goles, Club, Camiseta (selección), Camiseta (club), Marca, Rating, Rating pot., Pie izquierdo, Pie derecho, luego 10 pares Posición·Valor (código y valor 0–20), Dorsales favoritos (selección), Dorsales favoritos (club)&#10;Ej:&#10;10	FW	Lionel	Messi		Lionel Andrés Messi	June 24, 1987	170	191	112	Inter Miami	MESSI	MESSI	Adidas	93	93	18	20	ST	19	CAM	18	RW	17				&#10;16	FW	Julián	Quiñones		Julián Andrés Quiñones Quiñones	March 24, 1997	177	22	2	Al-Qadsiah	J.QUIÑONES	QUIÑONES	Nike	78	82	14	16	ST	16	CF	15						9, 16"></textarea>
-    </label>
-    <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
-      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
-        <input type="checkbox" id="bulk-only-new" style="flex:0 0 auto;margin-top:3px;width:16px;height:16px;">
-        <span style="flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--muted);line-height:1.55;">
-          <b style="color:var(--ink);">Cargar solo datos nuevos.</b> No agrega ni elimina jugadores: actualiza <b>cualquier dato presente</b> de los jugadores que ya existan y coincidan, <b>excepto las primeras 6 columnas</b> (Dorsal, Posición, Nombre, Apellido, Nombre común, Nombre completo), que solo sirven para emparejar. Una fila se carga solo si coinciden <b>Dorsal + Apellido</b> o <b>Nombre + Apellido</b>; si no, se salta.
-          <br><span style="display:block;margin-top:5px;font-size:11px;">Columnas (en este orden): Dorsal, Posición, Nombre, Apellido, Nombre común, Nombre completo <span style="opacity:.75;">(estas 6 solo emparejan)</span>, Fecha nac., Estatura, Caps, Goles, Club, Nombre en camiseta (selección), Nombre en camiseta (club), Marca, Rating, Rating pot., Perfil izquierdo, Perfil derecho, luego 10 pares <b>Posición · Valor</b> (código y valor 0–20), Dorsal favorito (selección), Dorsal favorito (club). Las celdas vacías no borran el dato existente.</span>
-        </span>
-      </label>
-      <div style="display:flex;gap:8px;">
-        <button class="btn gold" data-action="bulk-import-players">Importar jugadores</button>
-      </div>
-    </div>
-  </div>
+  ${typeof dupFinderSectionHTML==="function" ? dupFinderSectionHTML() : ""}
+
+  ${typeof bulkImportSectionHTML==="function" ? bulkImportSectionHTML() : ""}
 
   <div class="section-title"><h2>Uniformes</h2><span class="hint">Bases de prendas recoloreables (camisetas, shorts, calcetas) y tipografías de número para armar los kits de cada selección</span></div>
   <div class="card" data-action="toggle-garments-parent" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:${garmentsParentExpanded?'14px':'0'};">

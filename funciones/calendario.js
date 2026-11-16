@@ -23,8 +23,30 @@ function matchDateTimeMs(f){
   const ms = Date.parse(f.date+"T"+t+":00");
   return isNaN(ms) ? null : ms;
 }
+// DURACIÓN REAL de un partido (minutos de reloj, del saque inicial al silbatazo final), para que el
+// resultado aparezca hasta que el partido TERMINA y no a la hora del inicio:
+//   · 1er tiempo 45' + su añadido (≈2') · descanso 15' · 2do tiempo hasta el final (FT 90+5' → 50')
+//     → un partido normal dura ≈ 1 h 52 min.
+//   · Tiempos extra (FT 120+X'): + 5' de pausa antes de la prórroga + 2' del cambio de lado (≈ 2 h 30 min).
+//   · Penales: + 12'.  · Retraso/interrupción indicado en el partido (fx.delayMin): se suma tal cual.
+function matchDurationMin(f){
+  const lin = (m)=>{ const s=String(m||""); const b=parseInt(s,10)||0; const e=/\+\s*(\d+)/.exec(s); return b+(e?parseInt(e[1],10):0); };
+  const fin = (f && f.ftMin) ? lin(f.ftMin) : 95;                 // sin dato: 90 + 5 de añadido
+  const extraTime = fin > 100 || !!(f && (f.extraTime || f.aet));
+  let min = fin + 2 + 15;                                          // + añadido del 1T + descanso
+  if(extraTime) min += 5 + 2;                                      // pausa antes de la prórroga + cambio de lado
+  if(f && (f.penalties || f.shootout)) min += 12;                  // tanda de penales
+  if(f && f.delayMin) min += (+f.delayMin || 0);                   // retraso / interrupción
+  return min;
+}
+// Momento en que el partido TERMINA (inicio + duración real).
+function matchEndMs(f){
+  const ms = matchDateTimeMs(f); if(ms==null) return null;
+  return ms + matchDurationMin(f)*60000;
+}
+// ¿El partido ya TERMINÓ en el reloj del juego? (antes era "¿ya empezó?": el marcador salía al saque inicial)
 function matchHappened(f){
-  const ms = matchDateTimeMs(f); if(ms==null) return true;
+  const ms = matchEndMs(f); if(ms==null) return true;
   let now = null;
   try{ if(typeof window!=="undefined" && window.GameTime && typeof GameTime.now==="function") now = GameTime.now().getTime(); }catch(e){}
   if(now==null) return true;
@@ -72,6 +94,9 @@ function clearAllFixtures(){
 }
 
 function standingsFor(group){
+  // Misma tabla que la pestaña del torneo: solo partidos ya jugados según el reloj del juego y
+  // desempates del reglamento (art. 13).
+  if(typeof eventoTablaFilas==="function"){ try{ return eventoTablaFilas(group); }catch(e){} }
   const teams = teamsInGroupOrdered(group);
   const table = {};
   teams.forEach(t=> table[t.id] = {team:t, pj:0,g:0,e:0,p:0,gf:0,gc:0,pts:0});
@@ -93,9 +118,23 @@ function fmtFixtureDate(d){
   return `${parseInt(dd)} ${M[(parseInt(m)||1)-1]}`;
 }
 // Nombre de la ronda de eliminación a partir del código del partido (M73 → Dieciseisavos, etc.)
+// Nombres ESTÁNDAR de las rondas del Mundial. Cualquier variante guardada (en la base de datos del
+// usuario o en catálogos viejos: "16avos", "Dieciseisavos de final (Ronda de 32)", "Semifinales",
+// "Partido por el tercer puesto", "3er puesto"…) se muestra con el nombre estándar.
+function nombreRondaMundial(nombre){
+  const k = String(nombre||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+  if(!k) return nombre||"";
+  if(/^(16avos|dieciseisavos|ronda de 32|r32)/.test(k)) return "Dieciseisavos de final";
+  if(/^(8vos|octavos|ronda de 16|r16)/.test(k)) return "Octavos de final";
+  if(/^(4tos|cuartos)/.test(k)) return "Cuartos de final";
+  if(/^semi/.test(k)) return "Semifinal";
+  if(/tercer|3er|3o |third/.test(k)) return "Tercer lugar";
+  if(/^(gran )?final$/.test(k)) return "Final";
+  return nombre;
+}
 function knockoutRoundName(code){
   for(const r of (DB.event.rounds||[])){
-    if((r.matches||[]).some(m=>m.id===code)) return r.name;
+    if((r.matches||[]).some(m=>m.id===code)) return nombreRondaMundial(r.name);
   }
   return code||"Eliminación directa";
 }
@@ -224,7 +263,7 @@ function renderCalendario(){
   ${koFx.length?`
   <div class="section-title"><h2>Fase de eliminación directa</h2><span class="hint">Horario del Este (ET). El cruce exacto de octavos en adelante se define con los resultados; la asignación de códigos por sede es orientativa.</span></div>
   ${(function(){
-    const order = (DB.event.rounds||[]).map(r=>r.name);
+    const order = (DB.event.rounds||[]).map(r=>nombreRondaMundial(r.name));
     const byRound = {};
     koFx.forEach(f=>{ const rn = knockoutRoundName(f.code); (byRound[rn]=byRound[rn]||[]).push(f); });
     const names = [...order.filter(n=>byRound[n]), ...Object.keys(byRound).filter(n=>!order.includes(n))];

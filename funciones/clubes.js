@@ -319,6 +319,12 @@ function modalAddEditCompetition(name, kind){
             ${imageUploadFieldCol("Logo — fondo claro","comp-logo-l",c.logoImgLight,"Para fondos claros.")}
           </div>
 
+          <div class="subhead">Wordmark (texto-logo del torneo)</div>
+          <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
+            ${imageUploadFieldCol("Wordmark — fondo oscuro","comp-wm",c.wordmarkImg,"Versión clara del texto-logo, para fondos oscuros.",2000)}
+            ${imageUploadFieldCol("Wordmark — fondo claro","comp-wm-l",c.wordmarkImgLight,"Reemplaza el nombre del torneo en el recuadro de próximo partido.",2000)}
+          </div>
+
           <div class="subhead">Colores del torneo</div>
           <div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;">
             <label class="field" style="flex:0 0 auto;">Color 1${colorPickerHTML("color-square", c.color1||'#4F46E5', "f-comp-color1")}</label>
@@ -336,25 +342,7 @@ function modalAddEditCompetition(name, kind){
           <label class="field">Facebook<input id="f-comp-fb" value="${escapeHtml(s.fb||'')}" placeholder="/página"></label>
           <label class="field">YouTube<input id="f-comp-yt" value="${escapeHtml(s.yt||'')}" placeholder="@canal"></label>
 
-          <details class="clpw-details" style="grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;">
-            <summary style="cursor:pointer;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;list-style:none;background:var(--surface-2);white-space:nowrap;">Fondo de tarjeta de partido</summary>
-            <div style="padding:14px;display:flex;flex-direction:column;gap:14px;">
-              <span style="display:block;font-size:11px;color:var(--muted);">Cómo se ve la tarjeta con el detalle del partido de este torneo: qué logos usar (fondo oscuro o claro) y el fondo (una imagen tipo la Copa del Mundo, o un degradado de un color). Si no eliges nada, se usa el fondo por defecto${kind==="amistoso"?" (morado)":" (negro/gris)"}.</span>
-              <label class="field" style="flex:0 0 auto;">Logos que usa
-                <select id="f-comp-logomode" style="margin-top:4px;">
-                  <option value="dark"${(c.matchLogoMode||'dark')==="dark"?" selected":""}>Logos para fondo oscuro</option>
-                  <option value="light"${c.matchLogoMode==="light"?" selected":""}>Logos para fondo claro</option>
-                </select>
-              </label>
-              <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
-                ${imageUploadFieldCol("Imagen de fondo (opcional)","comp-back",c.matchBackImg,"Una imagen que cubre el rectángulo, como el back de la Copa del Mundo. Si la pones, tiene prioridad sobre el degradado.")}
-                <div style="flex:0 0 auto;">
-                  <span style="display:block;font-size:11px;color:var(--muted);margin-bottom:6px;">O elige un color de degradado (el del centro)</span>
-                  <label class="field" style="flex:0 0 auto;">Color${colorPickerHTML("color-square", c.backColor||(kind==="amistoso"?'#6257e6':'#24262d'), "f-comp-backcolor")}</label>
-                </div>
-              </div>
-            </div>
-          </details>
+          ${cardBgEditorHTML("comp", c, kind==="amistoso"?'#6257e6':'#24262d', "dark")}
 
           ${(typeof pwEditorHTML==="function") ? `
           <details class="clpw-details" style="grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;">
@@ -365,7 +353,7 @@ function modalAddEditCompetition(name, kind){
                 <input type="checkbox" id="f-comp-teampw" ${c.useTeamPressWall!==false?'checked':''} style="width:auto;flex-shrink:0;margin:0;">
                 <span>Los equipos usan su propio press wall</span>
               </div>
-              ${pwEditorHTML({prefix:"comppw", brands:pwBrandsFor(c), back:c.pressWallBgImg||"", ref:c.pressWallRefImg||"", graphicPct:c.pressWallGraphicPct||100, graphicX:c.pressWallGraphicX||0, graphicY:c.pressWallGraphicY||0, live:false, layout:"stacked"})}
+              ${pwEditorHTML({prefix:"comppw", title:"Press wall del torneo", brands:pwBrandsFor(c), back:c.pressWallBgImg||"", ref:c.pressWallRefImg||"", graphicPct:c.pressWallGraphicPct||100, graphicX:c.pressWallGraphicX||0, graphicY:c.pressWallGraphicY||0, live:false, layout:"stacked"})}
             </div>
           </details>` : ""}
 
@@ -566,7 +554,7 @@ function renderClubDetail(clubId){
     ${sortedPlayers.map(p=>`
       <div class="player-row" data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
         <span class="num-badge">${p.number!=null?p.number:"–"}</span>
-        <span class="pname"><img src="${p.photo||personPhotoDefault(p)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(p)}<span class="pos-chip pos-${p.pos}" style="margin-left:10px;">${p.pos}</span>${positionsText(p)?` <span style="color:var(--muted);font-size:12px;font-weight:400;">${positionsText(p)}</span>`:""}</span>
+        <span class="pname"><img src="${p.photo||personPhotoDefault(p)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;">${playerDisplayNameHTML(p)}<span class="pos-chip pos-${p.pos}" style="margin-left:10px;">${p.pos}</span>${positionsText(p)?` <span style="color:var(--muted);font-size:12px;font-weight:400;">${positionsText(p)}</span>`:""}</span>
         <span class="pmeta">${playerAgeText(p)} · ${(()=>{
           const natCo = nationalityCountryOf(p);
           const demonym = personDemonym(p) || playerCountryName(p) || "Sin país";
@@ -685,8 +673,9 @@ function modalAddEditClub(club){
 
           ${(typeof iconEditorSectionHTML==="function") ? iconEditorSectionHTML("clicon", club, {
             title:"Icono del club",
-            logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]],
-            logoInputs:{ dark:"f-cl-logo-data", light:"f-cl-logo-l-data" },
+            logoOptions:[["dark","Escudo oscuro"],["light","Escudo claro"]].concat(((typeof entityLogoAlts==="function")?entityLogoAlts(club):(club.logoAlts||[])).map((a,i)=>(a&&a.img)?["a"+i,"Alt "+(i+1)]:null).filter(Boolean)),
+            logoInputs:(()=>{ const m={ dark:"f-cl-logo-data", light:"f-cl-logo-l-data" }; ((typeof entityLogoAlts==="function")?entityLogoAlts(club):(club.logoAlts||[])).forEach((a,i)=>{ if(a&&a.img) m["a"+i]="f-calt-"+i+"-data"; }); return m; })(),
+            altPrefix:"calt",
             colors:[club.color1||"#4F46E5", club.color2||"#15161D", club.color3||"#FFFFFF"],
             colorInputs:["f-cl-color1","f-cl-color2","f-cl-color3"]
           }) : ""}
@@ -726,9 +715,10 @@ function modalAddEditClub(club){
             <summary style="cursor:pointer;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;list-style:none;background:var(--surface-2);white-space:nowrap;">Press Wall</summary>
             <div style="padding:14px;">
               <span style="display:block;font-size:11px;color:var(--muted);margin-bottom:10px;">Arriba el muro y la carga del back y la referencia; abajo las marcas. Agrega marcas para ir rellenando cada color de la referencia; cada marca tiene su color de referencia, el tipo de logo y su color de fondo (por defecto el del patrocinador).</span>
-              ${pwEditorHTML({prefix:"clpw", brands:pwBrandsFor(club), back:club.pressWallBgImg||"", ref:club.pressWallRefImg||"", graphicPct:club.pressWallGraphicPct||100, graphicX:club.pressWallGraphicX||0, graphicY:club.pressWallGraphicY||0, live:false, layout:"stacked"})}
+              ${pwEditorHTML({prefix:"clpw", title:"Press wall del club", brands:pwBrandsFor(club), back:club.pressWallBgImg||"", ref:club.pressWallRefImg||"", graphicPct:club.pressWallGraphicPct||100, graphicX:club.pressWallGraphicX||0, graphicY:club.pressWallGraphicY||0, live:false, layout:"stacked"})}
             </div>
           </details>` : ""}
+          ${(typeof logoAltsSectionHTML==="function") ? logoAltsSectionHTML("calt", (typeof entityLogoAlts==="function") ? entityLogoAlts(club) : (club.logoAlts||[])) : ""}
         </div>
       </div>
       <div class="modal-foot">
@@ -738,3 +728,172 @@ function modalAddEditClub(club){
     </div>
   `);
 }
+
+/* =========================================================
+   FONDO DE TARJETA DE PARTIDO (torneos, amistosos y Copa del Mundo)
+   Capas, de atrás hacia adelante:
+     1) color base: negro (logos para fondo oscuro) o blanco (logos para fondo claro);
+     2) imagen de fondo (opcional) con tamaño y posición ajustables;
+     3) sólido (opcional, casilla): degradado de un color, degradado de dos colores o color sólido, con borde
+        nítido. Margen 0 = toda la tarjeta; con margen, se separa lo MISMO en los 4 lados (px) y conserva la
+        misma curva en las esquinas.
+   Se activa con cfg.cardBgV2 (lo pone el editor al guardar); sin eso, la tarjeta se ve como antes.
+   ========================================================= */
+var CARD_BG_RADIO = 16;   // radio de esquina de la tarjeta de partido (px)
+function cardBgMix(hex, target, amt){
+  hex=String(hex||"").replace("#",""); if(hex.length===3) hex=hex.split("").map(function(c){return c+c;}).join("");
+  var n=parseInt(hex,16); if(isNaN(n)) return "#"+hex;
+  var r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  r=Math.round(r+(target-r)*amt); g=Math.round(g+(target-g)*amt); b=Math.round(b+(target-b)*amt);
+  var h=function(v){ return ('0'+Math.max(0,Math.min(255,v)).toString(16)).slice(-2); };
+  return "#"+h(r)+h(g)+h(b);
+}
+function cardBgGradient(hex){
+  var c0=cardBgMix(hex,255,0.16), c2=cardBgMix(hex,0,0.28), c3=cardBgMix(hex,0,0.46);
+  return "linear-gradient(145deg,"+c0+" 0%,"+hex+" 42%,"+c2+" 74%,"+c3+" 100%)";
+}
+// Proporción (ancho/alto) de la imagen de fondo. SVG: de su viewBox (o width/height). Raster: se lee al
+// cargarla (asíncrono); mientras tanto devuelve 0 y se repinta la vista previa al terminar.
+var _cbgRatios = Object.create(null);
+function cardBgImgRatio(src){
+  if(!src) return 0;
+  var k = src.length+":"+src.slice(-48);
+  if(_cbgRatios[k]!=null) return _cbgRatios[k];
+  if(/^data:image\/svg\+xml/i.test(src)){
+    var txt=""; try{ var i=src.indexOf(","); var body=src.slice(i+1); txt = /;base64,/i.test(src.slice(0,i+1)) ? decodeURIComponent(escape(atob(body))) : decodeURIComponent(body); }catch(e){}
+    var vb=/viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(txt);
+    var r = vb ? (+vb[1]/+vb[2]) : 0;
+    if(!r){ var w=/<svg[^>]*\swidth\s*=\s*["']([\d.]+)/i.exec(txt), h=/<svg[^>]*\sheight\s*=\s*["']([\d.]+)/i.exec(txt); if(w&&h) r=+w[1]/+h[1]; }
+    _cbgRatios[k] = (r>0 && isFinite(r)) ? r : 0;
+    return _cbgRatios[k];
+  }
+  _cbgRatios[k] = 0;
+  try{ var im=new Image(); im.onload=function(){ if(im.naturalWidth && im.naturalHeight){ _cbgRatios[k]=im.naturalWidth/im.naturalHeight; document.querySelectorAll(".cbg-ed").forEach(function(ed){ cardBgPreview(ed.getAttribute("data-cbg")); }); } }; im.src=src; }catch(e){}
+  return 0;
+}
+// Margen del sólido (px). Configuraciones anteriores guardaban un % de tamaño: se convierte.
+function cardBgMargen(cfg){
+  if(cfg.gradMargin!=null && !isNaN(+cfg.gradMargin)) return Math.max(0, +cfg.gradMargin);
+  if(+cfg.gradSize>0 && +cfg.gradSize<100) return Math.round((100 - +cfg.gradSize)*0.5);
+  return 0;
+}
+// Estilo en línea + clases de la tarjeta para una configuración (cfg) ya guardada.
+//   dark: ¿logos para fondo oscuro? (fondo base negro y textos blancos).  defColor: color del degradado por defecto.
+function cardBgV2Style(cfg, dark, defColor){
+  cfg=cfg||{};
+  var base = dark ? "#000" : "#fff";
+  var img = (typeof cfg.matchBackImg==="string" && cfg.matchBackImg.indexOf("data:")===0) ? cfg.matchBackImg : "";
+  var sc = +cfg.bgImgScale>0 ? +cfg.bgImgScale : 100, x = (cfg.bgImgX!=null) ? +cfg.bgImgX : 50, y = (cfg.bgImgY!=null) ? +cfg.bgImgY : 50;
+  // La imagen mide SIEMPRE el mismo % del ANCHO de la tarjeta y conserva su proporción (nunca se estira),
+  // sin importar el tamaño o la forma del rectángulo. Va en su propia capa (::after) con la proporción
+  // real de la imagen (cfg.bgImgRatio, leída al cargarla; un SVG la toma de su viewBox).
+  var ratio = +cfg.bgImgRatio>0 ? +cfg.bgImgRatio : (img ? cardBgImgRatio(img) : 0);
+  var st;
+  if(img && ratio>0){
+    st = "background:"+base+";--nm-img:url('"+img+"');--nm-iw:"+sc+"%;--nm-ir:"+ratio.toFixed(5)+";--nm-ix:"+x+"%;--nm-iy:"+y+"%;";
+  } else {
+    st = img ? ("background:"+base+" url('"+img+"') "+x+"% "+y+"%/"+sc+"% auto no-repeat;") : ("background:"+base+";");
+  }
+  var gOn = cfg.gradOn!==false;
+  // Margen IGUAL en los 4 lados (px), como un contorno; las esquinas conservan la misma curva.
+  var m = cardBgMargen(cfg);
+  var c1 = cfg.backColor||defColor||"#24262d", c2 = cfg.backColor2||cardBgMix(c1,0,0.5);
+  var capa = cfg.solidType==="solid" ? c1 : (cfg.solidType==="grad2" ? "linear-gradient(145deg,"+c1+" 0%,"+c2+" 100%)" : cardBgGradient(c1));
+  // Curva CONCÉNTRICA (como un contorno de grosor uniforme): radio interior = radio de la tarjeta − margen.
+  st += "--nm-gi:"+m+"px;--nm-gr:"+Math.max(0, CARD_BG_RADIO - m)+"px;--nm-grad:"+capa+";";
+  return { style:st, cls:" nm-v2"+(gOn?"":" nm-sing")+((img && ratio>0)?" nm-img":"") };
+}
+// Sección del editor ("Fondo de tarjeta de partido") con vista previa en vivo. p = prefijo de los ids.
+function cardBgEditorHTML(p, cfg, defColor, defLogo){
+  cfg=cfg||{};
+  var lm = cfg.matchLogoMode || defLogo || "dark";
+  var v2 = !!cfg.cardBgV2;
+  var gOn = v2 ? (cfg.gradOn!==false) : !cfg.matchBackImg;   // antes: con imagen no había degradado
+  var mg = v2 ? cardBgMargen(cfg) : 0;
+  var tipo = cfg.solidType || "grad1";
+  var sc = v2 && +cfg.bgImgScale>0 ? +cfg.bgImgScale : 100, x = v2 && cfg.bgImgX!=null ? +cfg.bgImgX : 50, y = v2 && cfg.bgImgY!=null ? +cfg.bgImgY : 50;
+  var rng=function(id,lbl,min,max,val,unit){ return '<label class="field cbg-rng" style="flex:1 1 150px;min-width:0;">'+lbl+' <span class="mono" id="'+id+'-v" style="font-weight:400;color:var(--muted);">'+val+unit+'</span>'
+    +'<input type="range" id="'+id+'" min="'+min+'" max="'+max+'" value="'+val+'" data-unit="'+unit+'" style="width:100%;margin-top:6px;"></label>'; };
+  return '<details class="clpw-details" style="grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;">'
+    +'<summary style="cursor:pointer;padding:11px 14px;font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:13px;list-style:none;background:var(--surface-2);white-space:nowrap;">Fondo de tarjeta de partido</summary>'
+    +'<div class="cbg-ed" data-cbg="'+p+'" data-defcolor="'+(defColor||"#24262d")+'" style="padding:14px;display:flex;flex-direction:column;gap:14px;">'
+    +  '<span style="display:block;font-size:11px;color:var(--muted);">Capas de la tarjeta: color base (negro o blanco según los logos), imagen de fondo y, encima, un sólido (degradado de uno o dos colores, o color sólido) con el mismo margen en los 4 lados y la misma curva de la tarjeta.</span>'
+    +  '<div class="cbg-ratios" role="group" aria-label="Proporción de la vista previa">'
+    +    [["6/1","Delgada"],["4/1","4:1"],["3/1","3:1"],["2/1","2:1"]].map(function(r,i){ return '<button type="button" class="btn ghost sm cbg-ratio'+(i===0?' on':'')+'" data-ratio="'+r[0]+'">'+r[1]+'</button>'; }).join("")
+    +  '</div>'
+    +  '<div id="'+p+'-cbg-prev" class="cbg-prev" data-ratio="6/1"><div class="cbg-prev-t">Siguiente partido</div><div class="cbg-prev-m">México <b>2 - 0</b> Sudáfrica</div><div class="cbg-prev-s">Grupo A · 11 jun 2026 · Estadio Ciudad de México</div></div>'
+    +  '<label class="field" style="flex:0 0 auto;">Logos que usa'
+    +    '<select id="f-'+p+'-logomode" style="margin-top:4px;">'
+    +      '<option value="dark"'+(lm==="dark"?" selected":"")+'>Logos para fondo oscuro (base negra)</option>'
+    +      '<option value="light"'+(lm==="light"?" selected":"")+'>Logos para fondo claro (base blanca)</option>'
+    +    '</select></label>'
+    +  '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">'
+    +    imageUploadFieldCol("Imagen de fondo (opcional)", p+"-back", cfg.matchBackImg, "Va detrás del sólido. Acepta SVG (se conserva vectorial, nítido a cualquier tamaño), PNG o JPG. Sin imagen, la base queda negra o blanca.", 2560, "jpeg")
+          .replace('accept="image/png,image/jpeg"', 'accept="image/png,image/jpeg,image/svg+xml,.svg" data-keepvector="1"')
+    +  '</div>'
+    +  '<div style="display:flex;gap:14px;flex-wrap:wrap;">'
+    +    rng("f-"+p+"-bgsc","Ancho de la imagen",30,300,sc,"%")
+    +    rng("f-"+p+"-bgx","Posición horizontal",0,100,x,"%")
+    +    rng("f-"+p+"-bgy","Posición vertical",0,100,y,"%")
+    +  '</div>'
+    +  '<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;"><input type="checkbox" id="f-'+p+'-grad"'+(gOn?" checked":"")+' style="width:auto;margin:0;"> Sólido encima de la imagen</label>'
+    +  '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">'
+    +    '<label class="field" style="flex:0 0 auto;">Tipo'
+    +      '<select id="f-'+p+'-soltype" style="margin-top:4px;">'
+    +        '<option value="grad1"'+(tipo==="grad1"?" selected":"")+'>Degradado de un color</option>'
+    +        '<option value="grad2"'+(tipo==="grad2"?" selected":"")+'>Degradado de dos colores</option>'
+    +        '<option value="solid"'+(tipo==="solid"?" selected":"")+'>Color sólido</option>'
+    +      '</select></label>'
+    +    '<label class="field" style="flex:0 0 auto;">Color'+colorPickerHTML("color-square", cfg.backColor||defColor||'#24262d', "f-"+p+"-backcolor")+'</label>'
+    +    '<label class="field cbg-c2" style="flex:0 0 auto;'+(tipo==="grad2"?"":"display:none;")+'">Color 2'+colorPickerHTML("color-square", cfg.backColor2||cardBgMix(cfg.backColor||defColor||'#24262d',0,0.5), "f-"+p+"-backcolor2")+'</label>'
+    +  '</div>'
+    +  '<div style="display:flex;gap:14px;flex-wrap:wrap;">'
+    +    rng("f-"+p+"-gmg","Margen alrededor del sólido",0,60,mg,"px")
+    +  '</div>'
+    +'</div></details>';
+}
+function cardBgEditorRead(p){
+  var g=function(id){ return document.getElementById(id); };
+  var num=function(id,def){ var e=g(id); var v=e?+e.value:NaN; return isNaN(v)?def:v; };
+  return {
+    cardBgV2: true,
+    matchLogoMode: ((g("f-"+p+"-logomode")||{}).value==="light") ? "light" : "dark",
+    matchBackImg: (g("f-"+p+"-back-data")||{}).value || "",
+    bgImgScale: num("f-"+p+"-bgsc",100), bgImgX: num("f-"+p+"-bgx",50), bgImgY: num("f-"+p+"-bgy",50),
+    bgImgRatio: cardBgImgRatio((g("f-"+p+"-back-data")||{}).value || "") || undefined,
+    gradOn: !!((g("f-"+p+"-grad")||{}).checked),
+    gradMargin: num("f-"+p+"-gmg",0),
+    gradSize: undefined,
+    solidType: ((g("f-"+p+"-soltype")||{}).value) || "grad1",
+    backColor: ((g("f-"+p+"-backcolor")||{}).value||"").trim(),
+    backColor2: ((g("f-"+p+"-backcolor2")||{}).value||"").trim()
+  };
+}
+// Vista previa en vivo: se repinta con cada cambio del editor (y al cargar/quitar la imagen).
+function cardBgPreview(p){
+  var ed=document.querySelector('.cbg-ed[data-cbg="'+p+'"]'), pv=document.getElementById(p+"-cbg-prev");
+  if(!ed || !pv) return;
+  var cfg=cardBgEditorRead(p), dark=cfg.matchLogoMode!=="light";
+  var r=cardBgV2Style(cfg, dark, ed.getAttribute("data-defcolor"));
+  pv.setAttribute("style", r.style+"aspect-ratio:"+(pv.getAttribute("data-ratio")||"6/1")+";");
+  pv.className="cbg-prev"+r.cls+(dark?" cbg-dark":"");
+  var c2=ed.querySelector(".cbg-c2"); if(c2) c2.style.display = cfg.solidType==="grad2" ? "" : "none";
+  ed.querySelectorAll('input[type=range]').forEach(function(rg){ var o=document.getElementById(rg.id+"-v"); if(o) o.textContent=rg.value+(rg.getAttribute("data-unit")||""); });
+}
+(function(){
+  if(typeof document==="undefined") return;
+  var h=function(e){ var ed=e.target && e.target.closest && e.target.closest(".cbg-ed"); if(ed){ ed.setAttribute("data-dirty","1"); cardBgPreview(ed.getAttribute("data-cbg")); } };
+  document.addEventListener("input", h, true); document.addEventListener("change", h, true);
+  document.addEventListener("click", function(e){
+    var ed=e.target && e.target.closest && e.target.closest(".cbg-ed"); if(!ed) return;
+    // Proporción de la vista previa (solo visual, no se guarda).
+    var rb=e.target.closest(".cbg-ratio");
+    if(rb){ var p=ed.getAttribute("data-cbg"), pv=document.getElementById(p+"-cbg-prev");
+      if(pv) pv.setAttribute("data-ratio", rb.getAttribute("data-ratio"));
+      ed.querySelectorAll(".cbg-ratio").forEach(function(b){ b.classList.toggle("on", b===rb); });
+      cardBgPreview(p); return; }
+    setTimeout(function(){ cardBgPreview(ed.getAttribute("data-cbg")); }, 60);
+  }, true);
+  // La imagen se lee de forma asíncrona: se revisa el campo oculto mientras el editor está abierto.
+  setInterval(function(){ document.querySelectorAll(".cbg-ed").forEach(function(ed){ var p=ed.getAttribute("data-cbg"), d=document.getElementById("f-"+p+"-back-data"); var v=d?d.value.length:0; if(ed._iv!==v){ if(ed._iv!=null) ed.setAttribute("data-dirty","1"); ed._iv=v; cardBgPreview(p); } }); }, 400);
+})();

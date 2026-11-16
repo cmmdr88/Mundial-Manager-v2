@@ -382,11 +382,50 @@ function positionsText(player){
 function principalPositionsText(player){
   return orderedPositions(player).filter(e=> e.v>=20).map(e=> posCodeDisplay(player, e.code)).join(', ');
 }
+// ---- Orden del nombre: «Apellido primero» (p. ej. coreanos: Son Heung-min) ----
+// Casilla por persona (p.lastNameFirst). Con ella, el nombre se forma Apellido + Nombre y la forma
+// corta es «Apellido N.» en lugar de «N. Apellido». En el importador de Excel se activa escribiendo
+// «[Apellido primero]» en la columna Nombre común.
+const APELLIDO_PRIMERO_TAG = "[Apellido primero]";
+function nameLastFirst(p){ return !!(p && p.lastNameFirst); }
+// "Nombre Apellido" o "Apellido Nombre".
+function personFirstLast(p){
+  const f=((p&&p.firstName)||"").trim(), l=((p&&p.lastName)||"").trim();
+  return (nameLastFirst(p) ? `${l} ${f}` : `${f} ${l}`).trim();
+}
+// Iniciales del nombre de pila para «Apellido primero»: "Heung-min" → "H.M.", "Jun" → "J.".
+function firstInitials(f){ return String(f||"").split(/[-\s]+/).filter(Boolean).map(x=>x.charAt(0).toUpperCase()+".").join(""); }
+// Forma corta: "N. Apellido" o "Apellido N.M." (todas las iniciales del nombre de pila).
+function personInitialName(p){
+  const f=((p&&p.firstName)||"").trim(), l=((p&&p.lastName)||"").trim();
+  if(!f || !l) return l || f;
+  return nameLastFirst(p) ? `${l} ${firstInitials(f)}` : `${f.charAt(0).toUpperCase()}. ${l}`;
+}
+// Versiones HTML (apellido en negrita). esc = función de escape.
+function personFullHTML(p, esc){
+  esc = esc || escapeHtml;
+  const f=((p&&p.firstName)||"").trim(), l=((p&&p.lastName)||"").trim();
+  if(!f || !l) return l ? `<b>${esc(l)}</b>` : esc(f);
+  const fp=`<span style="font-weight:400;">${esc(f)}</span>`, lp=`<b>${esc(l)}</b>`;
+  return nameLastFirst(p) ? `${lp} ${fp}` : `${fp} ${lp}`;
+}
+function personInitialHTML(p, esc){
+  esc = esc || escapeHtml;
+  const f=((p&&p.firstName)||"").trim(), l=((p&&p.lastName)||"").trim();
+  if(!f || !l) return l ? `<b>${esc(l)}</b>` : esc(f);
+  return nameLastFirst(p) ? `<b>${esc(l)}</b> ${esc(firstInitials(f))}` : `${esc(f.charAt(0).toUpperCase())}. <b>${esc(l)}</b>`;
+}
+// Celda «Nombre común» del importador: "[Apellido primero]" activa la casilla; el resto es el nombre común.
+function parseCommonNameCell(raw){
+  let s=String(raw||""); const re=/\[\s*apellido\s+primero\s*\]/i; const lnf=re.test(s);
+  s=s.replace(re," ").replace(/\s+/g," ").trim();
+  return { commonName:s, lastNameFirst:lnf };
+}
 // Nombre para mostrar de un jugador en todo el juego: el nombre común si tiene uno asignado,
 // si no, nombre+apellido completo (con varios respaldos por si algo viniera incompleto).
 function playerDisplayName(p){
   if(p.commonName && p.commonName.trim()) return p.commonName.trim();
-  const full = `${p.firstName||""} ${p.lastName||""}`.trim();
+  const full = personFirstLast(p);
   if(full) return full;
   return p.name || "Jugador";
 }
@@ -401,9 +440,7 @@ function playerDisplayNameHTML(p){
   if(first || last){
     // El nombre de pila va en peso normal explícito (para que se des-enfatice incluso dentro de un
     // encabezado que ya es negrita); el apellido va en negrita como nombre principal.
-    const firstPart = first ? `<span style="font-weight:400;">${esc(first)}</span> ` : "";
-    const lastPart = last ? `<b>${esc(last)}</b>` : "";
-    return (firstPart + lastPart).trim();
+    return personFullHTML(p, esc);
   }
   return esc(p.name || "Jugador");
 }
@@ -469,7 +506,7 @@ function parseBirthDate(raw){
 
 // Valor por default de "Nombre completo" — siempre Nombre + Apellido, se recalcula en vivo
 // mientras "fullNameLinked" sea true (es decir, mientras el usuario no lo haya tocado a mano).
-function computeDefaultFullName(p){ return `${p.firstName||""} ${p.lastName||""}`.trim(); }
+function computeDefaultFullName(p){ return personFirstLast(p); }
 // Valor por default de "Nombre en camiseta" — nombre común o, en su defecto, apellido, siempre en
 // MAYÚSCULAS (sin el propio campo explícito, a diferencia de effectiveShirtName que sí lo prioriza).
 // Editable: en cuanto el usuario lo cambie a mano, deja de regenerarse solo (ver shirtName*Linked).
@@ -527,7 +564,9 @@ function parseBulkPlayers(text){
     const numberUnassigned = (!numberRaw || isNaN(numberVal) || numberVal<=0);
     const posRaw      = (c[1]||"").toUpperCase();
     const pos         = VALID_POS.includes(posRaw) ? posRaw : "MF";
-    const commonName  = c[4] || "";
+    const cnCell      = parseCommonNameCell(c[4]);   // "[Apellido primero]" activa el orden apellido-nombre
+    const commonName  = cnCell.commonName;
+    const lastNameFirst = cnCell.lastNameFirst;
     const fullName    = c[5] || "";
     const birthDate   = parseBirthDate(c[6]);
     const height      = numInRange(c[7], 140, 230);
@@ -559,7 +598,7 @@ function parseBulkPlayers(text){
     }
     const favNumbersTeam = parseFavNumbers(c[38]||"");
     const favNumbersClub = parseFavNumbers(c[39]||"");
-    return {number, numberUnassigned, pos, firstName, lastName, commonName, fullName, birthDate, height, caps, goalsNational,
+    return {number, numberUnassigned, pos, firstName, lastName, commonName, lastNameFirst, fullName, birthDate, height, caps, goalsNational,
             club, shirtNameTeam, shirtNameClub, brand, rating, ratingPotential, footLeft, footRight, positions, cbSide, favNumbersTeam, favNumbersClub};
   }).filter(Boolean);
 }
@@ -600,7 +639,7 @@ function playedInFixtureForCaps(pid, f){
   for(const sd of ["home","away"]){
     const lu=f.lineups[sd]; if(!lu) continue;
     if((lu.players||[]).some(x=>x.playerId===pid)) return true;                 // titular
-    if((lu.players||[]).some(x=>x.sub && x.sub.playerId===pid)) return true;    // entró de cambio
+    if((lu.players||[]).some(x=>{ let r=x.sub; while(r){ if(r.playerId===pid) return true; r=r.sub; } return false; })) return true;    // entró de cambio (también en cadena)
   }
   if((f.goals||[]).some(g=>g.playerId===pid && !g.og)) return true;             // anotó → jugó
   return false;
@@ -616,7 +655,7 @@ function capsGoalsAdjustment(pid){
   if(pid in _capsAdjCache.map) return _capsAdjCache.map[pid];
   let caps=0, goals=0; const cut=capsCutoffMs();
   ((typeof DB!=="undefined"&&DB.fixtures)||[]).forEach(f=>{
-    const mMs = matchDateTimeMs(f); if(mMs==null) return;
+    const mMs = (typeof matchEndMs==="function") ? matchEndMs(f) : matchDateTimeMs(f); if(mMs==null) return;   // cuenta al TERMINAR
     if(!playedInFixtureForCaps(pid, f)) return;
     const g = goalsInFixtureForCaps(pid, f);
     if(mMs < cut){ if(mMs > nowMs){ caps-=1; goals-=g; } }     // amistoso pre-Mundial aún no jugado → restar
@@ -647,12 +686,28 @@ function pmRand01(seedStr){
   for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return ((h>>>0) % 100000) / 100000;
 }
-// Minutos reglamentarios (tope 90) a partir del minuto de un evento (ignora el añadido 90+X).
-function pmBaseMin(minStr){ const b=parseInt(String(minStr))||0; return Math.max(0, Math.min(b, 90)); }
+// Minutos jugados a partir del minuto de un evento, SIN el añadido (45+2 → 45, 90+X → 90, 105+X → 105,
+// 120+X → 120). tope = duración del partido: 90, o 120 si hubo tiempo extra.
+function pmBaseMin(minStr, tope){ const b=parseInt(String(minStr))||0; return Math.max(0, Math.min(b, tope||90)); }
+// Duración del partido para los minutos jugados: 120 con tiempo extra ("FT 90+5’, 120+1’", FT 120… o sucesos
+// después del 90); si no, 90. El añadido no cuenta en ningún caso.
+function pmDuracion(f){
+  if(!f) return 90;
+  const base=m=>parseInt(String(m==null?"":m))||0;
+  if(f.ftReg || base(f.ftMin)>=105) return 120;
+  const despues90 = m=> base(m)>90;
+  if((f.goals||[]).some(g=>despues90(g.minute)) || (f.cards||[]).some(c=>despues90(c.minute)) || (f.missedPens||[]).some(g=>despues90(g.minute))) return 120;
+  const conCambioTE=["home","away"].some(sd=>{ const lu=f.lineups&&f.lineups[sd]; return !!lu && (lu.players||[]).some(p=>{ let r=p.sub; while(r){ if(despues90(r.minute)) return true; r=r.sub; } return false; }); });
+  return conCambioTE ? 120 : 90;
+}
 // Color de la calificación (verde alto → rojo bajo).
 function pmRendColor(r){
-  if(r>=7.5) return "#2fae66"; if(r>=6.5) return "#6fae4e"; if(r>=5.5) return "#c9a227";
-  if(r>=4.5) return "#d98324"; return "#d0453f";
+  // MISMA escala que el informe del partido (Juego.informe.mrRateColor): un decimal, verde alto → rojo bajo.
+  try{ if(window.Juego && Juego.informe && Juego.informe.mrRateColor) return Juego.informe.mrRateColor(r); }catch(e){}
+  const v=Math.round((+r||0)*10)/10; let h, sat, lum;
+  if(v>=6){ const k=Math.min(1,(v-6)/4); h=66+k*(142-66); sat=68-k*6; lum=44-k*10; }
+  else { const k=Math.min(1,(6-v)/1.5); h=Math.max(2, 50-k*48); sat=70; lum=46-k*2; }
+  return `hsl(${h.toFixed(0)},${sat.toFixed(0)}%,${lum.toFixed(0)}%)`;
 }
 const PM_MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 function pmTeamName(t){ return t ? (t.commonName||t.officialName||t.name||"—") : "—"; }
@@ -690,8 +745,8 @@ function pmFixtureStat(pid, f, isGK){
     const lu = f.lineups && f.lineups[sd]; if(!lu || side) return;
     const st = (lu.players||[]).find(x=>x.playerId===pid);
     if(st){ side=sd; entry={kind:"start", rec:st}; teamId=lu.teamId; return; }
-    const inp = (lu.players||[]).find(x=>x.sub && x.sub.playerId===pid);
-    if(inp){ side=sd; entry={kind:"in", rec:inp}; teamId=lu.teamId; return; }
+    // Entró de cambio (también en cadena: 3, Holeš - 22, Souček 64' - 24, Sojka 87'): rec = su registro.
+    for(const x of (lu.players||[])){ let r=x.sub; while(r){ if(r.playerId===pid){ side=sd; entry={kind:"in", rec:r}; teamId=lu.teamId; return; } r=r.sub; } }
   });
   if(!side){
     // Sin alineación pero aparece en un gol/tarjeta: cuenta como jugado (90' por defecto).
@@ -700,10 +755,11 @@ function pmFixtureStat(pid, f, isGK){
   }
   if(!side) return null;
   const myTeamId = teamId || (side==="home"?f.teamA:f.teamB);
-  let dorsal=null, mins=90;
-  if(entry.kind==="start"){ dorsal=entry.rec.number; mins = (entry.rec.sub && entry.rec.sub.minute) ? pmBaseMin(entry.rec.sub.minute) : 90; }
-  else if(entry.kind==="in"){ dorsal=entry.rec.sub.number; mins = 90 - pmBaseMin(entry.rec.sub.minute); }
-  mins = Math.max(0, Math.min(90, mins));
+  const DUR = pmDuracion(f);   // 90, o 120 con tiempo extra (sin añadido)
+  let dorsal=null, mins=DUR;
+  if(entry.kind==="start"){ dorsal=entry.rec.number; mins = (entry.rec.sub && entry.rec.sub.minute) ? pmBaseMin(entry.rec.sub.minute, DUR) : DUR; }
+  else if(entry.kind==="in"){ dorsal=entry.rec.number; mins = (entry.rec.sub && entry.rec.sub.minute ? pmBaseMin(entry.rec.sub.minute, DUR) : DUR) - pmBaseMin(entry.rec.minute, DUR); }
+  mins = Math.max(0, Math.min(DUR, mins));
   const oppId = (myTeamId===f.teamA)?f.teamB:f.teamA; const oppT = (typeof getTeam==="function")?getTeam(oppId):null;
   let goals=0, conceded=0;
   if(isGK){ conceded = (myTeamId===f.teamA) ? (f.scoreB||0) : (f.scoreA||0); }
@@ -713,19 +769,41 @@ function pmFixtureStat(pid, f, isGK){
   const reds = (f.cards||[]).filter(c=>c.playerId===pid && c.type==="red").length;
   const assists = (f.goals||[]).filter(g=>g.assistPlayerId===pid).length;
   let rating=null;
-  if(mins>14){
-    // Base 7 con un componente realista al azar (±0.85) → juego normal ≈ 6–8. Los goles/asistencias
-    // suben (más de un gol + asistencia pasa de 8).
-    let r = 7 + (pmRand01(pid+"|"+f.id)*1.7 - 0.85);
-    if(isGK){ if(conceded===0 && mins>=60) r += 0.8; r -= conceded*0.45; }
-    else { r += goals*0.7 + assists*0.7; }
+  // Calificación MANUAL del informe ("17, Ágúst Þorsteinsson, RM (6.4)" · "(SC)"): manda sobre la calculada.
+  const manual = (entry.rec && entry.rec.rating!=null) ? entry.rec.rating : undefined;
+  if(manual!==undefined){
+    rating = (manual==="SC") ? null : Math.round((+manual)*10)/10;
+  } else if(mins>=10){   // con menos de 10 minutos en la cancha: SC (sin calificación)
+    // Base 6.6 con un componente al azar (±0.6) y el RESULTADO del partido: ganar sube, perder baja (más
+    // cuanto más minutos jugó y mayor la diferencia). La defensa y el portero pagan los goles en contra y
+    // suman con portería a cero; goles y asistencias suben.
+    const gf = (myTeamId===f.teamA) ? (+f.scoreA||0) : (+f.scoreB||0);
+    const ga = (myTeamId===f.teamA) ? (+f.scoreB||0) : (+f.scoreA||0);
+    const frac = Math.min(1, mins/90), peso = 0.4 + 0.6*frac;
+    let r = 6.6 + (pmRand01(pid+"|"+f.id)*1.2 - 0.6);
+    const res = gf>ga ? 0.45 : (gf<ga ? -0.45 : 0);
+    const dg = Math.max(-3, Math.min(3, gf-ga));
+    r += (res + dg*0.12) * peso;
+    // Línea del jugador: posición del renglón de la alineación; si no, la de su ficha (GK/DF/MF/FW).
+    let cat = isGK ? "GK" : null;
+    if(!cat){
+      const ps = String((entry.rec && entry.rec.pos) || "").toUpperCase();
+      cat = (typeof POS_CAT_OF==="object" && POS_CAT_OF[ps]) || null;
+      if(!cat){ try{ const pl=getPlayerWithTeam(pid).player; cat=pl && pl.pos; }catch(e){} }
+    }
+    if(isGK){ if(ga===0 && mins>=60) r += 0.8; r -= conceded*0.4; }
+    else {
+      r += goals*0.8 + assists*0.6;
+      if(cat==="DF"){ r -= ga*0.18*frac; if(ga===0 && mins>=60) r += 0.35; }
+      else if(cat==="MF"){ r -= ga*0.06*frac; }
+    }
     // Tarjetas:
     //   · Roja (directa o 2ª amarilla marcada con Roj) → castigo por expulsión (minuto/tipo/impacto).
     //   · Doble amarilla SIN línea Roj → también es expulsión: se castiga igual (2ª amarilla).
     //   · Una sola amarilla → castigo LEVE (no se penaliza de más).
     if(reds>0){
       const rc = (f.cards||[]).find(c=>c.playerId===pid && c.type==="red");
-      r -= pmRedPenalty(f, myTeamId, oppId, rc?rc.minute:"90", yellows>0);
+      r -= pmRedPenalty(f, myTeamId, oppId, rc?rc.minute:"90", (rc && rc.doble!=null) ? rc.doble : yellows>0);   // (DA)/(RD) del informe, o deducido
     } else if(yellows>=2){
       const ymins=(f.cards||[]).filter(c=>c.playerId===pid && (c.type||"yellow")==="yellow").map(c=>pmLin(c.minute));
       r -= pmRedPenalty(f, myTeamId, oppId, String(ymins.length?Math.max.apply(null,ymins):90), true);
@@ -733,6 +811,7 @@ function pmFixtureStat(pid, f, isGK){
       r -= 0.3;   // amarilla suelta: castigo leve
     }
     r -= ownGoals*1.3;
+    r -= (f.missedPens||[]).filter(g=>g.playerId===pid).length*0.6;   // penal fallado (código PFa)
     r = Math.max(3.0, Math.min(9.8, r));
     rating = Math.round(r*10)/10;
   }
@@ -770,7 +849,7 @@ function playerStatsTableHTML(pid){
   const isGK = rows[0].isGK;
   const golLbl = isGK ? "GC" : "G", golTitle = isGK ? "Goles encajados" : "Goles anotados";
   let tMin=0,tGol=0,tAsi=0,tYel=0,tRed=0,rSum=0,rCount=0;
-  const rendCell=(v)=> v!=null ? `<span class="pm-rend" style="background:${pmRendColor(v)};">${v.toFixed(1)}</span>` : `<span class="pm-sc" title="Sin calificación (menos de 15 minutos jugados)">SC</span>`;
+  const rendCell=(v)=> v!=null ? `<span class="pm-rend" style="background:${pmRendColor(v)};">${v.toFixed(1)}</span>` : `<span class="pm-sc" title="Sin calificación (menos de 10 minutos jugados)">SC</span>`;
   const dorsalBadge=(n)=> n!=null ? `<span class="pm-num">${n}</span>` : `<span class="pm-num pm-num-empty">–</span>`;
   const body = rows.map(r=>{
     const gol = isGK ? r.conceded : r.goals;
@@ -780,7 +859,7 @@ function playerStatsTableHTML(pid){
       <td class="pm-c pm-dorsal">${dorsalBadge(r.dorsal)}</td>
       <td class="pm-l pm-riv">${riv}</td>
       <td class="pm-l pm-dim pm-tight">${pmDateLabel(r.date)}</td>
-      <td class="pm-l pm-tight">${r.mins}'</td>
+      <td class="pm-l pm-tight">${r.mins}’</td>
       <td class="pm-sp"></td>
       <td class="pm-s">${gol}</td>
       <td class="pm-s">${r.assists}</td>
@@ -794,7 +873,7 @@ function playerStatsTableHTML(pid){
     <td class="pm-c pm-dorsal">TOTAL</td>
     <td class="pm-l pm-riv">${rows.length} partido${rows.length===1?"":"s"}</td>
     <td class="pm-l pm-tight"></td>
-    <td class="pm-l pm-tight">${tMin}'</td>
+    <td class="pm-l pm-tight">${tMin}’</td>
     <td class="pm-sp"></td>
     <td class="pm-s">${tGol}</td>
     <td class="pm-s">${tAsi}</td>
@@ -867,7 +946,15 @@ function renderPlayerDetail(playerId){
         })()}
         <span style="font-size:13px;color:var(--muted);">Partidos: <b style="color:var(--ink);">${(()=>{const v=effectiveCaps(p);return v!=null?v:"-";})()}</b> / Goles: <b style="color:var(--ink);">${(()=>{const v=effectiveGoalsNational(p);return v!=null?v:"-";})()}</b></span>
       </div>
-      <div style="margin-top:4px;">${p.brand ? `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">${kitSponsorLogoIcon(p.brand)}${escapeHtml(p.brand)}</span>` : `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}">Sin sponsor</span>`}</div>
+      <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">${(()=>{
+        // Porteros: botas y guantes. Sin marca de guantes (o la misma), una sola etiqueta; si son distintas:
+        // [Botas] / [Guantes].
+        const tag=(b,t)=> b ? `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}" title="${t}">${kitSponsorLogoIcon(b)}${escapeHtml(b)}</span>` : `<span class="badge conf" style="${KIT_SPONSOR_BADGE_STYLE}" title="${t}">Sin sponsor</span>`;
+        if(p.pos!=="GK") return tag(p.brand, "Marca patrocinadora");
+        const guantes = p.gloveBrand || p.brand;
+        if(!p.gloveBrand || (normLoose(guantes)===normLoose(p.brand||""))) return tag(p.brand, "Marca de botas y guantes");
+        return tag(p.brand, "Marca de botas") + `<span style="align-self:center;font-size:13px;color:var(--muted);">/</span>` + tag(guantes, "Marca de guantes");
+      })()}</div>
     </div>
     <div class="player-badge-render" data-pending data-player-id="${p.id}" style="width:150px;height:150px;border-radius:12px;overflow:hidden;background:var(--surface-2);flex-shrink:0;align-self:center;"></div>
     <div style="align-self:center;text-align:center;min-width:96px;">
@@ -975,7 +1062,7 @@ function playerTableHeadHTML(){
 function playerRowHTML(p){
   return `
     <tr data-action="open-player" data-id="${p.id}" style="cursor:pointer;">
-      <td>${personPhotoHTML(p, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(p)}${(typeof window!=="undefined"&&typeof window.playerInjuryBadge==="function")?window.playerInjuryBadge(p, p.teamId):""}</td>
+      <td>${personPhotoHTML(p, "width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(p)}${(typeof window!=="undefined"&&typeof window.playerInjuryBadge==="function")?window.playerInjuryBadge(p, p.teamId):""}</td>
       <td><span class="pos-chip pos-${p.pos}">${p.pos}</span> <span style="color:var(--muted);font-size:12px;">${positionsText(p)}</span></td>
       <td>${(()=>{const cn=playerCountryName(p);return cn?flagIconHTML(cn)+escapeHtml(cn):"—";})()}</td>
       <td>${playerAge(p)!=null?playerAge(p):'—'}</td>
@@ -1054,6 +1141,9 @@ function modalAddEditPlayer(teamId, player){
           ${imageUploadField("Foto del jugador (opcional)", "pphoto", player.photo, "Si no subes una, se usa una silueta genérica.")}
           <label class="field">Nombre<input id="f-pfirstname" value="${(player.firstName||"").replace(/"/g,"&quot;")}"></label>
           <label class="field">Apellido<input id="f-plastname" value="${(player.lastName||"").replace(/"/g,"&quot;")}"></label>
+          <label class="field-check" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-top:-4px;cursor:pointer;" title="Para nombres que se escriben con el apellido antes del nombre (p. ej. coreanos: Son Heung-min)">
+            <input type="checkbox" id="f-plastfirst" ${player.lastNameFirst?"checked":""} style="width:15px;height:15px;"> Apellido primero <span style="opacity:.7;">(p. ej. Son Heung-min)</span>
+          </label>
           <label class="field" style="grid-column:1/-1;">Nombre común (opcional)
             <input id="f-pcommonname" value="${(player.commonName||"").replace(/"/g,"&quot;")}" placeholder="Ej. Alisson — si lo dejas vacío, se usa Nombre + Apellido">
           </label>
@@ -1181,9 +1271,13 @@ function modalAddEditPlayer(teamId, player){
             <span style="font-size:10px;color:var(--muted);font-weight:400;">Se actualiza solo con el nombre común o el apellido — si lo cambias a mano, ya no.</span>
           </label>
           <input type="hidden" id="f-pshirtname-club-linked" value="${player.shirtNameClubLinked?'1':'0'}">
-          <label class="field" style="grid-column:1/-1;">Marca patrocinadora
+          <label class="field" id="f-pbrand-field" style="${player.pos==="GK"?"":"grid-column:1/-1;"}"><span id="f-pbrand-lbl">${player.pos==="GK"?"Marca patrocinadora de botas":"Marca patrocinadora"}</span>
             <input id="f-pbrand" list="player-brand-list" value="${(player.brand||"").replace(/"/g,"&quot;")}" placeholder="Escribe o elige una marca">
             <datalist id="player-brand-list"><option value="Sin sponsor">${apparelBrandNames().filter(b=>b.toLowerCase()!=="sin sponsor").map(b=>`<option value="${escapeHtml(b)}">`).join("")}</datalist>
+          </label>
+          <!-- Solo porteros: marca de guantes (vacía = la misma de las botas). Aparece/desaparece al cambiar la posición. -->
+          <label class="field" id="f-pgloves-wrap" style="${player.pos==="GK"?"":"display:none;"}">Marca patrocinadora de guantes
+            <input id="f-pglovebrand" list="player-brand-list" value="${(player.gloveBrand||"").replace(/"/g,"&quot;")}" placeholder="Vacío = la misma marca de las botas">
           </label>
         </div>
       </div>
@@ -1195,3 +1289,12 @@ function modalAddEditPlayer(teamId, player){
   `);
 }
 
+
+// Editor de jugador: al cambiar la posición, los campos de marca se adaptan en tiempo real (portero: botas y guantes).
+document.addEventListener("change", e=>{
+  if(!e.target || e.target.id!=="f-ppos") return;
+  const gk = e.target.value==="GK";
+  const lbl=document.getElementById("f-pbrand-lbl"); if(lbl) lbl.textContent = gk ? "Marca patrocinadora de botas" : "Marca patrocinadora";
+  const w=document.getElementById("f-pgloves-wrap"); if(w) w.style.display = gk ? "" : "none";
+  const fb=document.getElementById("f-pbrand-field"); if(fb) fb.style.gridColumn = gk ? "" : "1/-1";   // portero: botas y guantes en la misma fila
+});

@@ -177,8 +177,20 @@ function stadiumTeamsTagsHTML(s){
 
 // El apodo NO es un nombre aparte: ocupa el lugar del NOMBRE OFICIAL cuando está marcado como
 // nombre principal. Cuando NO lo está, el apodo no desaparece: baja al subtítulo.
+// Tres tipos de apodo:
+//   · ninguna casilla        → apodo "oficial" del inmueble, no es el principal (ej. "The Amex"): va de subtítulo.
+//   · "Es el nombre principal" → manda sobre el oficial (ej. "La Bombonera").
+//   · "Es un apodo popular"  → solo coloquial (ej. "El Coloso de Santa Úrsula"): NO aparece en la ficha
+//                              ni como nombre del estadio; solo en textos informales (correos, noticias, relatos).
+function stadiumNicknameIsPopular(s){
+  return !!(s && s.nicknamePopular && (s.nickname||"").trim());
+}
+// Apodo que cuenta como nombre del inmueble (vacío si es solo popular).
+function stadiumFormalNickname(s){
+  return stadiumNicknameIsPopular(s) ? "" : (s.nickname||"").trim();
+}
 function stadiumNicknameIsMain(s){
-  return !!(s.showNickname && (s.nickname||"").trim());
+  return !!(s.showNickname && !stadiumNicknameIsPopular(s) && (s.nickname||"").trim());
 }
 // Nombre que va en el espacio del "nombre oficial" (el apodo si es el principal, si no el oficial).
 function stadiumOfficialSlot(s){
@@ -186,14 +198,14 @@ function stadiumOfficialSlot(s){
 }
 // El otro nombre del par oficial/apodo: el que quedó libre y pasa al subtítulo.
 function stadiumOtherName(s){
-  return stadiumNicknameIsMain(s) ? (s.officialName||"").trim() : (s.nickname||"").trim();
+  return stadiumNicknameIsMain(s) ? (s.officialName||"").trim() : stadiumFormalNickname(s);
 }
 // Nombre principal del estadio:
 // 1) si es del Mundial → SIEMPRE el nombre de torneo FIFA (ni el apodo ni el oficial lo reemplazan);
 // 2) si no → el nombre del espacio oficial (el apodo si es el principal; si no, el oficial).
 function stadiumDisplayName(s){
-  if(s.worldCup) return (s.tournamentName||"").trim() || stadiumOfficialSlot(s) || (s.nickname||"").trim() || "Estadio";
-  return stadiumOfficialSlot(s) || (s.tournamentName||"").trim() || (s.nickname||"").trim() || "Estadio";
+  if(s.worldCup) return (s.tournamentName||"").trim() || stadiumOfficialSlot(s) || stadiumFormalNickname(s) || "Estadio";
+  return stadiumOfficialSlot(s) || (s.tournamentName||"").trim() || stadiumFormalNickname(s) || "Estadio";
 }
 // Nombre(s) secundario(s), en la línea pequeña de abajo: los nombres que no se usaron como principal,
 // separados por " · ". Así, si un estadio tiene apodo pero NO está marcado como principal, el apodo
@@ -249,7 +261,7 @@ function stadiumMatchName(st, isWorldCup){
 // Nombre para la lista "Todos los estadios": el del espacio oficial, o sea el apodo cuando está
 // marcado como principal (ahí el apodo SÍ manda, incluso en las sedes del Mundial).
 function stadiumOfficialName(s){
-  return stadiumOfficialSlot(s) || (s.tournamentName||"").trim() || (s.nickname||"").trim() || "Estadio";
+  return stadiumOfficialSlot(s) || (s.tournamentName||"").trim() || stadiumFormalNickname(s) || "Estadio";
 }
 // Subtítulo para la lista "Todos los estadios": el otro nombre del par oficial/apodo — el oficial si
 // arriba va el apodo, o el apodo si arriba va el oficial.
@@ -261,6 +273,90 @@ function stadiumOfficialSubName(s){
   const out = [];
   parts.forEach(n=>{ if(n && normLoose(n)!==normLoose(main) && !out.some(x=>normLoose(x)===normLoose(n))) out.push(n); });
   return out.join(" · ");
+}
+// ───────── Nombre CORTO (coloquial) ─────────
+// Cada estadio puede tener un nombre corto con su artículo ("el Azteca" en lugar de "el Estadio Azteca").
+// Es el nombre informal: se usa en correos, noticias, descripciones y highlights, pero en MENOR medida que
+// el nombre formal (≈75% formal, ≈25% corto). Si el estadio no tiene nombre corto, siempre va el formal.
+var STADIUM_CASUAL_SHORT_RATIO = 0.25;      // nombre corto ("el Azteca"); el 75% restante, el formal
+var STADIUM_MAIN_NICK_RATIO = 0.85;         // si el apodo es el nombre principal: 85% apodo, 15% oficial
+var STADIUM_POPULAR_AFTER_MENTIONS = 2;     // tras 2 menciones en un texto, se puede usar el apodo popular
+function stadiumShortName(s){ return s ? (s.shortName||"").trim() : ""; }
+// Artículo que acompaña al nombre FORMAL que toca mostrar (torneo FIFA / apodo principal / oficial).
+function stadiumFormalArticle(s, isWorldCup){
+  if(!s) return "";
+  const name = stadiumMatchName(s, !!isWorldCup);
+  const t = (s.tournamentName||"").trim(), n = (s.nickname||"").trim();
+  if(isWorldCup && t && name===t) return s.articleTournament!=null ? s.articleTournament : "El";
+  if(stadiumNicknameIsMain(s) && name===n) return s.articleNickname!=null ? s.articleNickname : "El";
+  return s.articleOfficial!=null ? s.articleOfficial : "El";
+}
+// Antepone el artículo (en minúscula, dentro de una frase) y aplica las contracciones del español:
+// prep "de" + el → "del", prep "a" + el → "al". prep es opcional ("en", "de", "a", "desde"…).
+// opts.cap = true pone la primera letra en mayúscula (inicio de oración).
+function stadiumWithArticle(name, article, prep, cap){
+  const nm = (name||"").trim(); if(!nm) return "";
+  const art = (article||"").trim().toLowerCase();
+  const p = (prep||"").trim().toLowerCase();
+  let out;
+  if(!art) out = (p ? p+" " : "") + nm;
+  else if(art==="el" && p==="de") out = "del "+nm;
+  else if(art==="el" && p==="a") out = "al "+nm;
+  else out = (p ? p+" " : "") + art + " " + nm;
+  return cap ? out.charAt(0).toUpperCase()+out.slice(1) : out;
+}
+// Nombre del estadio para un TEXTO del juego (correos, noticias, descripciones, highlights).
+// Reglas:
+//   · Normal: nombre formal ≈75% (oficial; el FIFA dentro del Mundial) y nombre corto ≈25% ("el Azteca").
+//     Sin nombre corto, siempre el formal.
+//   · Si el apodo ES el nombre principal (La Bombonera): apodo ≈85%, nombre oficial ≈15%.
+//   · El apodo POPULAR (el Coloso de Santa Úrsula) NO entra en el reparto: solo se usa cuando el texto lo
+//     pide — una nota sobre la afición o con tono romántico/épico (opts.tone:"aficion"|"romantico"), o
+//     cuando el nombre formal ya se repitió demasiado en el mismo texto (opts.mentions ≥ 2).
+//   st   → el estadio (objeto del catálogo) o un nombre guardado (se busca en el catálogo).
+//   opts → { worldCup:bool (default true), article:bool (default true), prep:"en"|"de"|"a"…,
+//            cap:bool, rnd:número 0..1 fijo (para que un mismo texto no cambie al redibujar),
+//            tone:"aficion"|"romantico", mentions:veces que ya se nombró el estadio en el texto,
+//            short:true|false para forzar o impedir la forma corta }
+// Devuelve el texto listo para insertar ("en el Estadio Ciudad de México", "en el Azteca"…).
+function stadiumCasualName(st, opts){
+  opts = opts || {};
+  if(typeof st==="string"){
+    const nm = st.trim();
+    const found = nm && typeof findStadiumForVenue==="function" ? findStadiumForVenue(nm)
+                : (nm && typeof findStadiumByName==="function" ? findStadiumByName(nm) : null);
+    if(!found) return opts.article===false ? nm : stadiumWithArticle(nm, "", opts.prep, opts.cap);
+    st = found;
+  }
+  if(!st) return "";
+  const wc = opts.worldCup!==false;
+  const r = (typeof opts.rnd==="number") ? opts.rnd : Math.random();
+  const art0 = a => (a==null ? "El" : a);
+  let pick;   // {name, art}
+  const formal = ()=>({name:stadiumMatchName(st, wc), art:stadiumFormalArticle(st, wc)});
+  const tonoPopular = opts.tone==="aficion" || opts.tone==="romantico" || (opts.mentions|0)>=STADIUM_POPULAR_AFTER_MENTIONS;
+  if(tonoPopular && stadiumNicknameIsPopular(st)){
+    pick = {name:(st.nickname||"").trim(), art:art0(st.articleNickname)};
+  } else if(stadiumNicknameIsMain(st)){
+    // Apodo como nombre principal: 85% apodo / 15% nombre oficial (el FIFA dentro del Mundial).
+    const ofi = wc && (st.tournamentName||"").trim()
+      ? {name:(st.tournamentName||"").trim(), art:art0(st.articleTournament)}
+      : ((st.officialName||"").trim() ? {name:(st.officialName||"").trim(), art:art0(st.articleOfficial)} : null);
+    const nickP = {name:(st.nickname||"").trim(), art:art0(st.articleNickname)};
+    pick = (ofi && r >= STADIUM_MAIN_NICK_RATIO) ? ofi : nickP;
+  } else {
+    const shortNm = stadiumShortName(st);
+    const usarCorto = !!shortNm && (opts.short===true || (opts.short!==false && r < STADIUM_CASUAL_SHORT_RATIO));
+    pick = usarCorto ? {name:shortNm, art:art0(st.articleShort)} : formal();
+  }
+  if(opts.article===false) return opts.prep ? stadiumWithArticle(pick.name, "", opts.prep, opts.cap) : pick.name;
+  return stadiumWithArticle(pick.name, pick.art, opts.prep, opts.cap);
+}
+// Igual que stadiumCasualName, pero a partir de un PARTIDO (usa su sede y si es de la Copa del Mundo).
+function fixtureStadiumCasualName(f, opts){
+  if(!f || !(f.venue||"").trim()) return "";
+  const wc = (typeof matchIsWorldCup==="function") ? matchIsWorldCup(f) : true;
+  return stadiumCasualName(f.venue, Object.assign({worldCup:wc}, opts||{}));
 }
 // Imagen genérica por defecto para estadios sin foto de exterior. Es de color fijo: NO se recolorea.
 var STADIUM_STAND_DEFAULT = "#B00010";   // color de grada por defecto (solo informativo en el editor)
@@ -449,7 +545,7 @@ function parseCoordsText(txt){
 }
 function modalAddEditStadium(stadium){
   const isEdit = !!stadium;
-  stadium = stadium || {id:null, tournamentName:"", officialName:"", nickname:"", showNickname:false, capacity:"", state:"", showState:false, city:"", country:"", lat:"", lng:"", turfType:"Natural", ownershipType:"Club", owner:"", teams:[], imgExterior:null, imgInterior:null, standColor:STADIUM_STAND_DEFAULT, standColor2:STADIUM_STAND_DEFAULT, standColor2Linked:true};
+  stadium = stadium || {id:null, tournamentName:"", officialName:"", shortName:"", articleShort:"El", nickname:"", showNickname:false, nicknamePopular:false, capacity:"", state:"", showState:false, city:"", country:"", lat:"", lng:"", turfType:"Natural", ownershipType:"Club", owner:"", teams:[], imgExterior:null, imgInterior:null, standColor:STADIUM_STAND_DEFAULT, standColor2:STADIUM_STAND_DEFAULT, standColor2Linked:true};
   const standHex = stadium.standColor || STADIUM_STAND_DEFAULT;
   // Segundo color de grada: por defecto sigue al primero (mismo color) hasta que se modifique a mano.
   const stand2Linked = (stadium.standColor2Linked !== false);
@@ -465,6 +561,13 @@ function modalAddEditStadium(stadium){
               <input id="f-st-oname" value="${escapeHtml(stadium.officialName||'')}" placeholder="${T('stadium.officialName.placeholder')}" style="flex:1;">
             </div>
           </div>
+          <div class="field" style="grid-column:1/-1;display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">Nombre corto
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${stadiumArticleSelectHTML("f-st-sname-article", stadium.articleShort)}
+              <input id="f-st-sname" value="${escapeHtml(stadium.shortName||'')}" placeholder="Ej: Azteca" style="flex:1;">
+            </div>
+            <span style="font-weight:400;font-size:11px;">Forma coloquial (“el Azteca” en vez de “el Estadio Azteca”). Aparece de vez en cuando en correos, noticias y relatos; el nombre oficial sigue siendo el principal.</span>
+          </div>
           <div class="field" style="grid-column:1/-1;display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">${T('stadium.tournamentName.label')}
             <div style="display:flex;align-items:center;gap:8px;">
               ${stadiumArticleSelectHTML("f-st-tname-article", stadium.articleTournament)}
@@ -476,12 +579,18 @@ function modalAddEditStadium(stadium){
             <div style="display:flex;align-items:center;gap:10px;">
               ${stadiumArticleSelectHTML("f-st-nickname-article", stadium.articleNickname)}
               <input id="f-st-nickname" value="${escapeHtml(stadium.nickname||'')}" placeholder="Ej: La Bombonera" style="flex:1;">
+            </div>
+            <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;cursor:pointer;">
-                <input type="checkbox" id="f-st-shownick" ${stadium.showNickname?'checked':''} style="width:auto;margin:0;">
+                <input type="checkbox" id="f-st-shownick" onchange="if(this.checked){var o=document.getElementById('f-st-popnick');if(o)o.checked=false;}" ${(stadium.showNickname && !stadium.nicknamePopular)?'checked':''} style="width:auto;margin:0;">
                 Es el nombre principal
               </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;cursor:pointer;">
+                <input type="checkbox" id="f-st-popnick" onchange="if(this.checked){var o=document.getElementById('f-st-shownick');if(o)o.checked=false;}" ${(stadium.nicknamePopular && !stadium.showNickname)?'checked':''} style="width:auto;margin:0;">
+                Es un apodo popular
+              </label>
             </div>
-            <div style="font-size:10px;color:var(--muted);font-weight:400;line-height:1.5;">Si está marcado, el apodo pasa a ser el nombre principal y el oficial queda pequeño debajo. Si no lo marcas, el apodo es el que aparece debajo del nombre oficial.</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:400;line-height:1.5;">Sin marcar: apodo oficial del inmueble (ej. The Amex), aparece debajo del nombre oficial. «Es el nombre principal»: el apodo manda y el oficial queda pequeño debajo (ej. La Bombonera). «Es un apodo popular»: solo se usa de forma coloquial en correos, noticias y relatos; no aparece en la ficha (ej. El Coloso de Santa Úrsula).</div>
           </div>
 
           <div class="subhead">Imágenes del estadio <span style="font-weight:400;color:var(--muted);font-size:11px;">(ideal 16:9 — 960×540, 1080×608 o 1920×1080)</span></div>

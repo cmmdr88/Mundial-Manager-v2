@@ -385,7 +385,50 @@ function mediaSocialProfile(m, coverageName){
   };
 }
 
-function modalAddEditMedia(media){
+// Sección «Patrocinador» del editor de medios (cuando el medio TAMBIÉN es patrocinador): categorías,
+// «Ligado a» y empresas relacionadas, con los mismos controles del editor de patrocinadores.
+function mediaSponsorSectionHTML(media, abierta){
+  let sp = media && media.sponsorId ? (DB.sponsors||[]).find(s=>s.id===media.sponsorId) : null;
+  if(!sp && media && media.name) sp = (DB.sponsors||[]).find(s=>!s.mediaId && normLoose(s.name)===normLoose(media.name)) || null;   // ya existía con ese nombre
+  if(!sp && media && media.sponsorBackup) sp = Object.assign({ name:media.name }, media.sponsorBackup);                         // se había desmarcado
+  const base = sp || { name:(media&&media.name)||"", categories:[], links:[] };
+  const cats = sponsorCategoriesOf(base);
+  const links = base.id ? sponsorEffectiveLinks(base) : sponsorLinksOf(base);
+  const activo = !!(media && media.alsoSponsor);
+  return `
+  <label class="field" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:9px;">
+    <input type="checkbox" id="f-msponsor" style="width:auto;flex-shrink:0;" ${activo?'checked':''}>
+    <span style="display:flex;flex-direction:column;gap:2px;"><span style="color:var(--ink);font-weight:600;">También es patrocinador</span><span style="font-weight:400;color:var(--muted);font-size:11px;">Si está marcado, el medio aparece en la lista de patrocinadores (con su nombre, logos y colores).</span></span>
+  </label>
+  <details id="f-msponsor-box" class="sponsor-rel-details" style="grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;${activo?'':'display:none;'}" ${abierta?'open':''}>
+    <summary style="cursor:pointer;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;list-style:none;background:var(--surface-2);white-space:nowrap;">Patrocinador</summary>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">Categorías (puedes agregar varias)
+        <div id="sponsor-cat-rows">${(cats.length?cats:[""]).map(c=>sponsorCategoryRowHTML(c)).join("")}</div>
+        <div><button type="button" class="btn ghost sm" data-action="add-sponsor-cat-row">+ Agregar categoría</button></div>
+        <datalist id="sponsor-cat-list">${(DB.sponsorCategories||[]).map(c=>`<option value="${escapeHtml(c)}">`).join("")}</datalist>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">Ligado a (torneo, selección, club o estadio — cada uno con su valor en millones)
+        <div id="sponsor-link-rows">${(links.length?links:[{type:"team"}]).map(l=>sponsorLinkRowHTML(l)).join("")}</div>
+        <div><button type="button" class="btn ghost sm" data-action="add-sponsor-link-row">+ Agregar enlace</button></div>
+        <datalist id="sponsor-link-tournaments"><option value="${escapeHtml(eventShortNameLabel())}"></datalist>
+        <datalist id="sponsor-link-teams">${datalistOptions(DB.teams.slice().filter(t=>!t.hidden).sort((a,b)=>a.commonName.localeCompare(b.commonName,'es')).map(t=>t.commonName))}</datalist>
+        <datalist id="sponsor-link-clubs">${datalistOptions(DB.clubs.slice().sort((a,b)=>a.localeCompare(b,'es')))}</datalist>
+        <datalist id="sponsor-link-stadiums">${datalistOptions((DB.stadiums||[]).map(st=>(typeof stadiumOfficialName==="function"?stadiumOfficialName(st):(st.officialName||st.nickname||""))).filter(Boolean).sort((a,b)=>a.localeCompare(b,'es')))}</datalist>
+      </div>
+      ${relatedCompaniesSectionHTML(base)}
+    </div>
+  </details>`;
+}
+// El cuadro «Patrocinador» aparece/desaparece al marcar la casilla.
+document.addEventListener("change", e=>{
+  if(!e.target || e.target.id!=="f-msponsor") return;
+  const box=document.getElementById("f-msponsor-box"); if(!box) return;
+  box.style.display = e.target.checked ? "" : "none";
+  if(e.target.checked) box.open = true;
+});
+function modalAddEditMedia(media, opts){
+  opts = opts || {};
   const isEdit = !!media;
   media = media || {id:null, name:"", categories:[], newsSource:true, coverage:["Internacional"], reach:20, logoImg:null, logoVDark:null, logoVLight:null, logoHDark:null, logoHLight:null, logoAlts:[], logoPrincipal:"horizontal", logoGrafico:"hd", iconLogo:"hd", iconColor:"0", iconLogoSize:75, color1:"#4F46E5", color2:"#15161D", color3:"#FFFFFF", socialAvatar:null, socialAvatarManual:false, socialProfileName:"", socialUsername:"", socialVerified:"", socialAvatarLogo:"hd", socialAvatarColor:0, socialByCoverage:{}};
   // Compatibilidad: si solo existe el logo heredado, se muestra como "Horizontal — fondo oscuro".
@@ -482,6 +525,8 @@ function modalAddEditMedia(media){
           })}
 
           ${(typeof logoAltsSectionHTML==="function") ? logoAltsSectionHTML("malt", entityLogoAlts(media)) : ""}
+
+          ${mediaSponsorSectionHTML(media, !!opts.abrirPatrocinador)}
         </div>
       </div>
       <div class="modal-foot">

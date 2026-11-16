@@ -54,6 +54,13 @@ function ensureApparelBrandSponsor(name, opts){
   return sp;
 }
 // Igual que matchOrAddClub pero para las marcas patrocinadoras: ahora las crea como patrocinadores.
+// Celda «Marca patrocinadora» de la importación desde Excel. Con dos marcas separadas por coma
+// ("Nike, Reusch"), la PRIMERA es la de botas y la SEGUNDA la de guantes (solo porteros).
+// «Sin sponsor» o vacío = sin marca. Devuelve {botas, guantes} ya emparejadas con el catálogo.
+function brandsFromImportCell(raw){
+  const partes = String(raw||"").split(",").map(x=>x.trim()).filter(x=>x && x.toLowerCase()!=="sin sponsor");
+  return { botas: partes[0] ? matchOrAddBrand(partes[0]) : null, guantes: partes[1] ? matchOrAddBrand(partes[1]) : null };
+}
 function matchOrAddBrand(raw){
   const name = (raw||"").trim();
   if(!name) return "";
@@ -289,6 +296,8 @@ function sponsorLinkRowHTML(link){
       <option value="stadium" ${type==="stadium"?"selected":""}>Estadio</option>
     </select>
     <input class="sponsor-link-name" list="${sponsorLinkListId(type)}" value="${escapeHtml(value)}" placeholder="${escapeHtml(sponsorLinkPlaceholder(type))}" style="flex:1;min-width:0;" ${isT?'readonly':''}>
+    ${isT?"":`<input class="sponsor-link-desde" value="${escapeHtml((link&&link.desde)||"")}" placeholder="Desde" title="Desde (año o fecha aaaa-mm-dd; vacío = siempre)" style="flex:0 0 62px;min-width:0;font-size:11px;">
+    <input class="sponsor-link-hasta" value="${escapeHtml((link&&link.hasta)||"")}" placeholder="Hasta" title="Hasta (año o fecha aaaa-mm-dd; vacío = vigente)" style="flex:0 0 62px;min-width:0;font-size:11px;">`}
     <span style="flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--muted);white-space:nowrap;">$<input class="sponsor-link-value" type="number" min="0" value="${val}" title="Valor (millones)" style="width:66px;">M</span>
     <button type="button" class="btn danger sm" data-action="remove-sponsor-link-row" style="flex-shrink:0;">✕</button>
   </div>`;

@@ -177,7 +177,7 @@ function coachRowHTML(c, team){
   return `
   <div class="player-row" data-action="open-coach" data-id="${c.id}" style="cursor:pointer;">
     <span class="num-badge coach-role-badge" style="width:auto;padding:0 8px;font-size:10px;letter-spacing:.05em;">${coachRoleBadge(c.contractRole)}</span>
-    <span class="pname">${personPhotoHTML(c, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;flex-shrink:0;")}${playerDisplayNameHTML(c)}</span>
+    <span class="pname">${personPhotoHTML(c, "width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:6px;flex-shrink:0;")}${playerDisplayNameHTML(c)}</span>
     <span class="pmeta">${playerAgeText(c)}${puesto?` · ${escapeHtml(puesto)}`:""}</span>
     <span class="prating">${c.rating!=null?c.rating:"-"}</span>
     <button class="btn ghost sm" data-action="edit-coach" data-team="${team.id}" data-id="${c.id}">Editar</button>
@@ -257,7 +257,7 @@ function renderEntrenadores(){
       <tbody>
       ${pg.items.map(c=>`
         <tr data-action="open-coach" data-id="${c.id}" style="cursor:pointer;">
-          <td>${personPhotoHTML(c, "width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(c)}</td>
+          <td>${personPhotoHTML(c, "width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:6px;")}${playerDisplayNameHTML(c)}</td>
           <td>${(()=>{const cn=playerCountryName(c);return cn?flagIconHTML(cn)+escapeHtml(cn):"—";})()}</td>
           <td>${playerAge(c)!=null?playerAge(c):'—'}</td>
           <td>${coachEquipoCellHTML(c) || `<span class="tag-free-agent">Agente libre</span>`}</td>
@@ -297,6 +297,9 @@ function modalAddEditCoach(teamId, coach, prefill){
           ${imageUploadField("Foto del entrenador (opcional)", "cphoto", coach.photo, "Si no subes una, se usa una silueta genérica.")}
           <label class="field">Nombre<input id="f-cfirstname" value="${(coach.firstName||"").replace(/"/g,"&quot;")}"></label>
           <label class="field">Apellido<input id="f-clastname" value="${(coach.lastName||"").replace(/"/g,"&quot;")}"></label>
+          <label class="field-check" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-top:-4px;cursor:pointer;" title="Para nombres que se escriben con el apellido antes del nombre (p. ej. coreanos: Son Heung-min)">
+            <input type="checkbox" id="f-clastfirst" ${coach.lastNameFirst?"checked":""} style="width:15px;height:15px;"> Apellido primero <span style="opacity:.7;">(p. ej. Kim Pan-gon)</span>
+          </label>
           <label class="field" style="grid-column:1/-1;">Nombre común (opcional)
             <input id="f-ccommonname" value="${(coach.commonName||"").replace(/"/g,"&quot;")}" placeholder="Si lo dejas vacío, se usa Nombre + Apellido">
           </label>
